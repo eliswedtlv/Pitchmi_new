@@ -1,9 +1,10 @@
 # PitchMi — STATUS
 
 ## Current state
-v1 core loop is built end-to-end (T-1150). **Server** (Express) exposes the full API — projects, transcribe (ElevenLabs Scribe via ffmpeg-static audio extraction), karaoke path, evaluate (timing/accuracy scoring + Gemini delivery eval via OpenRouter/Gemini), save, takes, ad stub, and admin — behind a fail-open kill switch, surge auto-trip, upload cap, JWT auth, and RLS. **Client** (Next.js 15) implements all 8 screens with anonymous Supabase auth, camera recorder, live fit meter, `performance.now()`-based karaoke teleprompter, results, my-videos, and admin. All automated acceptance checks (§13 #1–#13) pass. Not yet run: real external-API smoke (needs keys) and the manual browser checklist below.
+v1 core loop is built end-to-end (T-1150). **Server** (Express) exposes the full API — projects, transcribe (ElevenLabs Scribe via ffmpeg-static audio extraction), karaoke path, evaluate (timing/accuracy scoring + Gemini delivery eval via OpenRouter/Gemini), save, takes, ad stub, and admin — behind a fail-open kill switch, surge auto-trip, upload cap, JWT auth (Supabase JWKS ES256 with HS256 fallback), and RLS. **Client** (Next.js 15) implements all 8 screens with anonymous Supabase auth, camera recorder, live fit meter, `performance.now()`-based karaoke teleprompter, results, my-videos, and admin. All automated acceptance checks (§13 #1–#13) pass. Not yet run: real external-API smoke (needs keys) and the manual browser checklist below.
 
 ## Recently shipped
+- 2026-07-18 (T-1151): Auth — server middleware now verifies Supabase user JWTs against the project JWKS (ES256, modern asymmetric signing keys) via `jose` `createRemoteJWKSet`+`jwtVerify` (key set cached across requests); HS256+`SUPABASE_JWT_SECRET` retained as fallback for legacy projects and tests. Fixes prod 401s from project `ciknhdocqyuxlzsnhzbc`. New `tests/auth.test.js` (6 cases: ES256 valid/wrong-key/expired, HS256 pass/wrong-secret, no-header); 41 Jest tests green, StandardJS clean.
 - 2026-07-16 (T-1150): Client — Next.js 15 App Router (8 screens), useRecorder/useKaraokeClock/useWakeLock hooks, `<AdSlot/>`, Supabase anon auth, API client, Zustand store, Tailwind v4 + shadcn-style UI. `next build` exit 0; 29 vitest tests green (fit meter + karaoke clock w/ fake timers). Fixed admin logs/aggregates response-shape + field-name mismatches.
 - 2026-07-16 (T-1150): Server API — all routes + middleware (kill switch, surge, upload cap, auth, admin cookie), Scribe/ffmpeg/eval integrations, DB migrations + RLS, eval prompt, smoke script, sample/demo video fixtures. 35 Jest tests green; StandardJS clean.
 - 2026-07-16 (T-1150): Server CORE IP — karaoke path (§6) + take scoring (§7), 21 unit tests over all edge cases.
@@ -13,6 +14,7 @@ v1 core loop is built end-to-end (T-1150). **Server** (Express) exposes the full
 - Nothing in progress. v1 core loop code-complete pending real-key smoke + manual QA.
 
 ## Known issues / deviations
+- **Deviation:** `jose` pinned to 5.x (not 6.x). v6 is ESM-only; the server is CommonJS and the Jest runtime can't `requireActual` an ESM-only module. v5 ships dual CJS/ESM. `jose` was not a pre-pinned library.
 - **Deviation:** `multer` pinned to 2.x (not 1.x) — 1.x has published CVEs; multer was not a pinned library. API compatible.
 - **Deviation:** added `original_words jsonb` column to `projects` (beyond §4). `/api/path` needs take-1 word timings and §4's schema had nowhere to persist them. Reflected in `server/db/migrations/0001_init.sql`.
 - **Deviation:** local Node is v24.11.1; spec pins Node 22 (Railway runtime). v24 is backward-compatible for dev; `engines` allows `>=22`.
