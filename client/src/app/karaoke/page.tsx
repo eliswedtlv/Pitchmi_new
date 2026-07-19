@@ -118,7 +118,7 @@ export default function KaraokePage() {
 
       {/* Stop button */}
       {state === "recording" && (
-        <div className="flex justify-center pb-8">
+        <div className="flex justify-center safe-b-8">
           <Button onClick={stop} variant="destructive" size="lg" className="gap-2">
             <Square className="h-5 w-5 fill-current" />
             Stop recording

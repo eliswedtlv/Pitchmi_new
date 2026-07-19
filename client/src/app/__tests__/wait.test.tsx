@@ -1,0 +1,80 @@
+import { render, screen, act, fireEvent } from "@testing-library/react"
+import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest"
+
+// Shared mocks (hoisted so the vi.mock factories can reference them).
+const h = vi.hoisted(() => ({
+  push: vi.fn(),
+  getAd: vi.fn(),
+  evaluateVideo: vi.fn(),
+  setEvalResult: vi.fn(),
+}))
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }))
+vi.mock("@/lib/api", () => ({ getAd: h.getAd, evaluateVideo: h.evaluateVideo }))
+vi.mock("@/store/session", () => ({
+  useSession: () => ({
+    project: { id: "p1" },
+    takeBlob: new Blob(["take"]),
+    setEvalResult: h.setEvalResult,
+  }),
+}))
+
+import WaitPage from "../wait/page"
+
+// jsdom doesn't implement media playback; AdSlot calls video.play().catch().
+beforeAll(() => {
+  Object.defineProperty(HTMLMediaElement.prototype, "play", {
+    configurable: true,
+    value: () => Promise.resolve(),
+  })
+})
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  h.getAd.mockResolvedValue({ type: "demo", url: "/ads/demo.mp4", skippable_after_s: 5 })
+})
+
+describe("WaitPage — Skip Ad never aborts the pending evaluation", () => {
+  it("keeps the eval promise alive after Skip Ad, then routes to results when it resolves", async () => {
+    vi.useFakeTimers()
+
+    // A deferred we resolve by hand — stands in for the 60–120s server call.
+    let resolveEval: (v: unknown) => void = () => {}
+    h.evaluateVideo.mockImplementation(
+      () => new Promise((res) => { resolveEval = res }),
+    )
+
+    render(<WaitPage />)
+
+    // Flush getAd's microtask so the ad (and its Skip countdown) mounts.
+    await act(async () => { await Promise.resolve() })
+
+    // Evaluation kicked off exactly once.
+    expect(h.evaluateVideo).toHaveBeenCalledTimes(1)
+    expect(h.evaluateVideo.mock.calls[0][1]).toBe("p1")
+
+    // Advance past the 5s skippable window so "Skip Ad" appears.
+    await act(async () => { vi.advanceTimersByTime(5000) })
+    const skip = screen.getByRole("button", { name: /skip ad/i })
+
+    // Tapping Skip only hides the ad — it must not abort or re-issue the eval,
+    // and must not navigate away.
+    await act(async () => { fireEvent.click(skip) })
+
+    expect(h.evaluateVideo).toHaveBeenCalledTimes(1) // not re-called / not aborted
+    expect(h.push).not.toHaveBeenCalled() // still waiting on the pending request
+    expect(screen.queryByRole("button", { name: /skip ad/i })).toBeNull() // ad hidden
+
+    // The still-pending request now resolves — flow completes normally.
+    await act(async () => {
+      resolveEval({ overall: 88, dimensions: {}, comments: [], flags: [], evals_left_today: 5 })
+      await Promise.resolve()
+      await Promise.resolve()
+    })
+
+    expect(h.setEvalResult).toHaveBeenCalledTimes(1)
+    expect(h.push).toHaveBeenCalledWith("/results")
+
+    vi.useRealTimers()
+  })
+})

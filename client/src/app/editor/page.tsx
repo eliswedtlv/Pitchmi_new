@@ -45,7 +45,7 @@ export default function EditorPage() {
   const speedSteps = [0.75, 0.875, 1.0, 1.125, 1.25]
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 py-8">
+    <main className="min-h-screen bg-neutral-50 px-4 pt-8 safe-b-8">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-neutral-900">Edit your script</h1>

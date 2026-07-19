@@ -80,7 +80,7 @@ export default function HomePage() {
   }
 
   return (
-    <main className="min-h-screen bg-gradient-to-b from-neutral-50 to-white px-4 py-12">
+    <main className="min-h-screen bg-gradient-to-b from-neutral-50 to-white px-4 pt-12 safe-b-12">
       <div className="max-w-lg mx-auto space-y-8">
         {/* Header */}
         <div className="text-center space-y-2">

@@ -70,7 +70,8 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
   test('fenced JSON succeeds on first attempt, no error event', async () => {
     const calls = mockOpenRouter('```json\n' + JSON.stringify(VALID) + '\n```')
     const out = await evaluateVideo(Buffer.from('v'), 'video/webm', { useCase: 'pitch' })
-    expect(out).toEqual(VALID)
+    expect(out).toMatchObject(VALID)
+    expect(out.attempts).toBe(1) // stage metadata for the evaluate event
     expect(calls()).toBe(1)
     expect(dbMock.__state.events.find(e => e.action === 'error')).toBeFalsy()
   })

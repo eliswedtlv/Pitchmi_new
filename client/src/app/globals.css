@@ -17,3 +17,20 @@ body {
   color: var(--foreground);
   font-family: system-ui, -apple-system, sans-serif;
 }
+
+/* Safe-area helpers — keep bottom CTAs clear of the iOS Safari toolbar / home
+   indicator. Paired with viewport-fit=cover (see layout.tsx). Written as plain
+   classes (after the Tailwind import) so they win on ties and are never purged. */
+.safe-b-4 {
+  padding-bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}
+.safe-b-8 {
+  padding-bottom: calc(2rem + env(safe-area-inset-bottom, 0px));
+}
+.safe-b-12 {
+  padding-bottom: calc(3rem + env(safe-area-inset-bottom, 0px));
+}
+/* Position a bottom-anchored element above the home indicator. */
+.safe-pos-4 {
+  bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
+}

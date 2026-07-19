@@ -63,7 +63,7 @@ export default function VideosPage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 py-8">
+    <main className="min-h-screen bg-neutral-50 px-4 pt-8 safe-b-8">
       <div className="max-w-2xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold text-neutral-900">My Videos</h1>
@@ -75,7 +75,7 @@ export default function VideosPage() {
         {/* Playback modal */}
         {playUrl && (
           <div
-            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4"
+            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 safe-b-4"
             onClick={() => setPlayUrl(null)}
           >
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl">

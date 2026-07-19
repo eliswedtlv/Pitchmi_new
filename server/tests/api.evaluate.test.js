@@ -58,6 +58,10 @@ describe('POST /api/evaluate', () => {
     expect(evt).toBeTruthy()
     expect(typeof evt.latency_ms).toBe('number')
     expect(typeof evt.cost_usd).toBe('number')
+    // Stage timings ride along as numeric metadata (privacy rule kept).
+    expect(typeof evt.scores.timings.scribe_ms).toBe('number')
+    expect(typeof evt.scores.timings.eval_ms).toBe('number')
+    expect(evt.scores.timings.attempts).toBe(1)
   })
 
   test('#10 no Storage write during evaluate', async () => {

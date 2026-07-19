@@ -33,15 +33,19 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res, next) =>
     const path = project.path || { words: [] }
 
     const ext = extForMime(req.file.mimetype)
+    const scribeStart = Date.now()
     const audio = await extractAudio(req.file.buffer, ext)
     const take = await transcribe(audio.buffer, audio.mime)
+    const scribeMs = Date.now() - scribeStart
 
     const scored = scoreTake(take.words, path)
+    const evalStart = Date.now()
     const delivery = await evaluateVideo(req.file.buffer, req.file.mimetype || 'video/webm', {
       useCase: project.use_case,
       useCaseCustom: project.use_case_custom,
       language: take.language || project.language
     })
+    const evalMs = Date.now() - evalStart
 
     const combined = combineResult({
       voice: delivery.voice,
@@ -69,7 +73,13 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res, next) =>
       project_id: projectId,
       duration_s: take.duration_s,
       language: result.language,
-      scores: { ...combined.dimensions, overall: combined.overall },
+      // Numeric metadata only (privacy rule). `timings` carries per-stage
+      // durations so ops can see why an evaluate took 60–120s.
+      scores: {
+        ...combined.dimensions,
+        overall: combined.overall,
+        timings: { scribe_ms: scribeMs, eval_ms: evalMs, attempts: delivery.attempts || 1 }
+      },
       latency_ms: Date.now() - started,
       cost_usd: costUsd
     })

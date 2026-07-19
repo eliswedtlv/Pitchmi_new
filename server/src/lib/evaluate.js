@@ -158,7 +158,9 @@ async function evaluateVideo (bytes, mime, promptCtx) {
     const p = attempt === 2 ? prompt + STRICT_REMINDER : prompt
     try {
       lastRaw = await callProvider(bytes, mime, p)
-      return parseResult(lastRaw)
+      const parsed = parseResult(lastRaw)
+      parsed.attempts = attempt + 1
+      return parsed
     } catch (err) {
       lastErr = err
     }

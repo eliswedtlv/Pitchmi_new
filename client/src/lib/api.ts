@@ -159,20 +159,66 @@ export interface EvalResult {
   evals_left_today: number
 }
 
-export async function evaluateVideo(
+/** Evaluate is slow (Scribe + video eval + JSON retries: ~60–120s, worst case
+ *  more). Give the request 5 minutes before we ever consider it dead. */
+export const EVAL_TIMEOUT_MS = 5 * 60 * 1000
+
+export type EvalStage = "uploading" | "processing"
+
+/**
+ * Uploads the take and waits for the AI evaluation. Uses XMLHttpRequest (not
+ * fetch) to surface real upload progress and to hold a long, explicit timeout —
+ * never below {@link EVAL_TIMEOUT_MS}. `onProgress` reports "uploading" (with a
+ * 0–1 fraction) until the bytes are sent, then "processing" while the server works.
+ */
+export function evaluateVideo(
   video: File | Blob,
   projectId: string,
+  onProgress?: (stage: EvalStage, fraction?: number) => void,
 ): Promise<EvalResult> {
-  const headers = await authHeaders()
-  const form = new FormData()
-  form.append("video", video)
-  form.append("project_id", projectId)
-  const res = await fetch(`${BASE}/api/evaluate`, {
-    method: "POST",
-    headers,
-    body: form,
-  })
-  return handleResponse(res)
+  return authHeaders().then(
+    (headers) =>
+      new Promise<EvalResult>((resolve, reject) => {
+        const form = new FormData()
+        form.append("video", video)
+        form.append("project_id", projectId)
+
+        const xhr = new XMLHttpRequest()
+        xhr.open("POST", `${BASE}/api/evaluate`)
+        if (headers.Authorization) xhr.setRequestHeader("Authorization", headers.Authorization)
+        xhr.timeout = EVAL_TIMEOUT_MS
+
+        xhr.upload.onprogress = (e) => {
+          if (e.lengthComputable) onProgress?.("uploading", e.loaded / e.total)
+        }
+        xhr.upload.onload = () => onProgress?.("processing")
+
+        xhr.onload = () => {
+          let body: { message?: string; error?: string; limit?: number } = {}
+          try {
+            body = JSON.parse(xhr.responseText)
+          } catch {
+            body = { error: "unknown" }
+          }
+          if (xhr.status >= 200 && xhr.status < 300) {
+            resolve(body as unknown as EvalResult)
+          } else {
+            reject(
+              Object.assign(new Error(body.message ?? body.error ?? "Request failed"), {
+                status: xhr.status,
+                body,
+              }),
+            )
+          }
+        }
+        xhr.onerror = () =>
+          reject(Object.assign(new Error("Network error"), { status: 0 }))
+        xhr.ontimeout = () =>
+          reject(Object.assign(new Error("Evaluation timed out"), { status: 0 }))
+
+        xhr.send(form)
+      }),
+  )
 }
 
 // ── Save ───────────────────────────────────────────────────────────────────
