@@ -8,6 +8,7 @@
 const fs = require('fs')
 const path = require('path')
 const config = require('../config')
+const db = require('./db')
 
 const PROMPT_PATH = path.join(__dirname, '..', 'prompts', 'eval.md')
 let PROMPT_TEMPLATE = null
@@ -33,13 +34,40 @@ function buildPrompt ({ useCase, useCaseCustom, language }) {
     .replace('{{LANGUAGE}}', language || 'the take\'s spoken language')
 }
 
+// Pull a JSON object out of raw model text: strip markdown code fences, then
+// return the first balanced {...} block, tolerating leading/trailing prose.
+function extractJsonBlock (text) {
+  let s = text.trim()
+  const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fence) s = fence[1].trim()
+  const start = s.indexOf('{')
+  if (start === -1) return null
+  let depth = 0
+  let inStr = false
+  let esc = false
+  for (let i = start; i < s.length; i++) {
+    const ch = s[i]
+    if (inStr) {
+      if (esc) esc = false
+      else if (ch === '\\') esc = true
+      else if (ch === '"') inStr = false
+    } else if (ch === '"') inStr = true
+    else if (ch === '{') depth++
+    else if (ch === '}') {
+      depth--
+      if (depth === 0) return s.slice(start, i + 1)
+    }
+  }
+  return null
+}
+
 // Validate + coerce the model output into the strict shape.
 function parseResult (raw) {
   let obj = raw
   if (typeof raw === 'string') {
-    const match = raw.match(/\{[\s\S]*\}/)
-    if (!match) throw new Error('no JSON object in model output')
-    obj = JSON.parse(match[0])
+    const block = extractJsonBlock(raw)
+    if (!block) throw new Error('no JSON object in model output')
+    obj = JSON.parse(block)
   }
   const clamp = v => Math.max(0, Math.min(100, Math.round(Number(v))))
   const voice = clamp(obj.voice)
@@ -118,18 +146,30 @@ async function callProvider (bytes, mime, prompt) {
     : callOpenRouter(bytes, mime, prompt)
 }
 
+const STRICT_REMINDER = '\n\nReturn ONLY the JSON object, no prose, no fences.'
+
 async function evaluateVideo (bytes, mime, promptCtx) {
   const prompt = buildPrompt(promptCtx || {})
   let lastErr
-  // One retry on malformed JSON.
-  for (let attempt = 0; attempt < 2; attempt++) {
+  let lastRaw = ''
+  // Attempts: initial, one plain retry, then a stricter retry that appends a
+  // terse reminder demanding bare JSON.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const p = attempt === 2 ? prompt + STRICT_REMINDER : prompt
     try {
-      const raw = await callProvider(bytes, mime, prompt)
-      return parseResult(raw)
+      lastRaw = await callProvider(bytes, mime, p)
+      return parseResult(lastRaw)
     } catch (err) {
       lastErr = err
     }
   }
+  // Final failure: log a metadata-only diagnostic. Privacy rule — never the
+  // model text itself, only its length, whether it was fenced, and the provider.
+  const raw = lastRaw || ''
+  await db.logEvent({
+    action: 'error',
+    error: `eval_parse_fail provider=${config.EVAL_PROVIDER} len=${raw.length} fenced=${raw.includes('```')}`
+  })
   throw lastErr
 }
 
