@@ -60,9 +60,16 @@ export default function KaraokePage() {
         className="absolute inset-0 w-full h-full object-cover"
       />
 
-      {/* Karaoke subtitles overlaid on the video (bottom third) */}
+      {/* Karaoke subtitles overlaid on the video (upper third, near camera) */}
       {(state === "recording" || state === "countdown") && (
-        <Prompter words={words} lines={lines} activeIdx={activeIdx} dir={dir} />
+        <Prompter
+          words={words}
+          lines={lines}
+          activeIdx={activeIdx}
+          dir={dir}
+          lang={lang}
+          phase={state === "recording" ? "recording" : "countdown"}
+        />
       )}
 
       {/* Countdown overlaid on the video */}

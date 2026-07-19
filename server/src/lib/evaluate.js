@@ -82,34 +82,64 @@ function parseResult (raw) {
 
 // --- OpenRouter (chat completions with a video content part) ---
 
+const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
+
+// Base64 data-URL video is only accepted by OpenRouter's Vertex Gemini backend;
+// the AI-Studio backend takes YouTube URLs only, so an unrestricted request
+// 500s whenever OpenRouter load-balances us onto AI Studio (T-1162 §A). Pin the
+// request to Vertex and disable fallbacks so we never hit AI Studio.
 async function callOpenRouter (bytes, mime, prompt) {
   if (!config.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY not set')
+  // Real per-take mime (video/mp4 from iOS, video/webm from Chrome) — never
+  // hardcoded, or Vertex rejects the container.
   const dataUrl = `data:${mime};base64,${bytes.toString('base64')}`
-  const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.OPENROUTER_API_KEY}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      model: config.EVAL_MODEL,
-      temperature: 0.2,
-      response_format: { type: 'json_object' },
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: prompt },
-          { type: 'video_url', video_url: { url: dataUrl } }
-        ]
-      }]
-    })
+  const body = JSON.stringify({
+    model: config.EVAL_MODEL,
+    temperature: 0.2,
+    response_format: { type: 'json_object' },
+    // Provider routing: base64 video → Vertex only, no silent fallback.
+    provider: { only: ['google-vertex'], allow_fallbacks: false },
+    messages: [{
+      role: 'user',
+      content: [
+        { type: 'text', text: prompt },
+        // REST API is snake_case `video_url` (the TS SDK camelCases it).
+        { type: 'video_url', video_url: { url: dataUrl } }
+      ]
+    }]
   })
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`OpenRouter ${res.status}: ${body.slice(0, 300)}`)
+
+  // Retry transient upstream 5xx (up to 2 extra tries) with short backoff. This
+  // is separate from the JSON-body retries in evaluateVideo, which only fire on
+  // a 200 that fails to parse.
+  let lastStatus
+  let lastBody = ''
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.OPENROUTER_API_KEY}`,
+        'Content-Type': 'application/json'
+      },
+      body
+    })
+    if (res.ok) {
+      const data = await res.json()
+      return {
+        content: data.choices?.[0]?.message?.content ?? '',
+        // OpenRouter echoes which upstream served the call — metadata only.
+        upstream: data.provider || null
+      }
+    }
+    lastStatus = res.status
+    lastBody = await res.text().catch(() => '')
+    if (res.status >= 500 && attempt < 2) {
+      await sleep(250 * (attempt + 1))
+      continue
+    }
+    break
   }
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content ?? ''
+  throw new Error(`OpenRouter ${lastStatus}: ${lastBody.slice(0, 300)}`)
 }
 
 // --- Gemini direct (generateContent with inline_data) ---
@@ -137,7 +167,10 @@ async function callGemini (bytes, mime, prompt) {
     throw new Error(`Gemini ${res.status}: ${body.slice(0, 300)}`)
   }
   const data = await res.json()
-  return data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') ?? ''
+  return {
+    content: data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') ?? '',
+    upstream: 'gemini-direct'
+  }
 }
 
 async function callProvider (bytes, mime, prompt) {
@@ -150,29 +183,36 @@ const STRICT_REMINDER = '\n\nReturn ONLY the JSON object, no prose, no fences.'
 
 async function evaluateVideo (bytes, mime, promptCtx) {
   const prompt = buildPrompt(promptCtx || {})
-  let lastErr
   let lastRaw = ''
-  // Attempts: initial, one plain retry, then a stricter retry that appends a
-  // terse reminder demanding bare JSON.
+  let upstream = null
+  // JSON-body retries only: initial, one plain retry, then a stricter retry
+  // that appends a terse reminder demanding bare JSON. Transport-level failures
+  // (e.g. persistent upstream 5xx) are already retried inside callProvider and
+  // must NOT burn these attempts — they surface immediately.
   for (let attempt = 0; attempt < 3; attempt++) {
     const p = attempt === 2 ? prompt + STRICT_REMINDER : prompt
+    // Transport failures (persistent 5xx, 4xx) throw straight out of the
+    // function — they are not JSON-body failures, so no extra parse retries.
+    const { content, upstream: up } = await callProvider(bytes, mime, p)
+    upstream = up
     try {
-      lastRaw = await callProvider(bytes, mime, p)
-      const parsed = parseResult(lastRaw)
+      const parsed = parseResult(content)
       parsed.attempts = attempt + 1
+      parsed.upstream = upstream
       return parsed
-    } catch (err) {
-      lastErr = err
+    } catch (parseErr) {
+      lastRaw = content
+      if (attempt === 2) {
+        // Final parse failure: metadata-only diagnostic. Privacy rule — never the
+        // model text itself, only its length, whether it was fenced, the provider.
+        await db.logEvent({
+          action: 'error',
+          error: `eval_parse_fail provider=${config.EVAL_PROVIDER} upstream=${upstream || 'unknown'} len=${lastRaw.length} fenced=${lastRaw.includes('```')}`
+        })
+        throw parseErr
+      }
     }
   }
-  // Final failure: log a metadata-only diagnostic. Privacy rule — never the
-  // model text itself, only its length, whether it was fenced, and the provider.
-  const raw = lastRaw || ''
-  await db.logEvent({
-    action: 'error',
-    error: `eval_parse_fail provider=${config.EVAL_PROVIDER} len=${raw.length} fenced=${raw.includes('```')}`
-  })
-  throw lastErr
 }
 
 module.exports = { evaluateVideo, buildPrompt, parseResult }

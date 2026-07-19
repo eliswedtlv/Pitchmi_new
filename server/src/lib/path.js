@@ -16,8 +16,48 @@ const MAX_TAKE_S = 60
 // Fallback speaking rate when the original take gives us nothing to measure
 // (~150 wpm, ~5.5 chars/word incl. space).
 const DEFAULT_SEC_PER_CHAR = 0.0727
-const LINE_MAX_CHARS = 40
-const LINE_MIN_CHARS = 24
+
+// Broadcast-teleprompter line construction (T-1162 §B): short lines that break
+// at natural phrase boundaries. Character-based caps so Hebrew/RTL behave; CJK
+// counts by grapheme (charLen already does).
+const LINE_MAX_CHARS = 32
+const LINE_MAX_WORDS = 6
+
+// Clause conjunctions / prepositions we prefer to break *before* (they open a
+// phrase, so they read better at the start of a line). EN + HE minimum.
+const CONJUNCTIONS = new Set([
+  'and', 'but', 'so', 'or', 'nor', 'yet', 'because', 'although', 'though',
+  'while', 'whereas', 'if', 'unless', 'since', 'that', 'which', 'who', 'when',
+  'אבל', 'כי', 'אז', 'אם', 'אך', 'אלא', 'כאשר', 'ש', 'ו'
+])
+const PREPOSITIONS = new Set([
+  'to', 'of', 'in', 'on', 'at', 'for', 'with', 'from', 'by', 'as', 'into',
+  'onto', 'about', 'over', 'under', 'between', 'through', 'during', 'after',
+  'before', 'על', 'אל', 'עם', 'של', 'את', 'מן', 'בין', 'אצל'
+])
+
+function isNumeric (w) {
+  return /^[\p{N}.,:/-]+$/u.test(String(w)) && /\p{N}/u.test(String(w))
+}
+
+// A number must never be split from its following unit ("10 kg", "3 pm").
+function gluedAfter (tokens, i) {
+  return i + 1 < tokens.length && isNumeric(tokens[i].w) && !tokens[i].clauseBreak
+}
+
+// Priority of ending a line *after* token i. Higher = stronger phrase boundary:
+// sentence punctuation > comma/clause punctuation > before a conjunction >
+// before a preposition.
+function breakAfterPriority (tokens, i) {
+  if (tokens[i].sentenceEnd) return 4
+  if (tokens[i].clauseBreak) return 3
+  const next = tokens[i + 1]
+  if (!next) return 0
+  const nn = normalize(next.w)
+  if (CONJUNCTIONS.has(nn)) return 2
+  if (PREPOSITIONS.has(nn)) return 1
+  return 0
+}
 
 // Longest common subsequence of two normalized token arrays. Returns the
 // surviving [aIndex, bIndex] pairs in order — these become the anchors.
@@ -64,29 +104,66 @@ function measureRate (originalWords) {
   return rates.length % 2 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2
 }
 
+// Pick the inclusive end index of the line starting at `start`. Greedy fill up
+// to the char/word caps, but prefer to end at the strongest phrase boundary
+// seen so far; a sentence end is taken immediately.
+function chooseLineEnd (tokens, start, n) {
+  let chars = 0
+  let best = -1
+  let bestPri = 0
+  let i = start
+  for (; i < n; i++) {
+    chars += charLen(tokens[i].w) + (i > start ? 1 : 0)
+    const words = i - start + 1
+    if (i > start && (chars > LINE_MAX_CHARS || words > LINE_MAX_WORDS)) break
+    if (tokens[i].sentenceEnd) return i
+    const pri = breakAfterPriority(tokens, i)
+    // >= so ties resolve to the later (fuller) line.
+    if (pri >= bestPri && pri > 0 && !gluedAfter(tokens, i)) {
+      best = i
+      bestPri = pri
+    }
+  }
+  if (best >= start) return best
+  // No usable boundary — fall back to the cap, never splitting a number+unit.
+  let end = Math.max(Math.min(i, n) - 1, start)
+  while (end < n - 1 && gluedAfter(tokens, end)) end++
+  return end
+}
+
 function breakIntoLines (tokens) {
+  const n = tokens.length
+  if (!n) return []
+  const groups = []
+  let start = 0
+  while (start < n) {
+    const end = chooseLineEnd(tokens, start, n)
+    groups.push(tokens.slice(start, end + 1))
+    start = end + 1
+  }
+  // Never leave a one-word orphan line — rebalance into a neighbour.
+  for (let g = 0; g < groups.length && groups.length > 1; g++) {
+    if (groups[g].length !== 1) continue
+    if (g > 0) {
+      groups[g - 1].push(...groups[g])
+      groups.splice(g, 1)
+      g -= 2
+    } else {
+      groups[1].unshift(...groups[0])
+      groups.splice(0, 1)
+      g -= 1
+    }
+  }
   const lines = []
-  let cur = []
-  let curLen = 0
-  const flush = () => {
-    if (!cur.length) return
-    const index = lines.length
-    for (const t of cur) t.line = index
+  groups.forEach((grp, index) => {
+    for (const t of grp) t.line = index
     lines.push({
       index,
-      text: cur.map(t => t.w).join(' '),
-      t_start: cur[0].t_start,
-      t_end: cur[cur.length - 1].t_end
+      text: grp.map(t => t.w).join(' '),
+      t_start: grp[0].t_start,
+      t_end: grp[grp.length - 1].t_end
     })
-    cur = []
-    curLen = 0
-  }
-  for (const t of tokens) {
-    cur.push(t)
-    curLen += charLen(t.w) + 1
-    if (curLen >= LINE_MAX_CHARS || (t.clauseBreak && curLen >= LINE_MIN_CHARS)) flush()
-  }
-  flush()
+  })
   return lines
 }
 
@@ -96,6 +173,7 @@ function buildPath (originalWords, editedScript, speed) {
   const tokens = segs.map(s => ({
     w: s.w,
     clauseBreak: s.clauseBreak,
+    sentenceEnd: s.sentenceEnd,
     t_start: 0,
     t_end: 0,
     line: 0

@@ -78,7 +78,7 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res, next) =>
       scores: {
         ...combined.dimensions,
         overall: combined.overall,
-        timings: { scribe_ms: scribeMs, eval_ms: evalMs, attempts: delivery.attempts || 1 }
+        timings: { scribe_ms: scribeMs, eval_ms: evalMs, attempts: delivery.attempts || 1, upstream: delivery.upstream || null }
       },
       latency_ms: Date.now() - started,
       cost_usd: costUsd

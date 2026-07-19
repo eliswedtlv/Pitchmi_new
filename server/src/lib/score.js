@@ -9,7 +9,8 @@
 //     mean_abs_offset, drift, flags: [{ type, line? }]
 //   }
 
-const { normalize, isFiller } = require('./text')
+const { normalize } = require('./text')
+const { isFiller } = require('./fillers')
 
 // Timing score is 100 at <=0.3s mean absolute offset, linear to 0 at >=3.0s.
 const TIMING_TIGHT_S = 0.3

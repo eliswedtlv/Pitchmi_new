@@ -7,6 +7,7 @@ const db = require('../lib/db')
 const config = require('../config')
 const { extractAudio, extForMime } = require('../lib/audio')
 const { transcribe } = require('../lib/scribe')
+const { stripFillers } = require('../lib/fillers')
 
 const router = express.Router()
 
@@ -27,8 +28,13 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
     const audio = await extractAudio(req.file.buffer, ext)
     const result = await transcribe(audio.buffer, audio.mime)
 
+    // Fillers must never reach the editable transcript (T-1162 §C). Strip
+    // disfluencies from the script text but keep the FULL word list as
+    // original_words — their timestamps remain valid pause evidence for /api/path.
+    const script = stripFillers(result.words)
+
     await db.updateProject(projectId, req.userId, {
-      script: result.text,
+      script,
       language: result.language,
       // Persist original word timings so /api/path can rebuild the path later
       // (schema addition beyond §4 — see STATUS deviations).
@@ -47,7 +53,7 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
     })
 
     res.status(200).json({
-      text: result.text,
+      text: script,
       language: result.language,
       words: result.words,
       duration_s: result.duration_s

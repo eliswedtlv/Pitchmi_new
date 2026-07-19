@@ -2,17 +2,9 @@
 
 // Language-aware text utilities shared by the path and score algorithms.
 // Everything here is pure and dependency-free so it is trivial to unit test.
-
-// Common filler sounds across a few languages. Fillers never count as a
-// transcript match — they are always insertions (see score.js).
-const FILLERS = new Set([
-  'um', 'umm', 'uh', 'uhh', 'uhm', 'uhmm', 'er', 'err', 'erm', 'ah', 'ahh',
-  'eh', 'ehm', 'hm', 'hmm', 'mm', 'mmm', 'like', 'you know',
-  // Hebrew
-  'אה', 'אהה', 'אמ', 'אמם', 'עמ', 'המ',
-  // Spanish / others
-  'este', 'pues', 'eee', 'euh'
-])
+// The filler list lives in ./fillers.js (single source of truth) — importing it
+// here would be circular (fillers.js needs normalize), so consumers pull
+// isFiller straight from ./fillers.
 
 // Normalize a token for comparison: NFKC, lowercase, strip everything that is
 // not a letter or number (punctuation, spaces). Returns '' for punctuation.
@@ -24,10 +16,6 @@ function normalize (token) {
 // Number of Unicode code points (robust char count across scripts/emoji).
 function charLen (token) {
   return [...String(token)].length
-}
-
-function isFiller (token) {
-  return FILLERS.has(normalize(token))
 }
 
 function hasCjk (text) {
@@ -49,26 +37,31 @@ function tokenize (text) {
   return [...seg.segment(trimmed)].filter(s => s.isWordLike).map(s => s.segment)
 }
 
-// Like tokenize, but also records whether each word is immediately followed by
-// clause punctuation (used for teleprompter line breaks). Returns
-// [{ w, clauseBreak }].
+// Like tokenize, but also records the punctuation that immediately follows each
+// word (used for teleprompter line breaks). Returns
+// [{ w, clauseBreak, sentenceEnd }] where sentenceEnd marks . ! ? … and
+// clauseBreak marks any clause-level punctuation (sentence-enders + , ; :).
+const SENTENCE_PUNCT = /[.!?…。！？\n]/
+const CLAUSE_PUNCT = /[.,;:!?…。，、！？\n]/
 function segmentWords (text) {
   const trimmed = String(text || '').trim()
   if (!trimmed) return []
   const cjkNoSpace = hasCjk(trimmed) && !/\s/.test(trimmed)
   if (cjkNoSpace) {
-    return tokenize(trimmed).map(w => ({ w, clauseBreak: false }))
+    return tokenize(trimmed).map(w => ({ w, clauseBreak: false, sentenceEnd: false }))
   }
   const seg = new Intl.Segmenter(undefined, { granularity: 'word' })
   const out = []
   for (const part of seg.segment(trimmed)) {
     if (part.isWordLike) {
-      out.push({ w: part.segment, clauseBreak: false })
-    } else if (out.length && /[.,;:!?…。，、！？\n]/.test(part.segment)) {
-      out[out.length - 1].clauseBreak = true
+      out.push({ w: part.segment, clauseBreak: false, sentenceEnd: false })
+    } else if (out.length && CLAUSE_PUNCT.test(part.segment)) {
+      const last = out[out.length - 1]
+      last.clauseBreak = true
+      if (SENTENCE_PUNCT.test(part.segment)) last.sentenceEnd = true
     }
   }
   return out
 }
 
-module.exports = { normalize, charLen, isFiller, tokenize, segmentWords, hasCjk, FILLERS }
+module.exports = { normalize, charLen, tokenize, segmentWords, hasCjk }

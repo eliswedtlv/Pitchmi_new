@@ -45,11 +45,11 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
 
   afterEach(() => { global.fetch = origFetch })
 
-  function mockOpenRouter (content) {
+  function mockOpenRouter (content, provider = 'google-vertex') {
     let calls = 0
     global.fetch = jest.fn(async () => {
       calls++
-      return { ok: true, json: async () => ({ choices: [{ message: { content } }] }) }
+      return { ok: true, json: async () => ({ provider, choices: [{ message: { content } }] }) }
     })
     return () => calls
   }
@@ -62,7 +62,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
 
     const evt = dbMock.__state.events.find(e => e.action === 'error')
     expect(evt).toBeTruthy()
-    expect(evt.error).toMatch(/^eval_parse_fail provider=openrouter len=\d+ fenced=(true|false)$/)
+    expect(evt.error).toMatch(/^eval_parse_fail provider=openrouter upstream=\S+ len=\d+ fenced=(true|false)$/)
     // Privacy: the model text must never appear in the event.
     expect(evt.error).not.toContain('totally not json')
   })
@@ -72,7 +72,47 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
     const out = await evaluateVideo(Buffer.from('v'), 'video/webm', { useCase: 'pitch' })
     expect(out).toMatchObject(VALID)
     expect(out.attempts).toBe(1) // stage metadata for the evaluate event
+    expect(out.upstream).toBe('google-vertex') // upstream provider echoed back
     expect(calls()).toBe(1)
     expect(dbMock.__state.events.find(e => e.action === 'error')).toBeFalsy()
+  })
+
+  test('request shape: Vertex-only routing + real mime in the video data URL', async () => {
+    let captured
+    global.fetch = jest.fn(async (_url, opts) => {
+      captured = JSON.parse(opts.body)
+      return { ok: true, json: async () => ({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
+    })
+    await evaluateVideo(Buffer.from('mp4-bytes'), 'video/mp4', { useCase: 'pitch' })
+
+    // Provider routing pins the call to a base64-video-capable backend.
+    expect(captured.provider).toMatchObject({ only: ['google-vertex'], allow_fallbacks: false })
+    expect(captured.response_format).toEqual({ type: 'json_object' })
+    // The content part carries the take's REAL mime, not a hardcoded one.
+    const videoPart = captured.messages[0].content.find(c => c.type === 'video_url')
+    expect(videoPart.video_url.url.startsWith('data:video/mp4;base64,')).toBe(true)
+  })
+
+  test('transient upstream 5xx is retried then succeeds', async () => {
+    let calls = 0
+    global.fetch = jest.fn(async () => {
+      calls++
+      if (calls < 3) return { ok: false, status: 500, text: async () => 'Internal Server Error' }
+      return { ok: true, json: async () => ({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
+    })
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    expect(out).toMatchObject(VALID)
+    expect(calls).toBe(3) // two 500s + one success, all inside a single parse attempt
+  })
+
+  test('persistent upstream 5xx throws without burning JSON retries', async () => {
+    let calls = 0
+    global.fetch = jest.fn(async () => {
+      calls++
+      return { ok: false, status: 500, text: async () => 'Internal Server Error' }
+    })
+    await expect(evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' }))
+      .rejects.toThrow(/OpenRouter 500/)
+    expect(calls).toBe(3) // 1 + 2 backoff retries, then surfaced — no extra parse re-calls
   })
 })
