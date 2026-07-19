@@ -79,7 +79,13 @@ export default function VideosPage() {
             onClick={() => setPlayUrl(null)}
           >
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl">
-              <video src={playUrl} controls autoPlay playsInline className="w-full rounded-xl" />
+              <video
+                src={playUrl}
+                controls
+                autoPlay
+                playsInline
+                className="mx-auto max-h-[80vh] w-auto max-w-full rounded-xl bg-black object-contain"
+              />
               <Button onClick={() => setPlayUrl(null)} variant="secondary" className="mt-3 w-full">
                 Close
               </Button>

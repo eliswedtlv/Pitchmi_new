@@ -1,33 +1,30 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { AdSlot } from "@/components/AdSlot"
 import { useSession } from "@/store/session"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { getAd, evaluateVideo, type AdConfig } from "@/lib/api"
+import { nextStage, STAGE_LABEL, type EvalStage } from "@/lib/evalStages"
 
-// Honest staged progress. Stage 0 advances on real upload completion; the rest
-// advance on a timer so a 1–2 min wait reads as intentional, not stuck.
-const STAGES = [
-  "Uploading your take…",
-  "Transcribing…",
-  "AI is watching your take…",
-  "Scoring your delivery…",
-]
-const STAGE_WIDTHS = ["20%", "45%", "75%", "92%"]
-// Seconds into server processing at which to advance to the next stage.
-const STAGE_AT_S = [0, 18, 55]
+// Widths reflect ONLY the two honest, state-driven stages. No timer ever
+// advances the label past reality — the eval either resolves (→ results) or
+// fails (→ error screen); it never sits on a fake "Scoring" step forever.
+const STAGE_WIDTH: Record<EvalStage, string> = {
+  uploading: "25%",
+  analyzing: "70%",
+  done: "100%",
+  error: "100%",
+}
 
 export default function WaitPage() {
   const router = useRouter()
   const { project, takeBlob, setEvalResult } = useSession()
   const [ad, setAd] = useState<AdConfig | null>(null)
   const [adSkipped, setAdSkipped] = useState(false)
-  const [stage, setStage] = useState(0)
-  const [uploadPct, setUploadPct] = useState(0)
+  const [stage, setStage] = useState<EvalStage>("uploading")
   const [error, setError] = useState<string | null>(null)
-  const processingStart = useRef<number | null>(null)
 
   // Hold the screen awake for the whole wait (survives visibility changes).
   useWakeLock(true)
@@ -41,29 +38,11 @@ export default function WaitPage() {
     // Load ad config (optional — failure just hides the ad).
     getAd().then(setAd).catch(() => setAdSkipped(true))
 
-    // Advance timed stages once the server is processing (upload done).
-    const interval = setInterval(() => {
-      const start = processingStart.current
-      if (start == null) return
-      const elapsed = (performance.now() - start) / 1000
-      let next = 1
-      for (let i = 0; i < STAGE_AT_S.length; i++) {
-        if (elapsed >= STAGE_AT_S[i]) next = i + 1
-      }
-      setStage((s) => Math.max(s, Math.min(next, STAGES.length - 1)))
-    }, 1000)
-
     // Kick off evaluation. This request must survive the whole wait — the ad and
-    // "Skip Ad" never touch it (Skip only hides the ad element).
-    evaluateVideo(takeBlob, project.id, (s, fraction) => {
-      if (s === "uploading") {
-        setStage((cur) => Math.max(cur, 0))
-        if (fraction != null) setUploadPct(Math.round(fraction * 100))
-      } else {
-        if (processingStart.current == null) processingStart.current = performance.now()
-        setStage((cur) => Math.max(cur, 1))
-      }
-    })
+    // "Skip Ad" never touch it (Skip only hides the ad element). The label only
+    // advances on real events: "sent" (request in flight) → analyzing, then a
+    // resolve/reject. Any failure or timeout surfaces the error screen.
+    evaluateVideo(takeBlob, project.id, () => setStage((s) => nextStage(s, "sent")))
       .then((result) => {
         setEvalResult(result)
         router.push("/results")
@@ -78,8 +57,6 @@ export default function WaitPage() {
           setError((e as Error).message)
         }
       })
-
-    return () => clearInterval(interval)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (error) {
@@ -98,9 +75,6 @@ export default function WaitPage() {
     )
   }
 
-  const label =
-    stage === 0 && uploadPct > 0 ? `${STAGES[0]} ${uploadPct}%` : STAGES[stage]
-
   return (
     <main className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center px-4 gap-8">
       {/* Ad — Skip only hides this element; it never affects the pending eval. */}
@@ -115,10 +89,10 @@ export default function WaitPage() {
         <div className="h-1.5 rounded-full bg-neutral-700 overflow-hidden">
           <div
             className="h-full bg-white rounded-full transition-all duration-700 ease-out"
-            style={{ width: STAGE_WIDTHS[stage] }}
+            style={{ width: STAGE_WIDTH[stage] }}
           />
         </div>
-        <p className="text-white text-center text-sm">{label}</p>
+        <p className="text-white text-center text-sm">{STAGE_LABEL[stage]}</p>
         <p className="text-neutral-400 text-center text-xs">
           This can take up to two minutes — keep this screen open.
         </p>

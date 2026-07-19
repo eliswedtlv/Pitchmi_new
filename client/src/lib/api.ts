@@ -163,62 +163,53 @@ export interface EvalResult {
  *  more). Give the request 5 minutes before we ever consider it dead. */
 export const EVAL_TIMEOUT_MS = 5 * 60 * 1000
 
-export type EvalStage = "uploading" | "processing"
-
 /**
- * Uploads the take and waits for the AI evaluation. Uses XMLHttpRequest (not
- * fetch) to surface real upload progress and to hold a long, explicit timeout —
- * never below {@link EVAL_TIMEOUT_MS}. `onProgress` reports "uploading" (with a
- * 0–1 fraction) until the bytes are sent, then "processing" while the server works.
+ * Uploads the take and waits for the AI evaluation.
+ *
+ * Uses the SAME fetch transport that {@link transcribeVideo} uses and that is
+ * proven on iOS Safari — the T-1160 XMLHttpRequest rewrite silently failed on
+ * iPhone (the POST never left the browser after the CORS preflight, and no XHR
+ * handler ever fired, so the wait screen spun forever). Reliability wins over
+ * byte-level upload progress here.
+ *
+ * An AbortController enforces the {@link EVAL_TIMEOUT_MS} ceiling so a dead
+ * request always surfaces as an error instead of an eternal spinner. `onSent`
+ * fires once the request has been dispatched (used only to advance the honest
+ * "uploading" → "analyzing" label; never to imply the response has arrived).
  */
-export function evaluateVideo(
+export async function evaluateVideo(
   video: File | Blob,
   projectId: string,
-  onProgress?: (stage: EvalStage, fraction?: number) => void,
+  onSent?: () => void,
 ): Promise<EvalResult> {
-  return authHeaders().then(
-    (headers) =>
-      new Promise<EvalResult>((resolve, reject) => {
-        const form = new FormData()
-        form.append("video", video)
-        form.append("project_id", projectId)
+  const headers = await authHeaders()
+  const form = new FormData()
+  form.append("video", video)
+  form.append("project_id", projectId)
 
-        const xhr = new XMLHttpRequest()
-        xhr.open("POST", `${BASE}/api/evaluate`)
-        if (headers.Authorization) xhr.setRequestHeader("Authorization", headers.Authorization)
-        xhr.timeout = EVAL_TIMEOUT_MS
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), EVAL_TIMEOUT_MS)
 
-        xhr.upload.onprogress = (e) => {
-          if (e.lengthComputable) onProgress?.("uploading", e.loaded / e.total)
-        }
-        xhr.upload.onload = () => onProgress?.("processing")
+  let res: Response
+  try {
+    const request = fetch(`${BASE}/api/evaluate`, {
+      method: "POST",
+      headers,
+      body: form,
+      signal: controller.signal,
+    })
+    onSent?.()
+    res = await request
+  } catch (e) {
+    if (controller.signal.aborted) {
+      throw Object.assign(new Error("Evaluation timed out"), { status: 0 })
+    }
+    throw Object.assign(new Error("Network error"), { status: 0 })
+  } finally {
+    clearTimeout(timer)
+  }
 
-        xhr.onload = () => {
-          let body: { message?: string; error?: string; limit?: number } = {}
-          try {
-            body = JSON.parse(xhr.responseText)
-          } catch {
-            body = { error: "unknown" }
-          }
-          if (xhr.status >= 200 && xhr.status < 300) {
-            resolve(body as unknown as EvalResult)
-          } else {
-            reject(
-              Object.assign(new Error(body.message ?? body.error ?? "Request failed"), {
-                status: xhr.status,
-                body,
-              }),
-            )
-          }
-        }
-        xhr.onerror = () =>
-          reject(Object.assign(new Error("Network error"), { status: 0 }))
-        xhr.ontimeout = () =>
-          reject(Object.assign(new Error("Evaluation timed out"), { status: 0 }))
-
-        xhr.send(form)
-      }),
-  )
+  return handleResponse<EvalResult>(res)
 }
 
 // ── Save ───────────────────────────────────────────────────────────────────

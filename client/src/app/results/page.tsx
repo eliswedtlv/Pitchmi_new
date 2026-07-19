@@ -90,13 +90,14 @@ export default function ResultsPage() {
       <div className="max-w-lg mx-auto space-y-6">
         <h1 className="text-2xl font-bold text-neutral-900 text-center">Your Results</h1>
 
-        {/* Video playback */}
+        {/* Video playback — object-contain keeps the correct aspect for both
+            portrait (phone) and landscape (desktop) takes; no sideways letterbox. */}
         {takeBlobUrl && (
           <video
             src={takeBlobUrl}
             controls
             playsInline
-            className="w-full rounded-xl bg-black aspect-video"
+            className="mx-auto max-h-[70vh] w-auto max-w-full rounded-xl bg-black object-contain"
           />
         )}
 
@@ -131,7 +132,7 @@ export default function ResultsPage() {
               {evalResult.comments.map((c, i) => (
                 <li key={i} className="flex items-start gap-2 text-sm text-neutral-700">
                   <span className="text-neutral-400 flex-shrink-0 font-mono">{i + 1}.</span>
-                  <span>{c}</span>
+                  <span dir="auto" className="min-w-0">{c}</span>
                 </li>
               ))}
             </ul>

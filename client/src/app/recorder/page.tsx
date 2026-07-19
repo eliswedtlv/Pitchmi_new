@@ -64,79 +64,68 @@ export default function RecorderPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center" onClick={state === "recording" ? stop : undefined}>
-      {/* Camera preview */}
-      <div className="relative w-full max-w-xl aspect-video">
-        <video
-          ref={videoRef}
-          autoPlay
-          muted
-          playsInline
-          className="w-full h-full object-cover rounded-xl"
-        />
+    <div
+      className="fixed inset-0 bg-black overflow-hidden"
+      onClick={state === "recording" ? stop : undefined}
+    >
+      {/* Full-screen camera preview (portrait on phones, landscape on desktop) */}
+      <video
+        ref={videoRef}
+        autoPlay
+        muted
+        playsInline
+        className="absolute inset-0 w-full h-full object-cover"
+      />
 
-        {/* Countdown overlay */}
-        {state === "countdown" && countdown > 0 && (
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-9xl font-bold text-white drop-shadow-lg animate-ping">
-              {countdown}
-            </span>
-          </div>
-        )}
+      {/* Countdown overlay */}
+      {state === "countdown" && countdown > 0 && (
+        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+          <span className="text-9xl font-bold text-white drop-shadow-lg animate-ping">
+            {countdown}
+          </span>
+        </div>
+      )}
 
-        {/* Recording ring timer */}
-        {state === "recording" && (
-          <div className="absolute top-4 right-4">
-            <svg width="100" height="100" viewBox="0 0 100 100">
-              <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
-              <circle
-                cx="50" cy="50" r="44"
-                fill="none"
-                stroke={remaining < 10 ? "#ef4444" : "#ffffff"}
-                strokeWidth="8"
-                strokeDasharray={circumference}
-                strokeDashoffset={circumference * (pct / 100)}
-                strokeLinecap="round"
-                transform="rotate(-90 50 50)"
-                style={{ transition: "stroke-dashoffset 0.2s linear" }}
-              />
-              <text
-                x="50" y="55"
-                textAnchor="middle"
-                fill="white"
-                fontSize="22"
-                fontWeight="bold"
-              >
-                {Math.ceil(remaining)}
-              </text>
-            </svg>
-          </div>
-        )}
-
-        {/* Stop button */}
-        {state === "recording" && (
-          <div className="absolute bottom-4 inset-x-0 flex justify-center" onClick={(e) => e.stopPropagation()}>
-            <Button
-              onClick={stop}
-              variant="destructive"
-              size="lg"
-              className="gap-2"
-            >
-              <Square className="h-5 w-5 fill-current" />
-              Stop
-            </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Tap to stop hint */}
+      {/* Recording ring timer */}
       {state === "recording" && (
-        <p className="text-white/50 text-sm mt-4">Tap anywhere to stop</p>
+        <div className="absolute top-4 right-4">
+          <svg width="100" height="100" viewBox="0 0 100 100">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+            <circle
+              cx="50" cy="50" r="44"
+              fill="none"
+              stroke={remaining < 10 ? "#ef4444" : "#ffffff"}
+              strokeWidth="8"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference * (pct / 100)}
+              strokeLinecap="round"
+              transform="rotate(-90 50 50)"
+              style={{ transition: "stroke-dashoffset 0.2s linear" }}
+            />
+            <text x="50" y="55" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold">
+              {Math.ceil(remaining)}
+            </text>
+          </svg>
+        </div>
+      )}
+
+      {/* Stop button */}
+      {state === "recording" && (
+        <div
+          className="absolute inset-x-0 flex flex-col items-center gap-2 safe-pos-4"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <Button onClick={stop} variant="destructive" size="lg" className="gap-2 shadow-lg">
+            <Square className="h-5 w-5 fill-current" />
+            Stop
+          </Button>
+          <p className="text-white/50 text-sm">Tap anywhere to stop</p>
+        </div>
       )}
 
       {/* Errors */}
       {(error ?? transError) && (
-        <div className="mt-4 max-w-sm w-full mx-4">
+        <div className="absolute inset-x-0 top-1/3 mx-auto max-w-sm w-full px-4" onClick={(e) => e.stopPropagation()}>
           <p className="rounded-md bg-red-900/80 px-4 py-3 text-sm text-red-200">
             {error ?? transError}
           </p>

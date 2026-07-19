@@ -78,3 +78,39 @@ describe("WaitPage — Skip Ad never aborts the pending evaluation", () => {
     vi.useRealTimers()
   })
 })
+
+describe("WaitPage — transport outcomes route correctly (never an eternal spinner)", () => {
+  it("a resolved eval routes to /results", async () => {
+    h.evaluateVideo.mockResolvedValue({
+      overall: 90, dimensions: {}, comments: [], flags: [], evals_left_today: 4,
+    })
+    render(<WaitPage />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(h.setEvalResult).toHaveBeenCalledTimes(1)
+    expect(h.push).toHaveBeenCalledWith("/results")
+  })
+
+  it("a network error shows the error screen and does not navigate", async () => {
+    h.evaluateVideo.mockRejectedValue(Object.assign(new Error("Network error"), { status: 0 }))
+    render(<WaitPage />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(screen.getByText(/network error/i)).toBeTruthy()
+    expect(screen.getByRole("button", { name: /back to home/i })).toBeTruthy()
+    expect(h.push).not.toHaveBeenCalledWith("/results")
+  })
+
+  it("a timeout shows the error screen (no infinite wait)", async () => {
+    h.evaluateVideo.mockRejectedValue(Object.assign(new Error("Evaluation timed out"), { status: 0 }))
+    render(<WaitPage />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(screen.getByText(/timed out/i)).toBeTruthy()
+    expect(h.push).not.toHaveBeenCalledWith("/results")
+  })
+
+  it("a 429 shows the daily-limit message", async () => {
+    h.evaluateVideo.mockRejectedValue(Object.assign(new Error("limit"), { status: 429, body: { limit: 25 } }))
+    render(<WaitPage />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(screen.getByText(/daily evaluation limit/i)).toBeTruthy()
+  })
+})
