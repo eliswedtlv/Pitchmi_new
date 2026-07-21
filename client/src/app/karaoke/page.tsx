@@ -9,6 +9,7 @@ import { useKaraokeClock } from "@/hooks/useKaraokeClock"
 import { useRecorder } from "@/hooks/useRecorder"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { useSession } from "@/store/session"
+import { resolveDir } from "@/lib/textDir"
 import type { KaraokeWord } from "@/lib/clock"
 
 export default function KaraokePage() {
@@ -37,9 +38,10 @@ export default function KaraokePage() {
   const isRunning = state === "recording"
   const activeIdx = useKaraokeClock(words, isRunning)
 
-  // Language/direction from project
+  // Language/direction: prefer the detected language, fall back to the path text
+  // itself so a missing language never reverses Hebrew (T-1164).
   const lang = project?.language
-  const dir: "ltr" | "rtl" = lang && ["he", "ar", "fa", "ur"].includes(lang) ? "rtl" : "ltr"
+  const dir = resolveDir(lang, lines.map((l) => l.text).join(" "))
 
   // Auto-start on mount
   useEffect(() => {

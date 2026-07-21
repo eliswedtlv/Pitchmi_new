@@ -14,7 +14,7 @@ const MAX_S = 60
 
 export default function RecorderPage() {
   const router = useRouter()
-  const { project, setTakeBlob, setEditedScript } = useSession()
+  const { project, setProject, setTakeBlob, setEditedScript } = useSession()
   const [transcribing, setTranscribing] = useState(false)
   const [transError, setTransError] = useState<string | null>(null)
 
@@ -27,6 +27,9 @@ export default function RecorderPage() {
       setTransError(null)
       try {
         const result = await transcribeVideo(blob, project.id)
+        // Persist the detected language so editor/karaoke resolve RTL correctly
+        // (T-1164) — the project was created before transcribe ran.
+        setProject({ ...project, language: result.language })
         setEditedScript(result.text)
         router.push("/editor")
       } catch (e) {

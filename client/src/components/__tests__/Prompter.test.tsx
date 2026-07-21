@@ -72,6 +72,33 @@ describe("Prompter RTL rendering", () => {
   })
 })
 
+describe("Prompter majority-flip guard (T-1164)", () => {
+  // An all-Hebrew line rendered with the WRONG dir (language was missing
+  // upstream, so dir defaulted to "ltr"). Without the guard every word would be
+  // bidi-isolated and the line would reverse.
+  const heWords: KaraokeWord[] = [
+    { w: "שלום", t_start: 0, t_end: 0.5, line: 0 },
+    { w: "עולם", t_start: 0.5, t_end: 1, line: 0 },
+    { w: "זה", t_start: 1, t_end: 1.5, line: 0 },
+  ]
+  const heLines = [{ index: 0, text: "שלום עולם זה" }]
+
+  it("flips a line's dir to rtl when most tokens oppose the passed ltr dir", () => {
+    const { container } = render(<Prompter words={heWords} lines={heLines} activeIdx={0} dir="ltr" />)
+    const run = screen.getByTestId("active-line")
+    expect(run.getAttribute("dir")).toBe("rtl")
+    // Flipped line => nothing opposes rtl => no per-word bidi isolation.
+    expect(container.querySelectorAll("bdi").length).toBe(0)
+    expect(container.querySelector("[data-role='active']")?.getAttribute("dir")).toBe("rtl")
+  })
+
+  it("leaves a correctly-directed line untouched (no flip, no isolation)", () => {
+    const { container } = render(<Prompter words={heWords} lines={heLines} activeIdx={0} dir="rtl" />)
+    expect(screen.getByTestId("active-line").getAttribute("dir")).toBe("rtl")
+    expect(container.querySelectorAll("bdi").length).toBe(0)
+  })
+})
+
 describe("Prompter three-line window", () => {
   it("marks exactly one active line, with a visible previous and next", () => {
     render(<Prompter words={multiWords} lines={multiLines} activeIdx={1} dir="ltr" />)

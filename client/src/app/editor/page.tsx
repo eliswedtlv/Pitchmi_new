@@ -9,6 +9,7 @@ import { useSession } from "@/store/session"
 import { getPath } from "@/lib/api"
 import { estimateDuration, fitMeter } from "@/lib/fit"
 import { editorCleanupCaption } from "@/lib/strings"
+import { resolveDir } from "@/lib/textDir"
 
 export default function EditorPage() {
   const router = useRouter()
@@ -23,10 +24,9 @@ export default function EditorPage() {
   const estDuration = estimateDuration(editedScript, speed)
   const fit = fitMeter(estDuration)
 
-  // RTL: detect from project language
-  const dir = project?.language
-    ? ["he", "ar", "fa", "ur"].includes(project.language) ? "rtl" : "ltr"
-    : "ltr"
+  // RTL: prefer the detected language, fall back to the script text itself so a
+  // missing language never reverses Hebrew (T-1164).
+  const dir = resolveDir(project?.language, editedScript)
 
   async function handleRehearseClick() {
     if (!project) return

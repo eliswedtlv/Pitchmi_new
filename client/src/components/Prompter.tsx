@@ -98,6 +98,18 @@ export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdow
             const role = rel === 0 ? "active" : rel === -1 ? "previous" : rel === 1 ? "next" : "hidden"
             const opacity = rel === 0 ? 1 : rel === -1 ? 0.5 : rel === 1 ? 0.7 : 0
             const lineWords = words.filter((w) => w.line === li)
+            // Belt-and-suspenders (T-1164): if the passed dir is wrong for this
+            // line (e.g. language missing upstream), most tokens would "oppose"
+            // it and every word would get bidi-isolated — reversing the line.
+            // When a majority oppose, flip the line's dir instead, which leaves
+            // it as one clean continuous run with no per-word isolation.
+            const opposeCount = lineWords.filter((w) => opposesLine(w.w, dir)).length
+            const lineDir: "ltr" | "rtl" =
+              lineWords.length > 0 && opposeCount > lineWords.length / 2
+                ? dir === "rtl"
+                  ? "ltr"
+                  : "rtl"
+                : dir
             // Type is a LINE-level property (never per word) so highlighting can't
             // change any word's layout box.
             const sizeClass =
@@ -107,7 +119,7 @@ export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdow
             return (
               <div
                 key={li}
-                dir={dir}
+                dir={lineDir}
                 data-role={role}
                 style={{ height: `${LINE_H_REM}rem`, opacity }}
                 className="mx-auto flex max-w-[90%] items-center leading-tight transition-opacity duration-300"
@@ -115,7 +127,7 @@ export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdow
                 {/* One continuous inline text run — the bidi algorithm reorders
                     the whole line. text-align:start = right for RTL, left for LTR. */}
                 <p
-                  dir={dir}
+                  dir={lineDir}
                   data-testid={role === "active" ? "active-line" : undefined}
                   className={`w-full ${sizeClass}`}
                   style={{ textAlign: "start" }}
@@ -132,7 +144,7 @@ export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdow
                           ? "text-white/60"
                           : "text-white"
                         : "text-white"
-                    const Tag = opposesLine(word.w, dir) ? "bdi" : "span"
+                    const Tag = opposesLine(word.w, lineDir) ? "bdi" : "span"
                     return (
                       <Fragment key={wordIdx}>
                         {wi > 0 ? " " : null}

@@ -63,6 +63,8 @@ export default function HomePage() {
       setTakeBlob(file)
       // Transcribe the upload
       const result = await transcribeVideo(file, project.id)
+      // Persist the detected language for RTL resolution downstream (T-1164).
+      setProject({ ...project, language: result.language })
       setEditedScript(result.text)
       router.push("/editor")
     } catch (e) {
