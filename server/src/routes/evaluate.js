@@ -13,14 +13,24 @@ const { combineResult } = require('../lib/combine')
 
 const router = express.Router()
 
+// Total wall-clock budget for the whole evaluate pipeline (T-1165). Kept under
+// the client's 5-min timeout so the server always answers first — with a 504
+// instead of a Railway 499 client-abort — and never hangs indefinitely.
+const EVAL_DEADLINE_MS = 240000
+
 // POST /api/evaluate — multipart { video, project_id }.
 // Daily cap -> Scribe(new take) -> timing/accuracy scoring -> AI delivery eval
 // -> combined §9 result. Video bytes are discarded after the response.
-router.post('/evaluate', auth, upload.single('video'), async (req, res, next) => {
+router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
   const started = Date.now()
+  const deadline = started + EVAL_DEADLINE_MS
+  const projectId = req.body.project_id
+  // Stage timings accumulate so every outcome (success, error, timeout) can log
+  // how far the pipeline got — set inside the try, read in the catch.
+  let scribeMs = 0
+  let evalMs = 0
   try {
     if (!req.file) return res.status(400).json({ error: 'missing_video' })
-    const projectId = req.body.project_id
     if (!projectId) return res.status(400).json({ error: 'missing_project_id' })
 
     const usedToday = await db.countEvaluationsToday(req.userId)
@@ -36,7 +46,7 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res, next) =>
     const scribeStart = Date.now()
     const audio = await extractAudio(req.file.buffer, ext)
     const take = await transcribe(audio.buffer, audio.mime)
-    const scribeMs = Date.now() - scribeStart
+    scribeMs = Date.now() - scribeStart
 
     const scored = scoreTake(take.words, path)
     const evalStart = Date.now()
@@ -44,8 +54,8 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res, next) =>
       useCase: project.use_case,
       useCaseCustom: project.use_case_custom,
       language: take.language || project.language
-    })
-    const evalMs = Date.now() - evalStart
+    }, { deadline })
+    evalMs = Date.now() - evalStart
 
     const combined = combineResult({
       voice: delivery.voice,
@@ -86,7 +96,22 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res, next) =>
 
     res.status(200).json(result)
   } catch (err) {
-    next(err)
+    // Guarantee an event row on EVERY failed outcome (error or timeout) with the
+    // stage timings reached so far — the hang bug (T-1165) left no row at all.
+    const isTimeout = err && err.code === 'eval_upstream_timeout'
+    await db.logEvent({
+      user_id: req.userId,
+      action: 'error',
+      project_id: projectId,
+      error: isTimeout ? 'eval_upstream_timeout' : String(err && err.message ? err.message : err).slice(0, 500),
+      scores: { timings: { scribe_ms: scribeMs, eval_ms: evalMs } },
+      latency_ms: Date.now() - started
+    }).catch(() => {})
+
+    if (isTimeout) return res.status(504).json({ error: 'eval_upstream_timeout' })
+    // Match the global error handler's 500 shape, but respond here so the row
+    // above (with timings) is the single logged event for this request.
+    return res.status(500).json({ error: 'server_error', message: err && err.message })
   }
 })
 

@@ -7,6 +7,10 @@ const config = require('../config')
 
 const SCRIBE_URL = 'https://api.elevenlabs.io/v1/speech-to-text'
 
+// Hard timeout on the Scribe HTTP call so a stalled upstream can never hang the
+// transcribe/evaluate handler (T-1165). The timer is always cleared.
+const SCRIBE_TIMEOUT_MS = 60000
+
 // transcribe(audioBuffer, mime) ->
 //   { text, language, words: [{ w, start, end }], duration_s }
 async function transcribe (audioBuffer, mime = 'audio/mp4') {
@@ -17,11 +21,19 @@ async function transcribe (audioBuffer, mime = 'audio/mp4') {
   form.append('timestamps_granularity', 'word')
   form.append('file', new Blob([audioBuffer], { type: mime }), 'take.m4a')
 
-  const res = await fetch(SCRIBE_URL, {
-    method: 'POST',
-    headers: { 'xi-api-key': config.ELEVENLABS_API_KEY },
-    body: form
-  })
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(new Error('scribe_timeout')), SCRIBE_TIMEOUT_MS)
+  let res
+  try {
+    res = await fetch(SCRIBE_URL, {
+      method: 'POST',
+      headers: { 'xi-api-key': config.ELEVENLABS_API_KEY },
+      body: form,
+      signal: ctrl.signal
+    })
+  } finally {
+    clearTimeout(timer)
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     throw new Error(`Scribe ${res.status}: ${body.slice(0, 300)}`)

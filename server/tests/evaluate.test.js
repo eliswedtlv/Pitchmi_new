@@ -116,3 +116,45 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
     expect(calls).toBe(3) // 1 + 2 backoff retries, then surfaced — no extra parse re-calls
   })
 })
+
+describe('evaluateVideo — upstream timeouts + deadline (T-1165)', () => {
+  const origFetch = global.fetch
+  afterEach(() => {
+    global.fetch = origFetch
+    jest.useRealTimers()
+  })
+
+  test('a spent budget short-circuits to a 504-tagged error before any upstream call', async () => {
+    let calls = 0
+    global.fetch = jest.fn(async () => { calls++; return { ok: true, json: async () => ({}) } })
+    await expect(
+      evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' }, { deadline: Date.now() - 1 })
+    ).rejects.toMatchObject({ code: 'eval_upstream_timeout', status: 504 })
+    expect(calls).toBe(0)
+  })
+
+  test('a hung upstream is aborted per attempt, retried, then surfaces a 504 within budget', async () => {
+    jest.useFakeTimers()
+    let calls = 0
+    // Never resolves on its own — only the per-attempt AbortSignal ends it.
+    global.fetch = jest.fn((_url, opts) => new Promise((_resolve, reject) => {
+      calls++
+      opts.signal.addEventListener('abort', () => reject(new Error('aborted')))
+    }))
+
+    const deadline = Date.now() + 240000
+    const p = evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' }, { deadline })
+    const assertion = expect(p).rejects.toMatchObject({ code: 'eval_upstream_timeout' })
+
+    // Attempt 0 (60s) → backoff 250ms → attempt 1 (60s) → backoff 500ms →
+    // attempt 2 (60s) → out of retries → 504. Total ~180.75s, well under 240s.
+    await jest.advanceTimersByTimeAsync(60000)
+    await jest.advanceTimersByTimeAsync(250)
+    await jest.advanceTimersByTimeAsync(60000)
+    await jest.advanceTimersByTimeAsync(500)
+    await jest.advanceTimersByTimeAsync(60000)
+
+    await assertion
+    expect(calls).toBe(3) // retried, never a 4th attempt / never a hang
+  })
+})

@@ -17,6 +17,13 @@ const EDITOR_CLEANUP_CAPTION: Record<Lang, string> = {
   he: "ניקינו את התמלול שלכם — תקנו כל מה שפספסנו.",
 }
 
+// Shown on the wait/error screen when the evaluation upstream times out
+// (server 504, T-1165) — a plain retry message, never raw JSON.
+const EVAL_TOO_LONG: Record<Lang, string> = {
+  en: "The AI took too long — try again.",
+  he: "ה-AI לקח יותר מדי זמן — נסו שוב.",
+}
+
 function pick<T>(table: Record<Lang, T>, lang?: string | null): T {
   return table[(lang as Lang) in table ? (lang as Lang) : "en"]
 }
@@ -27,4 +34,8 @@ export function prompterHint(lang?: string | null): string {
 
 export function editorCleanupCaption(lang?: string | null): string {
   return pick(EDITOR_CLEANUP_CAPTION, lang)
+}
+
+export function evalTooLong(lang?: string | null): string {
+  return pick(EVAL_TOO_LONG, lang)
 }

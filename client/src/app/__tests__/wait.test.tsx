@@ -107,6 +107,20 @@ describe("WaitPage — transport outcomes route correctly (never an eternal spin
     expect(h.push).not.toHaveBeenCalledWith("/results")
   })
 
+  it("a 504 upstream timeout shows the friendly retry message, not raw JSON", async () => {
+    h.evaluateVideo.mockRejectedValue(
+      Object.assign(new Error("eval_upstream_timeout"), {
+        status: 504,
+        body: { error: "eval_upstream_timeout" },
+      }),
+    )
+    render(<WaitPage />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+    expect(screen.getByText(/took too long/i)).toBeTruthy()
+    expect(screen.queryByText(/eval_upstream_timeout/)).toBeNull()
+    expect(h.push).not.toHaveBeenCalledWith("/results")
+  })
+
   it("a 429 shows the daily-limit message", async () => {
     h.evaluateVideo.mockRejectedValue(Object.assign(new Error("limit"), { status: 429, body: { limit: 25 } }))
     render(<WaitPage />)

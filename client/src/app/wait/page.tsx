@@ -7,6 +7,7 @@ import { useSession } from "@/store/session"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { getAd, evaluateVideo, type AdConfig } from "@/lib/api"
 import { nextStage, STAGE_LABEL, type EvalStage } from "@/lib/evalStages"
+import { evalTooLong } from "@/lib/strings"
 
 // Widths reflect ONLY the two honest, state-driven stages. No timer ever
 // advances the label past reality — the eval either resolves (→ results) or
@@ -53,6 +54,8 @@ export default function WaitPage() {
           setError(`Daily evaluation limit reached (${err.body?.limit ?? 25}/day). Come back tomorrow!`)
         } else if (err.status === 503) {
           setError("Service is temporarily paused. Please try again later.")
+        } else if (err.status === 504 || err.body?.error === "eval_upstream_timeout") {
+          setError(evalTooLong(project?.language))
         } else {
           setError((e as Error).message)
         }

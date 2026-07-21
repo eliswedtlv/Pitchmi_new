@@ -84,11 +84,38 @@ function parseResult (raw) {
 
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms))
 
+// Per-attempt upstream timeout and the default total pipeline budget (T-1165).
+// A single upstream fetch that stalls past PER_ATTEMPT_MS is aborted and counts
+// as a retryable failure; the deadline caps the total time across all retries so
+// the handler can never hang until the client's 5-min timeout fires.
+const PER_ATTEMPT_MS = 60000
+const TOTAL_BUDGET_MS = 240000
+
+// Tagged error the route maps to 504 (eval_upstream_timeout).
+function timeoutError () {
+  const e = new Error('eval_upstream_timeout')
+  e.code = 'eval_upstream_timeout'
+  e.status = 504
+  return e
+}
+
+// fetch with a hard per-attempt timeout. The timer is always cleared so no
+// dangling handle survives the call (keeps Jest's loop clean).
+async function fetchWithTimeout (url, opts, timeoutMs) {
+  const ctrl = new AbortController()
+  const timer = setTimeout(() => ctrl.abort(new Error('upstream_timeout')), Math.max(1, timeoutMs))
+  try {
+    return await fetch(url, { ...opts, signal: ctrl.signal })
+  } finally {
+    clearTimeout(timer)
+  }
+}
+
 // Base64 data-URL video is only accepted by OpenRouter's Vertex Gemini backend;
 // the AI-Studio backend takes YouTube URLs only, so an unrestricted request
 // 500s whenever OpenRouter load-balances us onto AI Studio (T-1162 §A). Pin the
 // request to Vertex and disable fallbacks so we never hit AI Studio.
-async function callOpenRouter (bytes, mime, prompt) {
+async function callOpenRouter (bytes, mime, prompt, deadline) {
   if (!config.OPENROUTER_API_KEY) throw new Error('OPENROUTER_API_KEY not set')
   // Real per-take mime (video/mp4 from iOS, video/webm from Chrome) — never
   // hardcoded, or Vertex rejects the container.
@@ -115,14 +142,28 @@ async function callOpenRouter (bytes, mime, prompt) {
   let lastStatus
   let lastBody = ''
   for (let attempt = 0; attempt < 3; attempt++) {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${config.OPENROUTER_API_KEY}`,
-        'Content-Type': 'application/json'
-      },
-      body
-    })
+    // Out of budget before this attempt even starts → stop retrying now.
+    if (Date.now() >= deadline) throw timeoutError()
+    const perAttempt = Math.min(PER_ATTEMPT_MS, deadline - Date.now())
+    let res
+    try {
+      res = await fetchWithTimeout('https://openrouter.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${config.OPENROUTER_API_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        body
+      }, perAttempt)
+    } catch (err) {
+      // Timed out / aborted / network drop — a retryable failure, like a 5xx.
+      lastStatus = 'timeout'
+      if (attempt < 2 && Date.now() < deadline) {
+        await sleep(250 * (attempt + 1))
+        continue
+      }
+      throw timeoutError()
+    }
     if (res.ok) {
       const data = await res.json()
       return {
@@ -144,24 +185,31 @@ async function callOpenRouter (bytes, mime, prompt) {
 
 // --- Gemini direct (generateContent with inline_data) ---
 
-async function callGemini (bytes, mime, prompt) {
+async function callGemini (bytes, mime, prompt, deadline) {
   if (!config.GEMINI_API_KEY) throw new Error('GEMINI_API_KEY not set')
+  if (Date.now() >= deadline) throw timeoutError()
   const model = config.EVAL_MODEL.replace(/^google\//, '')
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${config.GEMINI_API_KEY}`
-  const res = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{
-        role: 'user',
-        parts: [
-          { text: prompt },
-          { inline_data: { mime_type: mime, data: bytes.toString('base64') } }
-        ]
-      }],
-      generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
-    })
-  })
+  const perAttempt = Math.min(PER_ATTEMPT_MS, deadline - Date.now())
+  let res
+  try {
+    res = await fetchWithTimeout(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{
+          role: 'user',
+          parts: [
+            { text: prompt },
+            { inline_data: { mime_type: mime, data: bytes.toString('base64') } }
+          ]
+        }],
+        generationConfig: { temperature: 0.2, responseMimeType: 'application/json' }
+      })
+    }, perAttempt)
+  } catch (err) {
+    throw timeoutError()
+  }
   if (!res.ok) {
     const body = await res.text().catch(() => '')
     throw new Error(`Gemini ${res.status}: ${body.slice(0, 300)}`)
@@ -173,27 +221,30 @@ async function callGemini (bytes, mime, prompt) {
   }
 }
 
-async function callProvider (bytes, mime, prompt) {
+async function callProvider (bytes, mime, prompt, deadline) {
   return config.EVAL_PROVIDER === 'gemini'
-    ? callGemini(bytes, mime, prompt)
-    : callOpenRouter(bytes, mime, prompt)
+    ? callGemini(bytes, mime, prompt, deadline)
+    : callOpenRouter(bytes, mime, prompt, deadline)
 }
 
 const STRICT_REMINDER = '\n\nReturn ONLY the JSON object, no prose, no fences.'
 
-async function evaluateVideo (bytes, mime, promptCtx) {
+async function evaluateVideo (bytes, mime, promptCtx, opts = {}) {
+  const deadline = opts.deadline || (Date.now() + TOTAL_BUDGET_MS)
   const prompt = buildPrompt(promptCtx || {})
   let lastRaw = ''
   let upstream = null
   // JSON-body retries only: initial, one plain retry, then a stricter retry
   // that appends a terse reminder demanding bare JSON. Transport-level failures
-  // (e.g. persistent upstream 5xx) are already retried inside callProvider and
-  // must NOT burn these attempts — they surface immediately.
+  // (e.g. persistent upstream 5xx or timeouts) are already retried inside
+  // callProvider and must NOT burn these attempts — they surface immediately.
   for (let attempt = 0; attempt < 3; attempt++) {
+    // Never start another parse attempt once the budget is spent.
+    if (Date.now() >= deadline) throw timeoutError()
     const p = attempt === 2 ? prompt + STRICT_REMINDER : prompt
-    // Transport failures (persistent 5xx, 4xx) throw straight out of the
-    // function — they are not JSON-body failures, so no extra parse retries.
-    const { content, upstream: up } = await callProvider(bytes, mime, p)
+    // Transport failures (persistent 5xx, 4xx, timeout) throw straight out of
+    // the function — they are not JSON-body failures, so no extra parse retries.
+    const { content, upstream: up } = await callProvider(bytes, mime, p, deadline)
     upstream = up
     try {
       const parsed = parseResult(content)
