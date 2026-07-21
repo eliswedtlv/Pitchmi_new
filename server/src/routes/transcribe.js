@@ -8,6 +8,7 @@ const config = require('../config')
 const { extractAudio, extForMime } = require('../lib/audio')
 const { transcribe } = require('../lib/scribe')
 const { stripFillers } = require('../lib/fillers')
+const { cleanVerbatim } = require('../lib/cleanVerbatim')
 
 const router = express.Router()
 
@@ -31,7 +32,16 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
     // Fillers must never reach the editable transcript (T-1162 §C). Strip
     // disfluencies from the script text but keep the FULL word list as
     // original_words — their timestamps remain valid pause evidence for /api/path.
-    const script = stripFillers(result.words)
+    const deterministic = stripFillers(result.words)
+
+    // Clean-verbatim draft (T-1163 §B): one cheap text-only LLM pass turns the
+    // raw STT into a readable draft (sentences, punctuation, no stutters/repeats)
+    // in the same language. Degrades silently to the deterministic text on any
+    // failure — transcribe must never break because cleanup did.
+    const cleanStarted = Date.now()
+    const sentences = await cleanVerbatim(deterministic, result.language)
+    const cleanMs = Date.now() - cleanStarted
+    const script = sentences ? sentences.join('\n') : deterministic
 
     await db.updateProject(projectId, req.userId, {
       script,
@@ -49,6 +59,7 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
       duration_s: result.duration_s,
       language: result.language,
       latency_ms: Date.now() - started,
+      clean_ms: cleanMs,
       cost_usd: costUsd
     })
 

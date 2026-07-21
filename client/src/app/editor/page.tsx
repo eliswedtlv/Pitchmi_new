@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSession } from "@/store/session"
 import { getPath } from "@/lib/api"
 import { estimateDuration, fitMeter } from "@/lib/fit"
+import { editorCleanupCaption } from "@/lib/strings"
 
 export default function EditorPage() {
   const router = useRouter()
@@ -47,14 +48,17 @@ export default function EditorPage() {
   return (
     <main className="min-h-screen bg-neutral-50 px-4 pt-8 safe-b-8">
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-neutral-900">Edit your script</h1>
-          <button
-            onClick={() => router.push("/")}
-            className="text-sm text-neutral-500 hover:text-neutral-700"
-          >
-            ← Home
-          </button>
+        <div>
+          <div className="flex items-center justify-between">
+            <h1 className="text-2xl font-bold text-neutral-900">Edit your script</h1>
+            <button
+              onClick={() => router.push("/")}
+              className="text-sm text-neutral-500 hover:text-neutral-700"
+            >
+              ← Home
+            </button>
+          </div>
+          <p className="mt-1 text-sm text-neutral-500">{editorCleanupCaption(project?.language)}</p>
         </div>
 
         {/* Fit meter */}
@@ -131,10 +135,14 @@ export default function EditorPage() {
           </CardContent>
         </Card>
 
-        {/* Script textarea */}
+        {/* Script textarea — the draft arrives one sentence per line (\n from the
+            clean-verbatim pass). Comfortable reading typography; right-aligned for
+            RTL. Still plain editable text, so the per-line layout is preserved. */}
         <textarea
           dir={dir}
-          className="w-full min-h-[240px] rounded-xl border border-neutral-300 bg-white px-4 py-3 text-base leading-relaxed focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-y"
+          className={`w-full min-h-[240px] rounded-xl border border-neutral-300 bg-white px-4 py-3 text-[18px] leading-[1.6] focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-y ${
+            dir === "rtl" ? "text-right" : "text-left"
+          }`}
           value={editedScript}
           onChange={(e) => setEditedScript(e.target.value)}
           placeholder="Your transcribed script will appear here. Edit freely."

@@ -20,6 +20,10 @@ build/
 
 # Test / coverage
 coverage/
+client/test-results/
+client/playwright-report/
+client/blob-report/
+client/.playwright/
 
 # Logs
 *.log

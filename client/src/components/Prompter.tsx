@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import type { KaraokeWord } from "@/lib/clock"
 import { prompterHint } from "@/lib/strings"
 
@@ -23,6 +23,18 @@ interface PrompterProps {
 // position fixed while the column scrolls under it.
 const LINE_H_REM = 4.5
 const HINT_KEY = "pitchmi:prompterHintSeen"
+
+// Strong-directional character ranges. A token is "opposite" to its line only
+// when it carries a strong character of the other direction — a Latin brand name
+// inside a Hebrew line, or a Hebrew word inside an English line. Those, and only
+// those, get bidi isolation so their internal order (and trailing punctuation)
+// can't leak into the surrounding run.
+const RTL_STRONG = /[֐-ࣿיִ-﷿ﹰ-﻿]/
+const LTR_STRONG = /[A-Za-zÀ-ɏ]/
+
+function opposesLine(text: string, dir: "ltr" | "rtl"): boolean {
+  return dir === "rtl" ? LTR_STRONG.test(text) : RTL_STRONG.test(text)
+}
 
 function hintSeen(): boolean {
   try {
@@ -47,13 +59,17 @@ function markHintSeen() {
  * translates smoothly under the fixed reading line, so the text moves while the
  * reading position never does.
  *
- * RTL correctness: the container and each line carry `dir`, and every word is a
- * `<bdi>` (bidi isolate) so per-word highlighting can never scramble logical
- * order — including mixed Latin/number tokens inside a Hebrew sentence.
+ * RTL correctness (T-1163 §A): each line is ONE continuous inline text run —
+ * plain `<span>`s separated by real spaces, `dir` + `text-align: start` on the
+ * run — so the Unicode bidi algorithm reorders the whole line as text. Earlier
+ * takes laid each word out as its own flex/inline-block box (and wrapped every
+ * word in `<bdi>`), which pins boxes in DOM order regardless of `dir` and
+ * scrambled Hebrew. Highlighting is colour-only, which never affects order. Only
+ * tokens whose script opposes the line (Latin brand names inside Hebrew) get a
+ * `<bdi>` isolate — nothing else.
  */
 export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdown" }: PrompterProps) {
   const activeLine = activeIdx >= 0 && words[activeIdx] ? words[activeIdx].line : 0
-  const align = dir === "rtl" ? "justify-end text-right" : "justify-start text-left"
 
   // One-time first-use hint, dismissed once recording begins.
   const [seenAtMount] = useState(hintSeen)
@@ -82,40 +98,51 @@ export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdow
             const role = rel === 0 ? "active" : rel === -1 ? "previous" : rel === 1 ? "next" : "hidden"
             const opacity = rel === 0 ? 1 : rel === -1 ? 0.5 : rel === 1 ? 0.7 : 0
             const lineWords = words.filter((w) => w.line === li)
+            // Type is a LINE-level property (never per word) so highlighting can't
+            // change any word's layout box.
+            const sizeClass =
+              role === "active"
+                ? "text-[clamp(26px,8vw,44px)] font-bold [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]"
+                : "text-xl sm:text-2xl font-semibold"
             return (
               <div
                 key={li}
                 dir={dir}
                 data-role={role}
-                data-testid={role === "active" ? "active-line" : undefined}
                 style={{ height: `${LINE_H_REM}rem`, opacity }}
-                className={`mx-auto flex max-w-[90%] flex-wrap items-center gap-x-2 leading-tight transition-opacity duration-300 ${align}`}
+                className="mx-auto flex max-w-[90%] items-center leading-tight transition-opacity duration-300"
               >
-                {lineWords.map((word) => {
-                  const wordIdx = words.indexOf(word)
-                  const isActiveWord = wordIdx === activeIdx
-                  const isPast = wordIdx < activeIdx
-                  const sizeClass =
-                    role === "active"
-                      ? "text-[clamp(26px,8vw,44px)] font-bold [text-shadow:0_2px_8px_rgba(0,0,0,0.8)]"
-                      : "text-xl sm:text-2xl font-semibold"
-                  const colorClass =
-                    role === "active"
-                      ? isActiveWord
-                        ? "text-green-400"
-                        : isPast
-                        ? "text-white/60"
+                {/* One continuous inline text run — the bidi algorithm reorders
+                    the whole line. text-align:start = right for RTL, left for LTR. */}
+                <p
+                  dir={dir}
+                  data-testid={role === "active" ? "active-line" : undefined}
+                  className={`w-full ${sizeClass}`}
+                  style={{ textAlign: "start" }}
+                >
+                  {lineWords.map((word, wi) => {
+                    const wordIdx = words.indexOf(word)
+                    const isActiveWord = wordIdx === activeIdx
+                    const isPast = wordIdx < activeIdx
+                    const colorClass =
+                      role === "active"
+                        ? isActiveWord
+                          ? "text-green-400"
+                          : isPast
+                          ? "text-white/60"
+                          : "text-white"
                         : "text-white"
-                      : "text-white"
-                  return (
-                    <bdi
-                      key={wordIdx}
-                      className={`inline-block transition-colors duration-100 ${sizeClass} ${colorClass}`}
-                    >
-                      {word.w}
-                    </bdi>
-                  )
-                })}
+                    const Tag = opposesLine(word.w, dir) ? "bdi" : "span"
+                    return (
+                      <Fragment key={wordIdx}>
+                        {wi > 0 ? " " : null}
+                        <Tag data-widx={wordIdx} className={`transition-colors duration-100 ${colorClass}`}>
+                          {word.w}
+                        </Tag>
+                      </Fragment>
+                    )
+                  })}
+                </p>
               </div>
             )
           })}

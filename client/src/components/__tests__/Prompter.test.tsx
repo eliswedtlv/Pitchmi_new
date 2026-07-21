@@ -38,24 +38,37 @@ describe("Prompter RTL rendering", () => {
     expect(overlay.querySelectorAll("[dir='rtl']").length).toBeGreaterThanOrEqual(1)
   })
 
-  it("wraps every word in a <bdi> so per-word highlight cannot scramble RTL order", () => {
+  it("renders each word as an inline element in one continuous text run (no layout boxes)", () => {
     const { container } = render(<Prompter words={words} lines={lines} activeIdx={1} dir="rtl" />)
-    const bdis = container.querySelectorAll("bdi")
-    expect(bdis.length).toBe(words.length)
-    expect(Array.from(bdis).map((b) => b.textContent)).toEqual(["שלום", "PitchMi", "2026"])
+    const wordEls = Array.from(container.querySelectorAll("[data-widx]"))
+    expect(wordEls.map((el) => el.textContent)).toEqual(["שלום", "PitchMi", "2026"])
+    // Nothing that would make a word its own layout box and pin it in DOM order.
+    for (const el of wordEls) {
+      expect(el.className).not.toMatch(/inline-block|flex|grid|absolute|float/)
+    }
+  })
+
+  it("isolates ONLY tokens whose script opposes the line (Latin inside Hebrew)", () => {
+    const { container } = render(<Prompter words={words} lines={lines} activeIdx={1} dir="rtl" />)
+    // The Hebrew word and the pure-number token stay plain <span>s; only the
+    // Latin brand name is wrapped in a <bdi> isolate.
+    expect(Array.from(container.querySelectorAll("bdi")).map((b) => b.textContent)).toEqual(["PitchMi"])
+    expect(container.querySelector("[data-widx='0']")?.tagName.toLowerCase()).toBe("span")
+    expect(container.querySelector("[data-widx='2']")?.tagName.toLowerCase()).toBe("span")
   })
 
   it("tints the current word (brand green) within the active line", () => {
     const { container } = render(<Prompter words={words} lines={lines} activeIdx={1} dir="rtl" />)
-    const bdis = container.querySelectorAll("bdi")
-    expect(bdis[1].className).toMatch(/text-green-400/)
+    expect(container.querySelector("[data-widx='1']")?.className).toMatch(/text-green-400/)
   })
 
-  it("aligns lines to the right for RTL and left for LTR", () => {
+  it("gives the active line's text run text-align:start and the line's dir", () => {
     const { rerender } = render(<Prompter words={words} lines={lines} activeIdx={0} dir="rtl" />)
-    expect(screen.getByTestId("active-line").className).toMatch(/text-right/)
+    const rtlRun = screen.getByTestId("active-line")
+    expect(rtlRun.style.textAlign).toBe("start")
+    expect(rtlRun.getAttribute("dir")).toBe("rtl")
     rerender(<Prompter words={words} lines={lines} activeIdx={0} dir="ltr" />)
-    expect(screen.getByTestId("active-line").className).toMatch(/text-left/)
+    expect(screen.getByTestId("active-line").getAttribute("dir")).toBe("ltr")
   })
 })
 
@@ -64,11 +77,10 @@ describe("Prompter three-line window", () => {
     render(<Prompter words={multiWords} lines={multiLines} activeIdx={1} dir="ltr" />)
     // active word is on line 1 -> line 1 active, line 0 previous, line 2 next.
     expect(screen.getAllByTestId("active-line")).toHaveLength(1)
-    const active = screen.getByTestId("active-line")
-    expect(active.getAttribute("data-role")).toBe("active")
     const roles = Array.from(document.querySelectorAll("[data-role]")).map((el) =>
       el.getAttribute("data-role"),
     )
+    expect(roles).toContain("active")
     expect(roles).toContain("previous")
     expect(roles).toContain("next")
     // the far line (3) is outside the 3-line window -> hidden.
@@ -77,8 +89,7 @@ describe("Prompter three-line window", () => {
 
   it("gives the active line the large fixed-reading-line type", () => {
     render(<Prompter words={multiWords} lines={multiLines} activeIdx={1} dir="ltr" />)
-    const activeWord = screen.getByTestId("active-line").querySelector("bdi")
-    expect(activeWord?.className).toMatch(/clamp\(26px,8vw,44px\)/)
+    expect(screen.getByTestId("active-line").className).toMatch(/clamp\(26px,8vw,44px\)/)
   })
 })
 
