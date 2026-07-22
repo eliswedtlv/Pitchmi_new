@@ -4,6 +4,7 @@ require('./helpers')
 jest.mock('../src/lib/db', () => require('./mocks/db'))
 jest.mock('../src/lib/audio', () => ({
   extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mp4' }),
+  transcodeForEval: async () => ({ buffer: Buffer.from('eval-proxy'), mime: 'video/mp4' }),
   extForMime: () => 'webm'
 }))
 jest.mock('../src/lib/scribe', () => ({
@@ -61,6 +62,10 @@ describe('POST /api/evaluate', () => {
     // Stage timings ride along as numeric metadata (privacy rule kept).
     expect(typeof evt.scores.timings.scribe_ms).toBe('number')
     expect(typeof evt.scores.timings.eval_ms).toBe('number')
+    // T-1166: transcode + payload sizes ride along as numeric metadata.
+    expect(typeof evt.scores.timings.transcode_ms).toBe('number')
+    expect(evt.scores.timings.video_bytes_in).toBe(Buffer.from('fake-video-bytes').length)
+    expect(evt.scores.timings.video_bytes_eval).toBe(Buffer.from('eval-proxy').length)
     expect(evt.scores.timings.attempts).toBe(1)
   })
 

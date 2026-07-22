@@ -49,7 +49,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
     let calls = 0
     global.fetch = jest.fn(async () => {
       calls++
-      return { ok: true, json: async () => ({ provider, choices: [{ message: { content } }] }) }
+      return { ok: true, text: async () => JSON.stringify({ provider, choices: [{ message: { content } }] }) }
     })
     return () => calls
   }
@@ -81,7 +81,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
     let captured
     global.fetch = jest.fn(async (_url, opts) => {
       captured = JSON.parse(opts.body)
-      return { ok: true, json: async () => ({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
+      return { ok: true, text: async () => JSON.stringify({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
     })
     await evaluateVideo(Buffer.from('mp4-bytes'), 'video/mp4', { useCase: 'pitch' })
 
@@ -98,7 +98,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
     global.fetch = jest.fn(async () => {
       calls++
       if (calls < 3) return { ok: false, status: 500, text: async () => 'Internal Server Error' }
-      return { ok: true, json: async () => ({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
+      return { ok: true, text: async () => JSON.stringify({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
     })
     const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
     expect(out).toMatchObject(VALID)

@@ -99,13 +99,19 @@ function timeoutError () {
   return e
 }
 
-// fetch with a hard per-attempt timeout. The timer is always cleared so no
-// dangling handle survives the call (keeps Jest's loop clean).
+// fetch with a hard per-attempt timeout. The response BODY is read under the
+// same timer, not just the headers (T-1166): a stalled stream after the headers
+// arrive would otherwise run unbounded past the deadline — the source of the
+// 304s overrun on a 240s budget. Returns { ok, status, text } so the whole
+// attempt is capped at timeoutMs and 240s stays a true ceiling. The timer is
+// always cleared so no dangling handle survives (keeps Jest's loop clean).
 async function fetchWithTimeout (url, opts, timeoutMs) {
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(new Error('upstream_timeout')), Math.max(1, timeoutMs))
   try {
-    return await fetch(url, { ...opts, signal: ctrl.signal })
+    const res = await fetch(url, { ...opts, signal: ctrl.signal })
+    const text = await res.text()
+    return { ok: res.ok, status: res.status, text }
   } finally {
     clearTimeout(timer)
   }
@@ -165,7 +171,7 @@ async function callOpenRouter (bytes, mime, prompt, deadline) {
       throw timeoutError()
     }
     if (res.ok) {
-      const data = await res.json()
+      const data = JSON.parse(res.text)
       return {
         content: data.choices?.[0]?.message?.content ?? '',
         // OpenRouter echoes which upstream served the call — metadata only.
@@ -173,7 +179,7 @@ async function callOpenRouter (bytes, mime, prompt, deadline) {
       }
     }
     lastStatus = res.status
-    lastBody = await res.text().catch(() => '')
+    lastBody = res.text || ''
     if (res.status >= 500 && attempt < 2) {
       await sleep(250 * (attempt + 1))
       continue
@@ -211,10 +217,9 @@ async function callGemini (bytes, mime, prompt, deadline) {
     throw timeoutError()
   }
   if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Gemini ${res.status}: ${body.slice(0, 300)}`)
+    throw new Error(`Gemini ${res.status}: ${(res.text || '').slice(0, 300)}`)
   }
-  const data = await res.json()
+  const data = JSON.parse(res.text)
   return {
     content: data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') ?? '',
     upstream: 'gemini-direct'

@@ -5,7 +5,7 @@ const auth = require('../middleware/auth')
 const upload = require('../middleware/upload')
 const db = require('../lib/db')
 const config = require('../config')
-const { extractAudio, extForMime } = require('../lib/audio')
+const { extractAudio, transcodeForEval, extForMime } = require('../lib/audio')
 const { transcribe } = require('../lib/scribe')
 const { scoreTake } = require('../lib/score')
 const { evaluateVideo } = require('../lib/evaluate')
@@ -18,6 +18,11 @@ const router = express.Router()
 // instead of a Railway 499 client-abort — and never hangs indefinitely.
 const EVAL_DEADLINE_MS = 240000
 
+// Hard ceiling on the eval proxy payload (T-1166). At 2fps/360p/crf32 a 60s take
+// lands ~1–3MB, so this guard should never fire; it only stops a pathological
+// proxy from being pushed at the base64-limited upstream.
+const EVAL_MAX_BYTES = 18 * 1024 * 1024
+
 // POST /api/evaluate — multipart { video, project_id }.
 // Daily cap -> Scribe(new take) -> timing/accuracy scoring -> AI delivery eval
 // -> combined §9 result. Video bytes are discarded after the response.
@@ -29,6 +34,9 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
   // how far the pipeline got — set inside the try, read in the catch.
   let scribeMs = 0
   let evalMs = 0
+  let transcodeMs = 0
+  let videoBytesIn = 0
+  let videoBytesEval = 0
   try {
     if (!req.file) return res.status(400).json({ error: 'missing_video' })
     if (!projectId) return res.status(400).json({ error: 'missing_project_id' })
@@ -49,8 +57,36 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
     scribeMs = Date.now() - scribeStart
 
     const scored = scoreTake(take.words, path)
+
+    // Shrink the take to a minimal eval proxy before the upstream call (T-1166).
+    // Real takes exceed the base64 request ceiling and stall every attempt; the
+    // proxy is what the model sees. The original take stays untouched for Scribe
+    // (above) and /api/save.
+    const transcodeStart = Date.now()
+    const proxy = await transcodeForEval(req.file.buffer, ext)
+    transcodeMs = Date.now() - transcodeStart
+    videoBytesIn = req.file.size || req.file.buffer.length
+    videoBytesEval = proxy.buffer.length
+    if (videoBytesEval > EVAL_MAX_BYTES) {
+      await db.logEvent({
+        user_id: req.userId,
+        action: 'error',
+        project_id: projectId,
+        error: 'take_too_large',
+        scores: { timings: { scribe_ms: scribeMs, transcode_ms: transcodeMs, video_bytes_in: videoBytesIn, video_bytes_eval: videoBytesEval } },
+        latency_ms: Date.now() - started
+      }).catch(() => {})
+      return res.status(413).json({
+        error: 'take_too_large',
+        message: {
+          en: 'This take is too large to evaluate. Please record a shorter clip and try again.',
+          he: 'ההקלטה גדולה מדי להערכה. נסו להקליט קטע קצר יותר ולנסות שוב.'
+        }
+      })
+    }
+
     const evalStart = Date.now()
-    const delivery = await evaluateVideo(req.file.buffer, req.file.mimetype || 'video/webm', {
+    const delivery = await evaluateVideo(proxy.buffer, 'video/mp4', {
       useCase: project.use_case,
       useCaseCustom: project.use_case_custom,
       language: take.language || project.language
@@ -88,7 +124,7 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
       scores: {
         ...combined.dimensions,
         overall: combined.overall,
-        timings: { scribe_ms: scribeMs, eval_ms: evalMs, attempts: delivery.attempts || 1, upstream: delivery.upstream || null }
+        timings: { scribe_ms: scribeMs, transcode_ms: transcodeMs, eval_ms: evalMs, video_bytes_in: videoBytesIn, video_bytes_eval: videoBytesEval, attempts: delivery.attempts || 1, upstream: delivery.upstream || null }
       },
       latency_ms: Date.now() - started,
       cost_usd: costUsd
@@ -104,7 +140,7 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
       action: 'error',
       project_id: projectId,
       error: isTimeout ? 'eval_upstream_timeout' : String(err && err.message ? err.message : err).slice(0, 500),
-      scores: { timings: { scribe_ms: scribeMs, eval_ms: evalMs } },
+      scores: { timings: { scribe_ms: scribeMs, transcode_ms: transcodeMs, eval_ms: evalMs, video_bytes_in: videoBytesIn, video_bytes_eval: videoBytesEval } },
       latency_ms: Date.now() - started
     }).catch(() => {})
 
