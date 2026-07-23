@@ -1,86 +1,124 @@
 'use strict'
 
-// T-1167 §A: after clean-verbatim + real edits, few words survive as exact
-// timing anchors. Below 0.6 anchor coverage we ignore anchors and lay the whole
-// script uniformly at the measured rate; at/above it we keep anchors but cap any
-// word's implied rate to ±35% of that rate so nothing reads jarringly fast/slow.
+// T-1167 §A + T-1168: after clean-verbatim + real edits, few words survive as
+// exact timing anchors. Below 0.6 anchor coverage we ignore anchors and lay the
+// whole script uniformly at the EFFECTIVE rate (elapsed / total chars, so it
+// includes inter-word gaps) with explicit inter-word gaps + a 10% comfort bias;
+// at/above it we keep anchors but pace inserted runs at that same effective rate
+// and clamp any word's implied rate into the speakable band.
 
-const { buildPath, measureRate } = require('../src/lib/path')
+const { buildPath, measureRate, measureEffectiveRate } = require('../src/lib/path')
 const { charLen } = require('../src/lib/text')
 
-const SENTENCE_PAUSE_S = 0.35
+const WORD_GAP = 0.08
+const CLAUSE_GAP = 0.15
+const SENTENCE_PAUSE = 0.35
+const COMFORT = 1.1
+const SMOOTH_BAND = 0.35
 
-// Original take with a clean 0.1 s/char measured rate.
+// Original take "hello world": measured (voiced) rate 0.1 s/char, effective rate
+// (1.1s elapsed / 10 chars) 0.11 s/char.
 const ORIG = [
   { w: 'hello', start: 0.0, end: 0.5 },
   { w: 'world', start: 0.6, end: 1.1 }
 ]
 
-// Original take with a long silent pause between "show" and "today" — the shape
-// that used to warp inserted words slow when the script was edited.
-const ORIG_LONG = [
-  { w: 'welcome', start: 0.0, end: 0.6 },
-  { w: 'to', start: 0.7, end: 0.9 },
-  { w: 'the', start: 1.0, end: 1.2 },
-  { w: 'show', start: 1.3, end: 1.8 },
-  { w: 'today', start: 5.0, end: 5.6 }
+// High-coverage take: welcome/to/the/show survive as anchors, each articulated
+// at a clean 0.12 s/char, with a gap before "show" wide enough to hold one
+// inserted word ("great") — the shape a light edit produces.
+const ORIG_ANCHOR = [
+  { w: 'welcome', start: 0.0, end: 0.84 },
+  { w: 'to', start: 0.94, end: 1.18 },
+  { w: 'the', start: 1.28, end: 1.64 },
+  { w: 'show', start: 2.6, end: 3.08 }
 ]
 
 function rateOf (w) {
   return (w.t_end - w.t_start) / charLen(w.w)
 }
 
-describe('low anchor coverage -> uniform timing (T-1167 §A)', () => {
-  const script = 'Alpha beta gamma. Delta epsilon zeta.'
-  const r = buildPath(ORIG, script, 1)
-  const spc = measureRate(ORIG)
+describe('measureEffectiveRate (T-1168)', () => {
+  test('elapsed / total chars, includes gaps, above the voiced median', () => {
+    const voiced = measureRate(ORIG)
+    const eff = measureEffectiveRate(ORIG, voiced)
+    expect(voiced).toBeCloseTo(0.1, 5)
+    expect(eff).toBeCloseTo(0.11, 5) // 1.1s / 10 chars
+    expect(eff).toBeGreaterThan(voiced)
+  })
 
-  test('all original words replaced away -> uniform, monotonic, in band', () => {
+  test('voiced median is a lower bound; degenerate takes fall back to it', () => {
+    expect(measureEffectiveRate([{ w: 'hello', start: 0, end: 0.5 }], 0.1)).toBe(0.1)
+    expect(measureEffectiveRate([], 0.1)).toBe(0.1)
+  })
+})
+
+describe('low anchor coverage -> uniform effective-rate timing (T-1168)', () => {
+  const script = 'Alpha beta, gamma. Delta epsilon zeta.'
+  const r = buildPath(ORIG, script, 1)
+  const eff = measureEffectiveRate(ORIG, measureRate(ORIG))
+
+  test('all original words replaced away -> uniform, monotonic', () => {
     const words = r.path.words
     expect(words.map(w => w.w)).toEqual(['Alpha', 'beta', 'gamma', 'Delta', 'epsilon', 'zeta'])
     for (let i = 1; i < words.length; i++) {
       expect(words[i].t_start).toBeGreaterThanOrEqual(words[i - 1].t_end - 1e-9)
     }
-    for (const w of words) {
-      expect(rateOf(w)).toBeGreaterThanOrEqual(spc * 0.65 - 1e-6)
-      expect(rateOf(w)).toBeLessThanOrEqual(spc * 1.35 + 1e-6)
+  })
+
+  test('word durations = chars × effective rate × comfort bias', () => {
+    for (const w of r.path.words) {
+      expect(w.t_end - w.t_start).toBeCloseTo(charLen(w.w) * eff * COMFORT, 3)
     }
   })
 
-  test('a sentence pause lands at sentence punctuation', () => {
+  test('inter-word / comma / sentence gaps are present and exact', () => {
     const words = r.path.words
-    const g = words.findIndex(w => w.w === 'gamma')
-    const gap = words[g + 1].t_start - words[g].t_end
-    expect(gap).toBeCloseTo(SENTENCE_PAUSE_S, 2)
-    // no spurious pause mid-sentence (between beta and gamma)
-    const b = words.findIndex(w => w.w === 'beta')
-    expect(words[b + 1].t_start - words[b].t_end).toBeCloseTo(0, 5)
+    const gapAfter = (name) => {
+      const i = words.findIndex(w => w.w === name)
+      return words[i + 1].t_start - words[i].t_end
+    }
+    expect(gapAfter('Alpha')).toBeCloseTo(WORD_GAP, 5) // plain word gap
+    expect(gapAfter('beta')).toBeCloseTo(CLAUSE_GAP, 5) // after the comma
+    expect(gapAfter('gamma')).toBeCloseTo(SENTENCE_PAUSE, 5) // full stop
+    expect(gapAfter('Delta')).toBeCloseTo(WORD_GAP, 5)
+  })
+
+  test('total ≈ script chars × effRate × comfort + pauses (within 5%)', () => {
+    const scriptChars = r.path.words.reduce((s, w) => s + charLen(w.w), 0)
+    const pauses = WORD_GAP * 3 + CLAUSE_GAP + SENTENCE_PAUSE
+    const expected = scriptChars * eff * COMFORT + pauses
+    expect(r.path.total_s).toBeGreaterThan(expected * 0.95)
+    expect(r.path.total_s).toBeLessThan(expected * 1.05)
   })
 })
 
-describe('high anchor coverage -> anchors kept + smoothed (T-1167 §A)', () => {
-  // welcome/to/the/show/today survive (5) out of 8 tokens => coverage 0.625.
-  const script = 'welcome to the show my dear friends today'
-  const r = buildPath(ORIG_LONG, script, 1)
-  const spc = measureRate(ORIG_LONG)
+describe('high anchor coverage -> anchors kept, effective-rate basis (T-1168)', () => {
+  // welcome/to/the/show survive (4) out of 5 tokens => coverage 0.8; "great" is
+  // inserted between "the" and "show".
+  const script = 'welcome to the great show'
+  const r = buildPath(ORIG_ANCHOR, script, 1)
+  const voiced = measureRate(ORIG_ANCHOR)
+  const eff = measureEffectiveRate(ORIG_ANCHOR, voiced)
 
-  test('surviving anchor "today" stays at its take-1 timestamp', () => {
-    const today = r.path.words.find(w => w.w === 'today')
-    expect(today.t_start).toBeCloseTo(5.0, 2)
+  test('surviving anchors keep their take-1 timestamps (light-edit beats)', () => {
+    const at = (name) => r.path.words.find(w => w.w === name)
+    expect(at('welcome')).toMatchObject({ t_start: 0, t_end: 0.84 })
+    expect(at('to').t_start).toBeCloseTo(0.94, 2)
+    expect(at('the').t_start).toBeCloseTo(1.28, 2)
+    expect(at('show').t_start).toBeCloseTo(2.6, 2)
+    expect(at('show').t_end).toBeCloseTo(3.08, 2)
   })
 
-  test('no word falls outside the ±35% speakable band', () => {
+  test('inserted word paces at the effective rate, not the fast voiced rate', () => {
+    const great = r.path.words.find(w => w.w === 'great')
+    expect(rateOf(great)).toBeCloseTo(eff, 2)
+    expect(rateOf(great)).toBeGreaterThan(voiced * 1.2)
+  })
+
+  test('no word falls outside the band [voiced×0.65, effRate×1.35]', () => {
     for (const w of r.path.words) {
-      expect(rateOf(w)).toBeGreaterThanOrEqual(spc * 0.65 - 1e-6)
-      expect(rateOf(w)).toBeLessThanOrEqual(spc * 1.35 + 1e-6)
-    }
-  })
-
-  test('inserted words are not stretched slow across the pause', () => {
-    // Pre-fix these three shared the whole 3.2s gap (~0.25 s/char, far slow).
-    for (const name of ['my', 'dear', 'friends']) {
-      const w = r.path.words.find(x => x.w === name)
-      expect(rateOf(w)).toBeLessThanOrEqual(spc * 1.35 + 1e-6)
+      expect(rateOf(w)).toBeGreaterThanOrEqual(voiced * (1 - SMOOTH_BAND) - 1e-6)
+      expect(rateOf(w)).toBeLessThanOrEqual(eff * (1 + SMOOTH_BAND) + 1e-6)
     }
   })
 })

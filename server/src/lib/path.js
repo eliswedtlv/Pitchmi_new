@@ -28,10 +28,23 @@ const LINE_MAX_WORDS = 6
 // take-1 timestamps and stretching everything between them warps the rhythm.
 // Below this anchor coverage we ignore anchors and lay the whole script
 // uniformly at the speaker's measured rate. At or above it we keep anchors but
-// cap any word's implied rate to ±SMOOTH_BAND of that measured rate.
+// cap any word's implied rate to the ±SMOOTH_BAND band.
 const ANCHOR_COVERAGE_MIN = 0.6
 const SMOOTH_BAND = 0.35
-const SENTENCE_PAUSE = 0.35 // uniform-layout pause at sentence punctuation (s)
+
+// Uniform-layout inter-word gaps (T-1168). layUniform packs word *durations* at
+// the measured rate; the elapsed pace of real speech also includes the silence
+// between words, so we lay explicit gaps that carry it: a small gap between
+// plain words, a longer one after a comma/clause break, the sentence pause at
+// full stops. Word durations scale with COMFORT; the gaps are fixed and never
+// scaled, so they stay exact regardless of pace.
+const WORD_GAP = 0.08 // gap between two plain words (s)
+const CLAUSE_GAP = 0.15 // gap after a comma / clause punctuation (s)
+const SENTENCE_PAUSE = 0.35 // pause at sentence punctuation (s)
+
+// Delivery-comfort bias (T-1168): speakers read a prompt slightly slower than
+// they converse, so the uniform word durations run 10% longer than measured.
+const COMFORT = 1.1
 
 // Clause conjunctions / prepositions we prefer to break *before* (they open a
 // phrase, so they read better at the start of a line). EN + HE minimum.
@@ -112,6 +125,24 @@ function measureRate (originalWords) {
   rates.sort((x, y) => x - y)
   const mid = Math.floor(rates.length / 2)
   return rates.length % 2 ? rates[mid] : (rates[mid - 1] + rates[mid]) / 2
+}
+
+// Effective seconds-per-character over the whole take: elapsed wall time from
+// the first word's start to the last word's end, divided by total characters.
+// Unlike the voiced median (measureRate) this INCLUDES inter-word gaps, breaths
+// and hesitations, so it reflects the speaker's real delivery pace — which is
+// what a teleprompter should run at. Guarded by the voiced median as a lower
+// bound so a take that was mostly silence can't drive an absurdly slow prompt
+// (T-1168). Falls back to voicedRate when there is nothing to measure.
+function measureEffectiveRate (originalWords, voicedRate) {
+  const words = (originalWords || [])
+    .map(o => ({ chars: charLen(o.w), start: Number(o.start), end: Number(o.end) }))
+    .filter(o => Number.isFinite(o.start) && Number.isFinite(o.end))
+  if (words.length < 2) return voicedRate
+  const elapsed = words[words.length - 1].end - words[0].start
+  const totalChars = words.reduce((s, o) => s + o.chars, 0)
+  if (!(elapsed > 0) || totalChars <= 0) return voicedRate
+  return Math.max(elapsed / totalChars, voicedRate)
 }
 
 // Pick the inclusive end index of the line starting at `start`. Greedy fill up
@@ -200,8 +231,9 @@ function buildPath (originalWords, editedScript, speed) {
   }))
   const editedNorm = tokens.map(t => normalize(t.w))
   const origNorm = original.map(o => normalize(o.w))
-  const spc = measureRate(original)
-  const rateFast = spc * (1 - SMOOTH_BAND) // fastest speakable rate (min sec/char)
+  const voicedRate = measureRate(original) // articulation rate of voiced words
+  const effRate = measureEffectiveRate(original, voicedRate) // >= voicedRate; includes gaps
+  const rateFast = effRate * (1 - SMOOTH_BAND) // fastest speakable rate (min sec/char)
 
   // Align: LCS pairs -> anchors. anchorOf[editedIndex] = original word or null.
   const anchorOf = new Array(tokens.length).fill(null)
@@ -217,10 +249,10 @@ function buildPath (originalWords, editedScript, speed) {
   // smooth so no single word or gap reads jarringly fast or slow (T-1167 §A).
   const coverage = anchorIdx.length / tokens.length
   if (coverage < ANCHOR_COVERAGE_MIN) {
-    layUniform(tokens, spc)
+    layUniform(tokens, effRate)
   } else {
-    layAnchored(tokens, anchorOf, anchorIdx, spc, rateFast)
-    smoothRates(tokens, spc)
+    layAnchored(tokens, anchorOf, anchorIdx, effRate, rateFast)
+    smoothRates(tokens, voicedRate, effRate)
   }
 
   // Normalize so the timeline never starts before 0.
@@ -260,28 +292,35 @@ function buildPath (originalWords, editedScript, speed) {
   }
 }
 
-// Uniform fallback: every word at the speaker's measured rate, with a fixed
-// pause at sentence punctuation. Monotonic by construction and, since one rate
-// drives all words, trivially inside the ±SMOOTH_BAND speakable band.
-function layUniform (tokens, spc) {
+// Uniform fallback (T-1168): every word's duration is chars × effective rate ×
+// COMFORT, and an explicit gap is laid after each word — the sentence pause at a
+// full stop, the clause gap after a comma, otherwise the small word gap. The
+// gaps reproduce the inter-word silence the effective rate was measured over, so
+// the whole path elapses at the speaker's real pace instead of racing. Monotonic
+// by construction; word durations scale with COMFORT while the gaps stay exact.
+function layUniform (tokens, rate) {
   let t = 0
   for (let i = 0; i < tokens.length; i++) {
     const tok = tokens[i]
-    const dur = Math.max(charLen(tok.w) * spc, 0.001)
+    const dur = Math.max(charLen(tok.w) * rate * COMFORT, 0.001)
     tok.t_start = t
     tok.t_end = t + dur
     t = tok.t_end
-    if (tok.sentenceEnd && i < tokens.length - 1) t += SENTENCE_PAUSE
+    if (i < tokens.length - 1) {
+      t += tok.sentenceEnd ? SENTENCE_PAUSE : tok.clauseBreak ? CLAUSE_GAP : WORD_GAP
+    }
   }
 }
 
 // Anchor-based layout: surviving words are pinned to their take-1 timestamps and
 // runs of inserted words are timed between them. Inserted words read at the
-// speaker's natural rate; if the gap can't hold them they compress toward the
-// fastest speakable rate (never past it) and only then push later anchors right.
-// Any spare gap becomes a pause before the next anchor instead of stretching the
-// inserted words slow — that is what kept editing from warping the rhythm.
-function layAnchored (tokens, anchorOf, anchorIdx, spc, rateFast) {
+// speaker's effective rate (T-1168 — same basis as the uniform path, so light
+// and heavy edits pace consistently); if the gap can't hold them they compress
+// toward the fastest speakable rate (never past it) and only then push later
+// anchors right. Any spare gap becomes a pause before the next anchor instead of
+// stretching the inserted words slow — that is what kept editing from warping
+// the rhythm.
+function layAnchored (tokens, anchorOf, anchorIdx, rate, rateFast) {
   let shift = 0
   // Leading run before the first anchor: extrapolate backward at natural rate.
   const first = anchorIdx[0]
@@ -289,10 +328,10 @@ function layAnchored (tokens, anchorOf, anchorIdx, spc, rateFast) {
   const leadChars = leadTokens.reduce((s, t) => s + charLen(t.w), 0)
   const anchor0 = anchorOf[first]
   if (leadTokens.length) {
-    const needed = leadChars * spc
+    const needed = leadChars * rate
     let t = anchor0.start - needed
     for (const tok of leadTokens) {
-      const dur = leadChars ? (charLen(tok.w) / leadChars) * needed : spc
+      const dur = leadChars ? (charLen(tok.w) / leadChars) * needed : rate
       tok.t_start = t
       tok.t_end = t + dur
       t = tok.t_end
@@ -311,7 +350,7 @@ function layAnchored (tokens, anchorOf, anchorIdx, spc, rateFast) {
     const cursor = prevAnchor.end + shift
     if (run.length) {
       const runChars = run.reduce((s, t) => s + charLen(t.w), 0) || 1
-      const naturalTotal = runChars * spc
+      const naturalTotal = runChars * rate
       const minTotal = runChars * rateFast
       let readTotal
       if (availGap >= naturalTotal) {
@@ -338,20 +377,23 @@ function layAnchored (tokens, anchorOf, anchorIdx, spc, rateFast) {
   const last = anchorIdx[anchorIdx.length - 1]
   let t = tokens[last].t_end
   for (let i = last + 1; i < tokens.length; i++) {
-    const dur = Math.max(charLen(tokens[i].w) * spc, 0.001)
+    const dur = Math.max(charLen(tokens[i].w) * rate, 0.001)
     tokens[i].t_start = t
     tokens[i].t_end = t + dur
     t = tokens[i].t_end
   }
 }
 
-// Clamp each word's implied rate to ±SMOOTH_BAND of the measured rate, pushing
-// the delta into the following words so gaps and ordering are preserved. A no-op
-// for words already in band; it only trims a word that survived take 1 unusually
-// stretched or clipped.
-function smoothRates (tokens, spc) {
-  const rateFast = spc * (1 - SMOOTH_BAND)
-  const rateSlow = spc * (1 + SMOOTH_BAND)
+// Clamp each word's implied rate into the speakable band, pushing the delta into
+// the following words so gaps and ordering are preserved. The fast bound stays
+// tied to the voiced articulation rate so a word pinned to its real (fast) take-1
+// timestamp is never stretched off its beat; the slow bound scales with the
+// effective rate so inserted runs paced at that rate (layAnchored) are not
+// compressed back (T-1168). A no-op for words already in band; it only trims a
+// word that survived take 1 unusually stretched or clipped.
+function smoothRates (tokens, voicedRate, effRate) {
+  const rateFast = voicedRate * (1 - SMOOTH_BAND)
+  const rateSlow = effRate * (1 + SMOOTH_BAND)
   for (let i = 0; i < tokens.length; i++) {
     const chars = charLen(tokens[i].w) || 1
     const dur = tokens[i].t_end - tokens[i].t_start
@@ -384,4 +426,4 @@ function round1 (n) {
   return Math.round(n * 10) / 10
 }
 
-module.exports = { buildPath, measureRate, lcsPairs }
+module.exports = { buildPath, measureRate, measureEffectiveRate, lcsPairs }

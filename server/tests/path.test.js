@@ -33,14 +33,15 @@ describe('buildPath (§6)', () => {
     expect(r.fits).toBe(true)
   })
 
-  test('everything replaced -> pure rate-based (no anchors)', () => {
-    // Measured rate from original = 0.1 s/char; "aaa"/"bbb" = 3 chars each.
+  test('everything replaced -> uniform rate-based (no anchors)', () => {
+    // Effective rate of "hello world" = 1.1s / 10 chars = 0.11 s/char; each word
+    // runs chars(3) × 0.11 × 1.1 comfort = 0.363s, with a 0.08s word gap between.
     const r = buildPath(HELLO_WORLD, 'aaa bbb', 1)
     expect(r.path.words).toHaveLength(2)
     expect(r.path.words[0].t_start).toBe(0)
-    expect(r.path.words[0].t_end).toBeCloseTo(0.3, 5)
-    expect(r.path.words[1].t_start).toBeCloseTo(0.3, 5)
-    expect(r.path.total_s).toBe(0.6)
+    expect(r.path.words[0].t_end).toBeCloseTo(0.363, 3)
+    expect(r.path.words[1].t_start).toBeCloseTo(0.443, 3)
+    expect(r.path.total_s).toBe(0.8)
   })
 
   test('single word anchored keeps original timing', () => {
@@ -95,9 +96,12 @@ describe('buildPath (§6)', () => {
     const base = buildPath(HELLO_WORLD, 'aaa bbb ccc', 1)
     expect(slow.path.total_s).toBeGreaterThan(base.path.total_s)
     expect(fast.path.total_s).toBeLessThan(base.path.total_s)
-    // slow (0.75) => factor 1/0.75; fast (1.25) => factor 1/1.25.
-    expect(slow.path.total_s).toBeCloseTo(base.path.total_s / 0.75, 1)
-    expect(fast.path.total_s).toBeCloseTo(base.path.total_s / 1.25, 1)
+    // slow (0.75) => factor 1/0.75; fast (1.25) => factor 1/1.25. Checked on the
+    // finer round3 word timing (total_s is only round1, so its rounding noise —
+    // amplified by /0.75 once inter-word gaps make totals non-round — is coarse).
+    const firstEnd = r => r.path.words[0].t_end
+    expect(firstEnd(slow)).toBeCloseTo(firstEnd(base) / 0.75, 2)
+    expect(firstEnd(fast)).toBeCloseTo(firstEnd(base) / 1.25, 2)
   })
 
   test('speed clamps outside 0.75–1.25', () => {
