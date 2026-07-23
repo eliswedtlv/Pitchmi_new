@@ -52,9 +52,11 @@ function markHintSeen() {
 }
 
 /**
- * Broadcast-style karaoke teleprompter (T-1162 §B), rendered as a scrim overlay
- * in the UPPER third of the frame so the reader's eyes stay near the front
- * camera. Exactly three lines are legible at a time — previous (dim), active
+ * Broadcast-style karaoke teleprompter (T-1162 §B), rendered as a scrim overlay.
+ * On portrait phones it is vertically centered (reading line at screen centre);
+ * on landscape/desktop, where the webcam sits above the screen, it stays in the
+ * upper third so the reader's eyes stay near the camera (T-1167 §B). Exactly
+ * three lines are legible at a time — previous (dim), active
  * (large, pinned at a fixed reading line), next (medium). The whole column
  * translates smoothly under the fixed reading line, so the text moves while the
  * reading position never does.
@@ -86,7 +88,11 @@ export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdow
     <div
       dir={dir}
       data-testid="prompter"
-      className="pointer-events-none absolute inset-x-0 top-0 pt-[max(env(safe-area-inset-top),1rem)] bg-gradient-to-b from-black/85 via-black/70 to-transparent"
+      // Portrait phones: vertically centered so the reading line sits at screen
+      // centre while the eyes stay near the front camera, with a soft center-band
+      // scrim (transparent top and bottom) so the face shows above and below.
+      // Landscape/desktop (webcam above the screen): keep it in the top third.
+      className="pointer-events-none absolute inset-x-0 top-0 portrait:top-1/2 portrait:-translate-y-1/2 landscape:pt-[max(env(safe-area-inset-top),1rem)] portrait:py-6 bg-gradient-to-b from-black/85 portrait:from-transparent via-black/70 portrait:via-black/75 to-transparent"
     >
       <div className="relative overflow-hidden" style={{ height: `${LINE_H_REM * 3}rem` }}>
         <div

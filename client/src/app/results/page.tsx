@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSession } from "@/store/session"
 import { saveTake } from "@/lib/api"
+import { savedToast, myVideosLabel, savedButton } from "@/lib/strings"
 import { useState } from "react"
 
 const DIM_LABELS: Record<string, string> = {
@@ -44,9 +45,10 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 export default function ResultsPage() {
   const router = useRouter()
   const { project, takeBlob, takeBlobUrl, evalResult } = useSession()
+  const lang = project?.language
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
-  const [saveError, setSaveError] = useState<string | null>(null)
+  const [toast, setToast] = useState<{ variant: "success" | "error"; message: string } | null>(null)
 
   useEffect(() => {
     if (!evalResult || !takeBlob) router.push("/")
@@ -55,14 +57,16 @@ export default function ResultsPage() {
   if (!evalResult || !takeBlob) return null
 
   async function handleSave() {
-    if (!project || !takeBlob || !evalResult) return
+    // Idempotent guard: never save the same take twice, even on rapid taps.
+    if (!project || !takeBlob || !evalResult || saving || saved) return
     setSaving(true)
-    setSaveError(null)
+    setToast(null)
     try {
       await saveTake({ video: takeBlob, projectId: project.id, scores: evalResult })
       setSaved(true)
+      setToast({ variant: "success", message: savedToast(lang) })
     } catch (e) {
-      setSaveError((e as Error).message)
+      setToast({ variant: "error", message: (e as Error).message })
     } finally {
       setSaving(false)
     }
@@ -188,13 +192,37 @@ export default function ResultsPage() {
           className="w-full gap-2"
         >
           <Cloud className="h-5 w-5" />
-          {saved ? "Saved!" : saving ? "Saving…" : "Save to cloud"}
+          {saved ? savedButton(lang) : saving ? "Saving…" : "Save to cloud"}
         </Button>
-
-        {saveError && (
-          <p className="text-sm text-red-700 text-center">{saveError}</p>
-        )}
       </div>
+
+      {/* Save feedback snackbar (T-1167 §C): confirms the save landed and offers a
+          one-tap jump to the user's saved videos; errors surface here too. */}
+      {toast && (
+        <div
+          data-testid="save-toast"
+          data-variant={toast.variant}
+          role="status"
+          className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
+        >
+          <div
+            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-white shadow-lg ${
+              toast.variant === "success" ? "bg-neutral-900" : "bg-red-700"
+            }`}
+          >
+            <span>{toast.message}</span>
+            {toast.variant === "success" && (
+              <button
+                type="button"
+                onClick={() => router.push("/videos")}
+                className="font-semibold text-green-400 underline underline-offset-2"
+              >
+                {myVideosLabel(lang)}
+              </button>
+            )}
+          </div>
+        </div>
+      )}
     </main>
   )
 }

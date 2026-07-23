@@ -23,6 +23,16 @@ const DEFAULT_SEC_PER_CHAR = 0.0727
 const LINE_MAX_CHARS = 32
 const LINE_MAX_WORDS = 6
 
+// Pacing fallback (T-1167 §A). After a clean-verbatim pass plus real edits, few
+// words survive as exact timing anchors; anchoring the sparse survivors to
+// take-1 timestamps and stretching everything between them warps the rhythm.
+// Below this anchor coverage we ignore anchors and lay the whole script
+// uniformly at the speaker's measured rate. At or above it we keep anchors but
+// cap any word's implied rate to ±SMOOTH_BAND of that measured rate.
+const ANCHOR_COVERAGE_MIN = 0.6
+const SMOOTH_BAND = 0.35
+const SENTENCE_PAUSE = 0.35 // uniform-layout pause at sentence punctuation (s)
+
 // Clause conjunctions / prepositions we prefer to break *before* (they open a
 // phrase, so they read better at the start of a line). EN + HE minimum.
 const CONJUNCTIONS = new Set([
@@ -191,7 +201,7 @@ function buildPath (originalWords, editedScript, speed) {
   const editedNorm = tokens.map(t => normalize(t.w))
   const origNorm = original.map(o => normalize(o.w))
   const spc = measureRate(original)
-  const minSpc = spc * 0.8 // fastest speakable rate (max rate)
+  const rateFast = spc * (1 - SMOOTH_BAND) // fastest speakable rate (min sec/char)
 
   // Align: LCS pairs -> anchors. anchorOf[editedIndex] = original word or null.
   const anchorOf = new Array(tokens.length).fill(null)
@@ -202,69 +212,15 @@ function buildPath (originalWords, editedScript, speed) {
   }
   const anchorIdx = tokens.map((_, i) => (anchorOf[i] ? i : -1)).filter(i => i >= 0)
 
-  if (!anchorIdx.length) {
-    // No surviving words: pure rate-based extrapolation from t=0.
-    let t = 0
-    for (const tok of tokens) {
-      const dur = Math.max(charLen(tok.w) * spc, 0.001)
-      tok.t_start = t
-      tok.t_end = t + dur
-      t = tok.t_end
-    }
+  // Anchor coverage: fraction of the edited script that survives from take 1 as
+  // an exact timing anchor. Too sparse -> uniform fallback; otherwise anchor +
+  // smooth so no single word or gap reads jarringly fast or slow (T-1167 §A).
+  const coverage = anchorIdx.length / tokens.length
+  if (coverage < ANCHOR_COVERAGE_MIN) {
+    layUniform(tokens, spc)
   } else {
-    let shift = 0
-    // Leading run before the first anchor: extrapolate backward at natural rate.
-    const first = anchorIdx[0]
-    const leadTokens = tokens.slice(0, first)
-    const leadChars = leadTokens.reduce((s, t) => s + charLen(t.w), 0)
-    const anchor0 = anchorOf[first]
-    if (leadTokens.length) {
-      const needed = leadChars * spc
-      let t = anchor0.start - needed
-      for (const tok of leadTokens) {
-        const dur = leadChars ? (charLen(tok.w) / leadChars) * needed : spc
-        tok.t_start = t
-        tok.t_end = t + dur
-        t = tok.t_end
-      }
-    }
-    tokens[first].t_start = anchor0.start
-    tokens[first].t_end = anchor0.end
-
-    for (let k = 1; k < anchorIdx.length; k++) {
-      const prevI = anchorIdx[k - 1]
-      const curI = anchorIdx[k]
-      const prevAnchor = anchorOf[prevI]
-      const curAnchor = anchorOf[curI]
-      const run = tokens.slice(prevI + 1, curI)
-      const availGap = curAnchor.start - prevAnchor.end
-      const cursor = prevAnchor.end + shift
-      if (run.length) {
-        const runChars = run.reduce((s, t) => s + charLen(t.w), 0) || 1
-        const neededMin = runChars * minSpc
-        const gap = Math.max(availGap, neededMin)
-        shift += gap - availGap
-        let t = cursor
-        for (const tok of run) {
-          const dur = (charLen(tok.w) / runChars) * gap
-          tok.t_start = t
-          tok.t_end = t + dur
-          t = tok.t_end
-        }
-      }
-      tokens[curI].t_start = curAnchor.start + shift
-      tokens[curI].t_end = curAnchor.end + shift
-    }
-
-    // Trailing run after the last anchor: extrapolate forward at natural rate.
-    const last = anchorIdx[anchorIdx.length - 1]
-    let t = tokens[last].t_end
-    for (let i = last + 1; i < tokens.length; i++) {
-      const dur = Math.max(charLen(tokens[i].w) * spc, 0.001)
-      tokens[i].t_start = t
-      tokens[i].t_end = t + dur
-      t = tokens[i].t_end
-    }
+    layAnchored(tokens, anchorOf, anchorIdx, spc, rateFast)
+    smoothRates(tokens, spc)
   }
 
   // Normalize so the timeline never starts before 0.
@@ -301,6 +257,116 @@ function buildPath (originalWords, editedScript, speed) {
     fits,
     est_duration_s: round1(totalS),
     warning
+  }
+}
+
+// Uniform fallback: every word at the speaker's measured rate, with a fixed
+// pause at sentence punctuation. Monotonic by construction and, since one rate
+// drives all words, trivially inside the ±SMOOTH_BAND speakable band.
+function layUniform (tokens, spc) {
+  let t = 0
+  for (let i = 0; i < tokens.length; i++) {
+    const tok = tokens[i]
+    const dur = Math.max(charLen(tok.w) * spc, 0.001)
+    tok.t_start = t
+    tok.t_end = t + dur
+    t = tok.t_end
+    if (tok.sentenceEnd && i < tokens.length - 1) t += SENTENCE_PAUSE
+  }
+}
+
+// Anchor-based layout: surviving words are pinned to their take-1 timestamps and
+// runs of inserted words are timed between them. Inserted words read at the
+// speaker's natural rate; if the gap can't hold them they compress toward the
+// fastest speakable rate (never past it) and only then push later anchors right.
+// Any spare gap becomes a pause before the next anchor instead of stretching the
+// inserted words slow — that is what kept editing from warping the rhythm.
+function layAnchored (tokens, anchorOf, anchorIdx, spc, rateFast) {
+  let shift = 0
+  // Leading run before the first anchor: extrapolate backward at natural rate.
+  const first = anchorIdx[0]
+  const leadTokens = tokens.slice(0, first)
+  const leadChars = leadTokens.reduce((s, t) => s + charLen(t.w), 0)
+  const anchor0 = anchorOf[first]
+  if (leadTokens.length) {
+    const needed = leadChars * spc
+    let t = anchor0.start - needed
+    for (const tok of leadTokens) {
+      const dur = leadChars ? (charLen(tok.w) / leadChars) * needed : spc
+      tok.t_start = t
+      tok.t_end = t + dur
+      t = tok.t_end
+    }
+  }
+  tokens[first].t_start = anchor0.start
+  tokens[first].t_end = anchor0.end
+
+  for (let k = 1; k < anchorIdx.length; k++) {
+    const prevI = anchorIdx[k - 1]
+    const curI = anchorIdx[k]
+    const prevAnchor = anchorOf[prevI]
+    const curAnchor = anchorOf[curI]
+    const run = tokens.slice(prevI + 1, curI)
+    const availGap = curAnchor.start - prevAnchor.end
+    const cursor = prevAnchor.end + shift
+    if (run.length) {
+      const runChars = run.reduce((s, t) => s + charLen(t.w), 0) || 1
+      const naturalTotal = runChars * spc
+      const minTotal = runChars * rateFast
+      let readTotal
+      if (availGap >= naturalTotal) {
+        readTotal = naturalTotal // natural rate; the surplus becomes a pause
+      } else if (availGap >= minTotal) {
+        readTotal = availGap // compress into the gap, still within the band
+      } else {
+        readTotal = minTotal // fastest speakable; push later anchors right
+        shift += minTotal - availGap
+      }
+      let t = cursor
+      for (const tok of run) {
+        const dur = (charLen(tok.w) / runChars) * readTotal
+        tok.t_start = t
+        tok.t_end = t + dur
+        t = tok.t_end
+      }
+    }
+    tokens[curI].t_start = curAnchor.start + shift
+    tokens[curI].t_end = curAnchor.end + shift
+  }
+
+  // Trailing run after the last anchor: extrapolate forward at natural rate.
+  const last = anchorIdx[anchorIdx.length - 1]
+  let t = tokens[last].t_end
+  for (let i = last + 1; i < tokens.length; i++) {
+    const dur = Math.max(charLen(tokens[i].w) * spc, 0.001)
+    tokens[i].t_start = t
+    tokens[i].t_end = t + dur
+    t = tokens[i].t_end
+  }
+}
+
+// Clamp each word's implied rate to ±SMOOTH_BAND of the measured rate, pushing
+// the delta into the following words so gaps and ordering are preserved. A no-op
+// for words already in band; it only trims a word that survived take 1 unusually
+// stretched or clipped.
+function smoothRates (tokens, spc) {
+  const rateFast = spc * (1 - SMOOTH_BAND)
+  const rateSlow = spc * (1 + SMOOTH_BAND)
+  for (let i = 0; i < tokens.length; i++) {
+    const chars = charLen(tokens[i].w) || 1
+    const dur = tokens[i].t_end - tokens[i].t_start
+    const minD = Math.max(chars * rateFast, 0.001)
+    const maxD = chars * rateSlow
+    let newDur = dur
+    if (dur > maxD) newDur = maxD
+    else if (dur < minD) newDur = minD
+    const delta = newDur - dur
+    if (delta === 0) continue
+    tokens[i].t_end += delta
+    for (let j = i + 1; j < tokens.length; j++) {
+      tokens[j].t_start += delta
+      tokens[j].t_end += delta
+    }
   }
 }
 

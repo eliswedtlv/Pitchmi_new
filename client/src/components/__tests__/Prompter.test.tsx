@@ -99,6 +99,20 @@ describe("Prompter majority-flip guard (T-1164)", () => {
   })
 })
 
+describe("Prompter position (T-1167 §B)", () => {
+  it("carries portrait-centered classes and a center-band scrim, keeping top on landscape", () => {
+    render(<Prompter words={words} lines={lines} activeIdx={1} dir="rtl" lang="he" />)
+    const overlay = screen.getByTestId("prompter")
+    // Portrait phones: vertically centered.
+    expect(overlay.className).toMatch(/portrait:top-1\/2/)
+    expect(overlay.className).toMatch(/portrait:-translate-y-1\/2/)
+    // Soft center band (transparent top/bottom) instead of the top scrim.
+    expect(overlay.className).toMatch(/portrait:from-transparent/)
+    // Landscape/desktop keeps the top position.
+    expect(overlay.className).toMatch(/(^|\s)top-0(\s|$)/)
+  })
+})
+
 describe("Prompter three-line window", () => {
   it("marks exactly one active line, with a visible previous and next", () => {
     render(<Prompter words={multiWords} lines={multiLines} activeIdx={1} dir="ltr" />)
