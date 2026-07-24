@@ -7,13 +7,15 @@ const db = require('../lib/db')
 const config = require('../config')
 const { extractAudio, extForMime } = require('../lib/audio')
 const { transcribe } = require('../lib/scribe')
-const { stripFillers } = require('../lib/fillers')
-const { cleanVerbatim } = require('../lib/cleanVerbatim')
+const { stripFillers, isFiller, taggedDisfluency } = require('../lib/fillers')
+const { buildSubtitles } = require('../lib/subtitles')
 
 const router = express.Router()
 
 // POST /api/transcribe — multipart { video, project_id }.
-// Extract audio -> Scribe -> store script+language on the project.
+// Extract audio -> Scribe -> strip fillers -> build the karaoke subtitle
+// structure directly from the surviving words' REAL timestamps (T-1169: no
+// editor, no re-pacing). Store script + language + subtitle path on the project.
 // The video bytes are discarded after the response.
 router.post('/transcribe', auth, upload.single('video'), async (req, res, next) => {
   const started = Date.now()
@@ -29,26 +31,34 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
     const audio = await extractAudio(req.file.buffer, ext)
     const result = await transcribe(audio.buffer, audio.mime)
 
-    // Fillers must never reach the editable transcript (T-1162 §C). Strip
-    // disfluencies from the script text but keep the FULL word list as
-    // original_words — their timestamps remain valid pause evidence for /api/path.
-    const deterministic = stripFillers(result.words)
+    // Strip fillers (אה/אמ/um/uh…) so the subtitles read clean. A dropped filler
+    // just leaves a natural gap between its neighbours — the surviving words keep
+    // their ORIGINAL Scribe start/end (T-1169). No LLM rewrite: an edited wording
+    // would desync words from their real timings.
+    const survivors = (result.words || []).filter(w => !taggedDisfluency(w) && !isFiller(w.w))
+    const path = buildSubtitles(survivors)
+    const script = stripFillers(result.words)
 
-    // Clean-verbatim draft (T-1163 §B): one cheap text-only LLM pass turns the
-    // raw STT into a readable draft (sentences, punctuation, no stutters/repeats)
-    // in the same language. Degrades silently to the deterministic text on any
-    // failure — transcribe must never break because cleanup did.
-    const cleanStarted = Date.now()
-    const sentences = await cleanVerbatim(deterministic, result.language)
-    const cleanMs = Date.now() - cleanStarted
-    const script = sentences ? sentences.join('\n') : deterministic
+    // Nothing usable to prompt from (silent / too-short take): surface the
+    // standard "we couldn't hear you" error instead of navigating to an empty
+    // karaoke screen.
+    if (!path.words.length) {
+      await db.logEvent({
+        user_id: req.userId,
+        action: 'transcribe',
+        project_id: projectId,
+        duration_s: result.duration_s,
+        language: result.language,
+        latency_ms: Date.now() - started,
+        error: 'no_speech'
+      })
+      return res.status(422).json({ error: 'no_speech' })
+    }
 
     await db.updateProject(projectId, req.userId, {
       script,
       language: result.language,
-      // Persist original word timings so /api/path can rebuild the path later
-      // (schema addition beyond §4 — see STATUS deviations).
-      original_words: result.words
+      path
     })
 
     const costUsd = (result.duration_s / 60) * config.SCRIBE_USD_PER_MIN
@@ -59,14 +69,13 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
       duration_s: result.duration_s,
       language: result.language,
       latency_ms: Date.now() - started,
-      clean_ms: cleanMs,
       cost_usd: costUsd
     })
 
     res.status(200).json({
-      text: script,
+      script,
       language: result.language,
-      words: result.words,
+      path,
       duration_s: result.duration_s
     })
   } catch (err) {

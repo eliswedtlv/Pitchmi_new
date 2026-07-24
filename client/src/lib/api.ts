@@ -77,9 +77,12 @@ export async function createProject(data: {
 // ── Transcribe ─────────────────────────────────────────────────────────────
 
 export interface TranscribeResult {
-  text: string
+  // Filler-stripped transcript text (reference only — nothing edits it).
+  script: string
   language: string
-  words: Array<{ w: string; start: number; end: number }>
+  // Karaoke subtitle structure, built server-side straight from the words' real
+  // timestamps (T-1169: no editor, no /api/path step).
+  path: KaraokePath
   duration_s: number
 }
 
@@ -121,25 +124,14 @@ export interface KaraokePath {
   total_s: number
 }
 
+// Karaoke playback state shared across screens. `path` is the subtitle
+// structure from /api/transcribe; the other fields are kept for the session/UI
+// contract (there is no longer a fit check — the take always fits its own pace).
 export interface PathResult {
   path: KaraokePath
   fits: boolean
   est_duration_s: number
   warning?: string
-}
-
-export async function getPath(data: {
-  project_id: string
-  edited_script: string
-  speed: number
-}): Promise<PathResult> {
-  const headers = await authHeaders()
-  const res = await fetch(`${BASE}/api/path`, {
-    method: "POST",
-    headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(data),
-  })
-  return handleResponse(res)
 }
 
 // ── Evaluate ───────────────────────────────────────────────────────────────

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Download, Share2, Cloud, RotateCcw, Edit } from "lucide-react"
+import { Download, Share2, Cloud, RotateCcw, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -44,7 +44,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 export default function ResultsPage() {
   const router = useRouter()
-  const { project, takeBlob, takeBlobUrl, evalResult } = useSession()
+  const { project, takeBlob, takeBlobUrl, evalResult, reset } = useSession()
   const lang = project?.language
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -168,9 +168,13 @@ export default function ResultsPage() {
             <RotateCcw className="h-4 w-4" />
             Try again
           </Button>
-          <Button onClick={() => router.push("/editor")} variant="outline" className="gap-2">
-            <Edit className="h-4 w-4" />
-            Edit script
+          <Button
+            onClick={() => { reset(); router.push("/") }}
+            variant="outline"
+            className="gap-2"
+          >
+            <Video className="h-4 w-4" />
+            New video
           </Button>
           <Button onClick={handleDownload} variant="secondary" className="gap-2">
             <Download className="h-4 w-4" />

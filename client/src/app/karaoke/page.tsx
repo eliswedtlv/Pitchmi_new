@@ -17,7 +17,7 @@ export default function KaraokePage() {
   const { project, pathResult, setTakeBlob } = useSession()
 
   useEffect(() => {
-    if (!project || !pathResult) router.push("/editor")
+    if (!project || !pathResult) router.push("/")
   }, [project, pathResult, router])
 
   const path = pathResult?.path

@@ -21,7 +21,7 @@ const USE_CASES: { id: UseCase; label: string; emoji: string }[] = [
 
 export default function HomePage() {
   const router = useRouter()
-  const { setProject, setTakeBlob, setEditedScript } = useSession()
+  const { setProject, setTakeBlob, setPathResult } = useSession()
 
   const [useCase, setUseCase] = useState<UseCase>("pitch")
   const [customText, setCustomText] = useState("")
@@ -65,8 +65,9 @@ export default function HomePage() {
       const result = await transcribeVideo(file, project.id)
       // Persist the detected language for RTL resolution downstream (T-1164).
       setProject({ ...project, language: result.language })
-      setEditedScript(result.text)
-      router.push("/editor")
+      // Zero-edit flow (T-1169): straight to karaoke at the take's real pace.
+      setPathResult({ path: result.path, fits: true, est_duration_s: result.path.total_s })
+      router.push("/karaoke")
     } catch (e) {
       setError((e as Error).message)
     } finally {

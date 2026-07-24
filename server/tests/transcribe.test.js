@@ -1,39 +1,23 @@
 'use strict'
 
 require('./helpers')
-process.env.OPENROUTER_API_KEY = process.env.OPENROUTER_API_KEY || 'test-openrouter-key'
 
 jest.mock('../src/lib/db', () => require('./mocks/db'))
-// Keep the route pure: audio extraction and Scribe are exercised elsewhere.
+// Keep the route pure: audio extraction is exercised elsewhere; Scribe output is
+// driven per-test via mockScribe.
 jest.mock('../src/lib/audio', () => ({
   extForMime: () => 'mp4',
   extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mpeg' })
 }))
-jest.mock('../src/lib/scribe', () => ({
-  transcribe: async () => ({
-    // Raw STT with a disfluency ("um") and a stutter ("we we").
-    words: [
-      { w: 'um', start: 0.0, end: 0.2, type: 'disfluency' },
-      { w: 'we', start: 0.2, end: 0.4 },
-      { w: 'we', start: 0.4, end: 0.6 },
-      { w: 'shipped', start: 0.6, end: 1.0 }
-    ],
-    language: 'en',
-    duration_s: 1.0
-  })
-}))
+let mockScribe
+jest.mock('../src/lib/scribe', () => ({ transcribe: async () => mockScribe }))
 
 const request = require('supertest')
 const createApp = require('../src/app')
 const dbMock = require('./mocks/db')
 const { userToken } = require('./helpers')
 
-const origFetch = global.fetch
 beforeEach(() => dbMock.__reset())
-afterEach(() => { global.fetch = origFetch })
-
-// Deterministic filler-strip of the mocked Scribe output ("um" removed).
-const DETERMINISTIC = 'we we shipped'
 
 function post () {
   return request(createApp())
@@ -43,32 +27,68 @@ function post () {
     .attach('video', Buffer.from('fake-video-bytes'), { filename: 'take.mp4', contentType: 'video/mp4' })
 }
 
-describe('POST /api/transcribe — clean-verbatim draft (T-1163 §B)', () => {
-  test('stores the cleaned sentences (joined with \\n) on success', async () => {
+describe('POST /api/transcribe — zero-edit subtitles (T-1169)', () => {
+  test('subtitle words carry the SURVIVING Scribe timestamps exactly (no rate synthesis, no reflow)', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
-    global.fetch = jest.fn(async () => ({
-      ok: true,
-      json: async () => ({
-        choices: [{ message: { content: JSON.stringify({ sentences: ['We shipped.', 'It works.'] }) } }]
-      })
-    }))
+    mockScribe = {
+      // Raw STT: a leading tagged disfluency ("um") and a list filler ("uh")
+      // between two real words. Both are stripped; the survivors are untouched.
+      words: [
+        { w: 'um', start: 0.0, end: 0.2, type: 'disfluency' },
+        { w: 'we', start: 0.3, end: 0.5 },
+        { w: 'shipped', start: 0.6, end: 1.0 },
+        { w: 'uh', start: 1.0, end: 1.05 },
+        { w: 'today', start: 1.2, end: 1.7 }
+      ],
+      language: 'en',
+      duration_s: 1.7
+    }
+
     const res = await post()
     expect(res.status).toBe(200)
-    expect(res.body.text).toBe('We shipped.\nIt works.')
-    expect(dbMock.__state.projects.get('proj-1').script).toBe('We shipped.\nIt works.')
-    // clean_ms is logged into the transcribe event metadata.
-    const ev = dbMock.__state.events.find(e => e.action === 'transcribe')
-    expect(typeof ev.clean_ms).toBe('number')
+    expect(res.body.language).toBe('en')
+    expect(res.body.script).toBe('we shipped today')
+    // Every subtitle word == the exact Scribe timing of the surviving word.
+    expect(res.body.path.words).toEqual([
+      { w: 'we', t_start: 0.3, t_end: 0.5, line: 0 },
+      { w: 'shipped', t_start: 0.6, t_end: 1.0, line: 0 },
+      { w: 'today', t_start: 1.2, t_end: 1.7, line: 0 }
+    ])
+    // Persisted for karaoke/results.
+    expect(dbMock.__state.projects.get('proj-1').path.words).toHaveLength(3)
   })
 
-  test('falls back to deterministic text when the LLM cleanup fails (still 200)', async () => {
+  test('a filler between two words becomes a gap — the neighbours keep their timings', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
-    global.fetch = jest.fn(async () => ({ ok: false, status: 500, text: async () => 'boom' }))
+    mockScribe = {
+      words: [
+        { w: 'we', start: 0.2, end: 0.4 },
+        { w: 'um', start: 0.45, end: 0.6, type: 'disfluency' },
+        { w: 'shipped', start: 0.7, end: 1.1 }
+      ],
+      language: 'en',
+      duration_s: 1.1
+    }
+
     const res = await post()
     expect(res.status).toBe(200)
-    expect(res.body.text).toBe(DETERMINISTIC)
-    expect(dbMock.__state.projects.get('proj-1').script).toBe(DETERMINISTIC)
-    // original_words keeps the FULL raw list (fillers included) for /api/path.
-    expect(dbMock.__state.projects.get('proj-1').original_words).toHaveLength(4)
+    const [we, shipped] = res.body.path.words
+    expect(we).toMatchObject({ w: 'we', t_start: 0.2, t_end: 0.4 })
+    expect(shipped).toMatchObject({ w: 'shipped', t_start: 0.7, t_end: 1.1 })
+    // The dropped "um" widens the gap; nothing is reflowed to close it.
+    expect(shipped.t_start - we.t_end).toBeCloseTo(0.3, 5)
+  })
+
+  test('no usable words (silent take) -> 422 no_speech, does not crash', async () => {
+    dbMock.__seedProject('proj-1', 'user-1')
+    mockScribe = {
+      words: [{ w: 'um', start: 0.0, end: 0.2, type: 'disfluency' }],
+      language: 'en',
+      duration_s: 0.2
+    }
+
+    const res = await post()
+    expect(res.status).toBe(422)
+    expect(res.body.error).toBe('no_speech')
   })
 })

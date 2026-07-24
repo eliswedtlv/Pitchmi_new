@@ -10,13 +10,6 @@ const PROMPTER_HINT: Record<Lang, string> = {
   he: "עקבו אחרי המילה המודגשת — היא נעה בקצב שלכם",
 }
 
-// Shown under the editor title: the transcript arrives as a clean-verbatim draft
-// (T-1163 §B), so tell the user to fix anything the cleanup got wrong.
-const EDITOR_CLEANUP_CAPTION: Record<Lang, string> = {
-  en: "We cleaned up your transcript — fix anything we got wrong.",
-  he: "ניקינו את התמלול שלכם — תקנו כל מה שפספסנו.",
-}
-
 // Shown on the wait/error screen when the evaluation upstream times out
 // (server 504, T-1165) — a plain retry message, never raw JSON.
 const EVAL_TOO_LONG: Record<Lang, string> = {
@@ -59,10 +52,6 @@ export function myVideosLabel(lang?: string | null): string {
 
 export function savedButton(lang?: string | null): string {
   return pick(SAVED_BUTTON, lang)
-}
-
-export function editorCleanupCaption(lang?: string | null): string {
-  return pick(EDITOR_CLEANUP_CAPTION, lang)
 }
 
 export function evalTooLong(lang?: string | null): string {

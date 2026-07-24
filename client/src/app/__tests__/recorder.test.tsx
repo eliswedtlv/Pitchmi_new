@@ -41,8 +41,8 @@ beforeEach(() => {
   useSession.getState().reset()
 })
 
-describe("RecorderPage — persists the detected language after transcribe (T-1164)", () => {
-  it("writes result.language onto the project so downstream dir resolution works", async () => {
+describe("RecorderPage — zero-edit flow (T-1169)", () => {
+  it("stores the subtitle structure + language and goes straight to /karaoke (no editor)", async () => {
     // A project created before transcribe: no language yet.
     useSession.getState().setProject({
       id: "p1",
@@ -55,11 +55,19 @@ describe("RecorderPage — persists the detected language after transcribe (T-11
     })
     expect(useSession.getState().project?.language).toBeUndefined()
 
+    const path = {
+      words: [
+        { w: "שלום", t_start: 0, t_end: 0.4, line: 0 },
+        { w: "עולם", t_start: 0.5, t_end: 1.0, line: 0 },
+      ],
+      lines: [{ index: 0, text: "שלום עולם", t_start: 0, t_end: 1.0 }],
+      total_s: 1.0,
+    }
     h.transcribeVideo.mockResolvedValue({
-      text: "היי\nשלום עולם",
+      script: "שלום עולם",
       language: "he",
-      words: [],
-      duration_s: 2,
+      path,
+      duration_s: 1,
     })
 
     render(<RecorderPage />)
@@ -70,7 +78,10 @@ describe("RecorderPage — persists the detected language after transcribe (T-11
 
     expect(h.transcribeVideo).toHaveBeenCalledWith(expect.any(Blob), "p1")
     expect(useSession.getState().project?.language).toBe("he")
-    expect(useSession.getState().editedScript).toBe("היי\nשלום עולם")
-    expect(h.push).toHaveBeenCalledWith("/editor")
+    // Subtitle structure is stored for karaoke to consume.
+    expect(useSession.getState().pathResult?.path).toEqual(path)
+    // Next stop is karaoke — the editor route is gone.
+    expect(h.push).toHaveBeenCalledWith("/karaoke")
+    expect(h.push).not.toHaveBeenCalledWith("/editor")
   })
 })

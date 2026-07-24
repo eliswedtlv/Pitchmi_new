@@ -12,15 +12,11 @@ interface SessionState {
   takeBlobUrl: string | null
   pathResult: PathResult | null
   evalResult: EvalResult | null
-  editedScript: string
-  speed: number
 
   setProject: (p: Project) => void
   setTakeBlob: (blob: Blob | null) => void
   setPathResult: (r: PathResult | null) => void
   setEvalResult: (r: EvalResult | null) => void
-  setEditedScript: (s: string) => void
-  setSpeed: (speed: number) => void
   reset: () => void
 }
 
@@ -30,8 +26,6 @@ export const useSession = create<SessionState>((set, get) => ({
   takeBlobUrl: null,
   pathResult: null,
   evalResult: null,
-  editedScript: "",
-  speed: 1.0,
 
   setProject: (project) => set({ project }),
 
@@ -48,8 +42,6 @@ export const useSession = create<SessionState>((set, get) => ({
 
   setPathResult: (pathResult) => set({ pathResult }),
   setEvalResult: (evalResult) => set({ evalResult }),
-  setEditedScript: (editedScript) => set({ editedScript }),
-  setSpeed: (speed) => set({ speed }),
 
   reset: () => {
     const prev = get().takeBlobUrl
@@ -60,8 +52,6 @@ export const useSession = create<SessionState>((set, get) => ({
       takeBlobUrl: null,
       pathResult: null,
       evalResult: null,
-      editedScript: "",
-      speed: 1.0,
     })
   },
 }))

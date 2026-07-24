@@ -30,6 +30,8 @@ Baseline is 75 when delivery is competent. Add points for genuine strengths; sub
 
 Return exactly 3 comments, each 5–8 words, in the tone of a tough startup coach — direct, sharp, practical, a little witty, zero flattery. Write them in the take's spoken language ({{LANGUAGE}}).
 
+Comments may include delivery-pace and timing direction where it helps — e.g. "slow down the opening", "you rushed the close", "let the key line breathe". This is still HOW the person presents, never WHAT they present: keep judging the messenger, not the message.
+
 ## Output
 
 Respond with STRICT JSON only, no prose, exactly this shape:
