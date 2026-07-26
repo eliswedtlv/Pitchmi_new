@@ -8,11 +8,15 @@
 //     accuracy, timing, matched, path_word_count,
 //     mean_abs_offset, drift, flags: [{ type, line? }]
 //   }
+//
+// All timing figures are offset-normalized (T-1170): a constant lead/lag is
+// removed before scoring, so `mean_abs_offset` is the mean |offset relative to
+// the take's median offset|, not the raw distance from the subtitle clock.
 
 const { normalize } = require('./text')
 const { isFiller } = require('./fillers')
 
-// Timing score is 100 at <=0.3s mean absolute offset, linear to 0 at >=3.0s.
+// Timing score is 100 at <=0.3s mean absolute *relative* offset, linear to 0 at >=3.0s.
 const TIMING_TIGHT_S = 0.3
 const TIMING_LOOSE_S = 3.0
 
@@ -35,14 +39,19 @@ function scoreTake (spokenWords, path) {
   const matched = matches.length
   const accuracy = Math.round((matched / n) * 100)
 
-  // Timing: offset per matched word = spoken start - target start.
+  // Timing: raw offset per matched word = spoken start - target start.
+  // A constant global lead/lag (the user simply starts a beat early or late but
+  // keeps the same rhythm) is NOT a timing error, yet it shifts every raw offset
+  // identically. So we normalize by the median offset and score the *relative*
+  // offset — rhythm relative to the take's own starting point (T-1170).
   const offsets = matches.map(({ pi, si }) => spoken[si].start - pathWords[pi].t_start)
-  const absOffsets = offsets.map(Math.abs)
-  const meanAbs = mean(absOffsets)
+  const medianOffset = median(offsets)
+  const relOffsets = offsets.map(o => o - medianOffset)
+  const meanAbs = mean(relOffsets.map(Math.abs))
   const timing = matched ? Math.round(timingScore(meanAbs)) : 0
-  const drift = matched ? round3(slope(matches.map(({ pi }) => pathWords[pi].t_start), offsets)) : 0
+  const drift = matched ? round3(slope(matches.map(({ pi }) => pathWords[pi].t_start), relOffsets)) : 0
 
-  const flags = buildFlags({ pathWords, matches, spoken, offsets, accuracy, n })
+  const flags = buildFlags({ pathWords, matches, relOffsets, accuracy })
 
   return {
     accuracy,
@@ -97,7 +106,7 @@ function align (pathNorm, spoken) {
   return { matches }
 }
 
-function buildFlags ({ pathWords, matches, spoken, offsets, accuracy, n }) {
+function buildFlags ({ pathWords, matches, relOffsets, accuracy }) {
   const flags = []
 
   // Per-line offset stats + coverage.
@@ -108,7 +117,7 @@ function buildFlags ({ pathWords, matches, spoken, offsets, accuracy, n }) {
   matches.forEach(({ pi }, idx) => {
     const line = pathWords[pi].line
     if (!lineOffsets.has(line)) lineOffsets.set(line, [])
-    lineOffsets.get(line).push(offsets[idx])
+    lineOffsets.get(line).push(relOffsets[idx])
     lineMatched.set(line, (lineMatched.get(line) || 0) + 1)
   })
 
@@ -125,12 +134,15 @@ function buildFlags ({ pathWords, matches, spoken, offsets, accuracy, n }) {
   }
 
   // long_pause: a matched-to-matched gap more than 2x the expected path gap.
+  // Measured on offset-normalized timing — the growth in relative offset across
+  // the gap IS (actual gap - expected gap), so a uniformly shifted take can
+  // never flag a pause (T-1170).
   for (let k = 1; k < matches.length; k++) {
     const prev = matches[k - 1]
     const cur = matches[k]
     const expected = pathWords[cur.pi].t_start - pathWords[prev.pi].t_start
-    const actual = spoken[cur.si].start - spoken[prev.si].start
-    if (expected > 0 && actual > 2 * expected) {
+    const excess = relOffsets[k] - relOffsets[k - 1]
+    if (expected > 0 && excess > expected) {
       flags.push({ type: 'long_pause', line: pathWords[cur.pi].line })
       break
     }
@@ -150,6 +162,13 @@ function timingScore (meanAbs) {
 function mean (arr) {
   if (!arr.length) return 0
   return arr.reduce((s, x) => s + x, 0) / arr.length
+}
+
+function median (arr) {
+  if (!arr.length) return 0
+  const s = [...arr].sort((a, b) => a - b)
+  const mid = Math.floor(s.length / 2)
+  return s.length % 2 ? s[mid] : (s[mid - 1] + s[mid]) / 2
 }
 
 // Least-squares slope of y over x.

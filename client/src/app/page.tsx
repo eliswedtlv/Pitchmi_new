@@ -2,7 +2,6 @@
 
 import { useState, useRef } from "react"
 import { useRouter } from "next/navigation"
-import Link from "next/link"
 import { Video, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -171,12 +170,8 @@ export default function HomePage() {
           </p>
         )}
 
-        {/* Nav */}
-        <div className="text-center">
-          <Link href="/videos" className="text-sm text-neutral-500 hover:text-neutral-700 underline">
-            My saved videos
-          </Link>
-        </div>
+        {/* No "My saved videos" nav (T-1170 §B4): nothing writes to cloud storage
+            in the MVP flow, so the entry point is hidden. /videos still exists. */}
       </div>
     </main>
   )

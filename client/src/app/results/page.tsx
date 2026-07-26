@@ -2,14 +2,11 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Download, Share2, Cloud, RotateCcw, Video } from "lucide-react"
+import { Share2, RotateCcw, Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSession } from "@/store/session"
-import { saveTake } from "@/lib/api"
-import { savedToast, myVideosLabel, savedButton } from "@/lib/strings"
-import { useState } from "react"
 
 const DIM_LABELS: Record<string, string> = {
   voice: "Voice",
@@ -44,11 +41,7 @@ function ScoreBar({ label, score }: { label: string; score: number }) {
 
 export default function ResultsPage() {
   const router = useRouter()
-  const { project, takeBlob, takeBlobUrl, evalResult, reset } = useSession()
-  const lang = project?.language
-  const [saving, setSaving] = useState(false)
-  const [saved, setSaved] = useState(false)
-  const [toast, setToast] = useState<{ variant: "success" | "error"; message: string } | null>(null)
+  const { takeBlob, takeBlobUrl, evalResult, reset } = useSession()
 
   useEffect(() => {
     if (!evalResult || !takeBlob) router.push("/")
@@ -56,26 +49,18 @@ export default function ResultsPage() {
 
   if (!evalResult || !takeBlob) return null
 
-  async function handleSave() {
-    // Idempotent guard: never save the same take twice, even on rapid taps.
-    if (!project || !takeBlob || !evalResult || saving || saved) return
-    setSaving(true)
-    setToast(null)
-    try {
-      await saveTake({ video: takeBlob, projectId: project.id, scores: evalResult })
-      setSaved(true)
-      setToast({ variant: "success", message: savedToast(lang) })
-    } catch (e) {
-      setToast({ variant: "error", message: (e as Error).message })
-    } finally {
-      setSaving(false)
-    }
-  }
-
+  // Single OS-level action (T-1170 §B): the native share sheet already offers
+  // both "send to app" and "save to files/photos", so it covers share AND
+  // download. Desktop browsers without file sharing fall back to a plain
+  // download so the button always does something.
   async function handleShare() {
-    if (!takeBlob || !navigator.share) return
+    if (!takeBlob) return
     const file = new File([takeBlob], "pitchmi-take.webm", { type: takeBlob.type })
-    await navigator.share({ title: "My PitchMi take", files: [file] }).catch(() => {})
+    if (navigator.canShare?.({ files: [file] }) && navigator.share) {
+      await navigator.share({ title: "My PitchMi take", files: [file] }).catch(() => {})
+      return
+    }
+    handleDownload()
   }
 
   function handleDownload() {
@@ -162,71 +147,34 @@ export default function ResultsPage() {
           </Card>
         )}
 
-        {/* Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button onClick={() => router.push("/karaoke")} variant="outline" className="gap-2">
-            <RotateCcw className="h-4 w-4" />
+        {/* Actions (T-1170 §B): re-recording the same script is the most common
+            next step, so Try again is the green primary. */}
+        <div className="space-y-3">
+          <Button
+            onClick={() => router.push("/karaoke")}
+            variant="success"
+            size="lg"
+            className="w-full gap-2"
+          >
+            <RotateCcw className="h-5 w-5" />
             Try again
           </Button>
-          <Button
-            onClick={() => { reset(); router.push("/") }}
-            variant="outline"
-            className="gap-2"
-          >
-            <Video className="h-4 w-4" />
-            New video
-          </Button>
-          <Button onClick={handleDownload} variant="secondary" className="gap-2">
-            <Download className="h-4 w-4" />
-            Download
-          </Button>
-          {typeof navigator !== "undefined" && "share" in navigator && (
+          <div className="grid grid-cols-2 gap-3">
+            <Button
+              onClick={() => { reset(); router.push("/") }}
+              variant="outline"
+              className="gap-2"
+            >
+              <Video className="h-4 w-4" />
+              New video
+            </Button>
             <Button onClick={handleShare} variant="secondary" className="gap-2">
               <Share2 className="h-4 w-4" />
               Share
             </Button>
-          )}
-        </div>
-
-        <Button
-          onClick={handleSave}
-          disabled={saving || saved}
-          variant="success"
-          size="lg"
-          className="w-full gap-2"
-        >
-          <Cloud className="h-5 w-5" />
-          {saved ? savedButton(lang) : saving ? "Saving…" : "Save to cloud"}
-        </Button>
-      </div>
-
-      {/* Save feedback snackbar (T-1167 §C): confirms the save landed and offers a
-          one-tap jump to the user's saved videos; errors surface here too. */}
-      {toast && (
-        <div
-          data-testid="save-toast"
-          data-variant={toast.variant}
-          role="status"
-          className="fixed inset-x-0 bottom-4 z-50 flex justify-center px-4"
-        >
-          <div
-            className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm text-white shadow-lg ${
-              toast.variant === "success" ? "bg-neutral-900" : "bg-red-700"
-            }`}
-          >
-            <span>{toast.message}</span>
-            {toast.variant === "success" && (
-              <button
-                type="button"
-                onClick={() => router.push("/videos")}
-                className="font-semibold text-green-400 underline underline-offset-2"
-              >
-                {myVideosLabel(lang)}
-              </button>
-            )}
           </div>
         </div>
-      )}
+      </div>
     </main>
   )
 }
