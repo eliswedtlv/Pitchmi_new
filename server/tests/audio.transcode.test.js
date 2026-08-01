@@ -25,21 +25,30 @@ jest.mock('fs/promises', () => ({
 
 const { transcodeForEval } = require('../src/lib/audio')
 
+// The container is read from the buffer's own bytes now (T-10010), so the input
+// has to carry a real ISO-BMFF `ftyp` signature.
+const RAW_MP4 = Buffer.concat([Buffer.from([0, 0, 0, 0x20]), Buffer.from('ftypisom'), Buffer.from('raw-take')])
+
 beforeEach(() => mockSpawn.mockClear())
 
 describe('transcodeForEval — minimal 2fps eval proxy (T-1166)', () => {
   test('invokes ffmpeg-static with the exact compression args', async () => {
-    const out = await transcodeForEval(Buffer.from('raw-take'), 'mp4')
+    const out = await transcodeForEval(RAW_MP4)
 
     expect(out).toEqual({ buffer: Buffer.from('proxy-video-bytes'), mime: 'video/mp4' })
     expect(mockSpawn).toHaveBeenCalledTimes(1)
+    // T-10010 prepends the input guards (-nostdin, protocol + demuxer pin) and
+    // closes stdin; the compression args behind them are unchanged.
     expect(mockSpawn).toHaveBeenCalledWith('/fake/ffmpeg', [
+      '-nostdin',
+      '-protocol_whitelist', 'file',
+      '-f', 'mp4',
       '-i', expect.stringContaining('-in.mp4'),
       '-vf', "fps=2,scale='if(gt(iw,ih),-2,360)':'if(gt(iw,ih),360,-2)'",
       '-c:v', 'libx264', '-crf', '32', '-preset', 'veryfast',
       '-ac', '1', '-c:a', 'aac', '-b:a', '64k',
       '-movflags', '+faststart',
       '-y', expect.stringContaining('-eval.mp4')
-    ])
+    ], { stdio: ['ignore', 'pipe', 'pipe'] })
   })
 })

@@ -3,9 +3,11 @@
 const express = require('express')
 const auth = require('../middleware/auth')
 const upload = require('../middleware/upload')
+const rateLimit = require('../middleware/rateLimit')
 const db = require('../lib/db')
 const config = require('../config')
-const { extractAudio, transcodeForEval, extForMime } = require('../lib/audio')
+const { runMedia } = require('../lib/jobLimiter')
+const { extractAudio, transcodeForEval } = require('../lib/audio')
 const { transcribe } = require('../lib/scribe')
 const { scoreTake } = require('../lib/score')
 const { evaluateVideo } = require('../lib/evaluate')
@@ -26,7 +28,7 @@ const EVAL_MAX_BYTES = 18 * 1024 * 1024
 // POST /api/evaluate — multipart { video, project_id }.
 // Daily cap -> Scribe(new take) -> timing/accuracy scoring -> AI delivery eval
 // -> combined §9 result. Video bytes are discarded after the response.
-router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
+router.post('/evaluate', rateLimit.evaluate, auth, upload.single('video'), async (req, res) => {
   const started = Date.now()
   const deadline = started + EVAL_DEADLINE_MS
   const projectId = req.body.project_id
@@ -51,9 +53,12 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
     if (!project) return res.status(404).json({ error: 'project_not_found' })
     const path = project.path || { words: [] }
 
-    const ext = extForMime(req.file.mimetype)
     const scribeStart = Date.now()
-    const audio = await extractAudio(req.file.buffer, ext)
+    // Both ffmpeg sections run behind the media semaphore (T-10010), each
+    // holding a slot only for its own decode — parking one across the Scribe
+    // call would serialise the whole pipeline. A full queue rejects with `busy`,
+    // a non-container buffer with 415.
+    const audio = await runMedia(() => extractAudio(req.file.buffer))
 
     // Hard 30s cap, enforced server-side (T-1172). Sits AFTER the daily-limit
     // check so quota semantics don't change, and BEFORE Scribe so a rejected
@@ -89,7 +94,7 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
     // proxy is what the model sees. The original take stays untouched for Scribe
     // (above) and /api/save.
     const transcodeStart = Date.now()
-    const proxy = await transcodeForEval(req.file.buffer, ext)
+    const proxy = await runMedia(() => transcodeForEval(req.file.buffer))
     transcodeMs = Date.now() - transcodeStart
     videoBytesIn = req.file.size || req.file.buffer.length
     videoBytesEval = proxy.buffer.length
@@ -178,6 +183,8 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
     // Guarantee an event row on EVERY failed outcome (error or timeout) with the
     // stage timings reached so far — the hang bug (T-1165) left no row at all.
     const isTimeout = err && err.code === 'eval_upstream_timeout'
+    const isBusy = err && err.code === 'busy'
+    const isBadMedia = err && err.code === 'UNSUPPORTED_MEDIA_TYPE'
     await db.logEvent({
       user_id: req.userId,
       action: 'error',
@@ -188,6 +195,10 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
     }).catch(() => {})
 
     if (isTimeout) return res.status(504).json({ error: 'eval_upstream_timeout' })
+    // Media queue full: retryable, not a server fault (T-10010).
+    if (isBusy) return res.status(503).json({ error: 'busy' })
+    // Not a webm/mp4 container — same 415 the global handler gives /transcribe.
+    if (isBadMedia) return res.status(415).json({ error: 'unsupported_media_type' })
     // Match the global error handler's 500 shape, but respond here so the row
     // above (with timings) is the single logged event for this request.
     return res.status(500).json({ error: 'server_error', message: err && err.message })

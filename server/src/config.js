@@ -28,8 +28,21 @@ const config = {
   EVAL_MODEL: process.env.EVAL_MODEL || 'google/gemini-3.1-flash-lite',
 
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
+  // Signing key for the admin session cookie. Deliberately its own var with no
+  // fallback (T-10010): the previous literal default was published in this repo,
+  // so anyone could forge `admin=1`. Startup refuses to boot when it is empty.
+  ADMIN_COOKIE_SECRET: process.env.ADMIN_COOKIE_SECRET || '',
 
   DAILY_EVAL_LIMIT: int(process.env.DAILY_EVAL_LIMIT, 25),
+  // Per-IP ceilings on the billable routes (T-10010). Anonymous identities are
+  // free and unlimited, so DAILY_EVAL_LIMIT alone is not a spend ceiling.
+  RATE_LIMIT_TRANSCRIBE_PER_HOUR: int(process.env.RATE_LIMIT_TRANSCRIBE_PER_HOUR, 30),
+  RATE_LIMIT_EVAL_PER_HOUR: int(process.env.RATE_LIMIT_EVAL_PER_HOUR, 30),
+  RATE_LIMIT_SAVE_PER_HOUR: int(process.env.RATE_LIMIT_SAVE_PER_HOUR, 20),
+  // Media (ffmpeg) job admission control — see lib/jobLimiter.js.
+  MEDIA_CONCURRENCY: int(process.env.MEDIA_CONCURRENCY, 2),
+  MEDIA_QUEUE_MAX: int(process.env.MEDIA_QUEUE_MAX, 8),
+  FFMPEG_TIMEOUT_MS: int(process.env.FFMPEG_TIMEOUT_MS, 60000),
   SURGE_MAX_CALLS: int(process.env.SURGE_MAX_CALLS, 300),
   SURGE_WINDOW_MIN: int(process.env.SURGE_WINDOW_MIN, 5),
   MAX_UPLOAD_MB: int(process.env.MAX_UPLOAD_MB, 60),
@@ -47,8 +60,6 @@ const config = {
   STORAGE_BUCKET: 'videos'
 }
 
-// Cookie signing secret for the admin session. Reuses the JWT secret (a
-// server-only value) so no extra env var is needed.
-config.COOKIE_SECRET = config.SUPABASE_JWT_SECRET || 'pitchmi-dev-cookie-secret'
+config.COOKIE_SECRET = config.ADMIN_COOKIE_SECRET
 
 module.exports = config

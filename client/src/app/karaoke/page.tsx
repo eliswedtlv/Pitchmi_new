@@ -26,7 +26,7 @@ export default function KaraokePage() {
   const lines = path?.lines ?? []
   const gracePeriod = 3
 
-  const { state, countdown, videoRef, start, stop } = useRecorder({
+  const { state, countdown, videoRef, start, stop, error } = useRecorder({
     // Bounded by take 1's real length (itself capped at MAX_TAKE_S), plus the
     // grace that lets a rehearsal finish its last subtitle word. A rehearsal
     // hitting its ceiling is expected and harmless — it does not define the
@@ -92,6 +92,18 @@ export default function KaraokePage() {
           <Button onClick={stop} variant="destructive" size="lg" className="gap-2 shadow-lg">
             <Square className="h-5 w-5 fill-current" />
             Stop recording
+          </Button>
+        </div>
+      )}
+
+      {/* Errors — mirrors the recorder screen. Without this a denied camera (or a
+          device still busy after take 1) left a black screen with no message and
+          no way out but editing the URL. */}
+      {error && (
+        <div className="absolute inset-x-0 top-1/3 mx-auto max-w-sm w-full px-4">
+          <p className="rounded-md bg-red-900/80 px-4 py-3 text-sm text-red-200">{error}</p>
+          <Button className="mt-3 w-full" onClick={() => router.push("/")}>
+            Go back
           </Button>
         </div>
       )}

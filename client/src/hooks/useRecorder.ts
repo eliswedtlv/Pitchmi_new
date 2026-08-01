@@ -60,6 +60,9 @@ export function useRecorder({
   const startTimeRef = useRef<number>(0)
   const rafRef = useRef<number | null>(null)
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The 3-2-1 pre-roll handle. Without it, navigating away mid-countdown still
+  // fires beginRecording on tracks cleanup() has already stopped.
+  const countdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   // The reason must be readable synchronously inside recorder.onstop, which
   // fires long before a setState would land — the ref is the source of truth
   // and the state is only its mirror for consumers.
@@ -68,6 +71,10 @@ export function useRecorder({
   const cleanup = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current)
+    if (countdownTimerRef.current) {
+      clearTimeout(countdownTimerRef.current)
+      countdownTimerRef.current = null
+    }
     streamRef.current?.getTracks().forEach((t) => t.stop())
     streamRef.current = null
   }, [])
@@ -123,54 +130,64 @@ export function useRecorder({
       count -= 1
       setCountdown(count)
       if (count > 0) {
-        setTimeout(tick, 1000)
+        countdownTimerRef.current = setTimeout(tick, 1000)
       } else {
+        countdownTimerRef.current = null
         beginRecording(stream)
       }
     }
-    setTimeout(tick, 1000)
+    countdownTimerRef.current = setTimeout(tick, 1000)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Runs from inside the countdown timer, so anything thrown here is invisible
+  // to React's error boundaries — an unsupported MediaRecorder used to leave the
+  // screen frozen on "0" forever. Failures become the error state instead.
   function beginRecording(stream: MediaStream) {
-    const mimeType = getMimeType()
-    const recorder = new MediaRecorder(stream, { mimeType })
-    recorderRef.current = recorder
+    try {
+      const mimeType = getMimeType()
+      const recorder = new MediaRecorder(stream, { mimeType })
+      recorderRef.current = recorder
 
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) chunksRef.current.push(e.data)
-    }
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) chunksRef.current.push(e.data)
+      }
 
-    recorder.onstop = () => {
-      const blob = new Blob(chunksRef.current, { type: getMimeType() })
-      setState("stopped")
-      streamRef.current?.getTracks().forEach((t) => t.stop())
-      streamRef.current = null
-      onStop?.(blob, stopReasonRef.current ?? "user")
-    }
+      recorder.onstop = () => {
+        const blob = new Blob(chunksRef.current, { type: getMimeType() })
+        setState("stopped")
+        streamRef.current?.getTracks().forEach((t) => t.stop())
+        streamRef.current = null
+        onStop?.(blob, stopReasonRef.current ?? "user")
+      }
 
-    recorder.start(250)
-    startTimeRef.current = performance.now()
-    setState("recording")
+      recorder.start(250)
+      startTimeRef.current = performance.now()
+      setState("recording")
 
-    const updateElapsed = () => {
-      const secs = (performance.now() - startTimeRef.current) / 1000
-      setElapsed(secs)
+      const updateElapsed = () => {
+        const secs = (performance.now() - startTimeRef.current) / 1000
+        setElapsed(secs)
+        rafRef.current = requestAnimationFrame(updateElapsed)
+      }
       rafRef.current = requestAnimationFrame(updateElapsed)
-    }
-    rafRef.current = requestAnimationFrame(updateElapsed)
 
-    autoStopTimerRef.current = setTimeout(
-      () => {
-        if (recorderRef.current?.state === "recording") {
-          if (stopReasonRef.current === null) {
-            stopReasonRef.current = "limit"
-            setStopReason("limit")
+      autoStopTimerRef.current = setTimeout(
+        () => {
+          if (recorderRef.current?.state === "recording") {
+            if (stopReasonRef.current === null) {
+              stopReasonRef.current = "limit"
+              setStopReason("limit")
+            }
+            recorderRef.current.stop()
           }
-          recorderRef.current.stop()
-        }
-      },
-      (maxDurationS + graceAfterS) * 1000,
-    )
+        },
+        (maxDurationS + graceAfterS) * 1000,
+      )
+    } catch {
+      setError("Recording isn't supported on this browser. Please try Chrome or Safari.")
+      setState("error")
+      cleanup()
+    }
   }
 
   return { state, countdown, elapsed, videoRef, start, stop, error, stopReason }

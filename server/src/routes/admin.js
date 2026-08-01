@@ -1,26 +1,46 @@
 'use strict'
 
 const express = require('express')
+const crypto = require('crypto')
 const config = require('../config')
 const requireAdmin = require('../middleware/admin')
 const surge = require('../middleware/surge')
+const rateLimit = require('../middleware/rateLimit')
 const db = require('../lib/db')
 
 const router = express.Router()
 
 const COOKIE_MAX_AGE = 12 * 60 * 60 * 1000 // 12h
 
+// Constant-time password check (T-10010). `!==` short-circuits on the first
+// differing byte, which is observable over enough requests. Compare SHA-256
+// digests so both buffers are always 32 bytes — timingSafeEqual throws on
+// unequal lengths, and equal-length digests also stop the comparison itself
+// from leaking the password's length.
+function passwordMatches (candidate) {
+  if (!config.ADMIN_PASSWORD) return false
+  const a = crypto.createHash('sha256').update(String(candidate ?? '')).digest()
+  const b = crypto.createHash('sha256').update(config.ADMIN_PASSWORD).digest()
+  return crypto.timingSafeEqual(a, b)
+}
+
 // POST /api/admin/login — password -> signed httpOnly cookie.
-router.post('/admin/login', express.json(), (req, res) => {
+router.post('/admin/login', rateLimit.adminLogin, express.json(), (req, res) => {
   const { password } = req.body || {}
-  if (!config.ADMIN_PASSWORD || password !== config.ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'unauthorized' })
-  }
+  const ok = passwordMatches(password)
+  // Metadata only (privacy rule): the outcome, never the password or the IP.
+  db.logEvent({ action: 'admin_login', scores: { ok } }).catch(() => {})
+  if (!ok) return res.status(401).json({ error: 'unauthorized' })
+  // SameSite=None + Secure unconditionally (T-10010): the client is served from
+  // a DIFFERENT Railway origin and calls this API with credentials, so a Lax
+  // cookie is never attached and every /api/admin/* call 401s. `secure` is not
+  // keyed off NODE_ENV because Railway does not set it for a plain `node` start.
+  // Consequence: admin login does not work over plain http://localhost.
   res.cookie('admin', '1', {
     httpOnly: true,
     signed: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'none',
+    secure: true,
     maxAge: COOKIE_MAX_AGE
   })
   res.status(200).json({ ok: true })

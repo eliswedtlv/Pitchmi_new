@@ -4,6 +4,7 @@
 // this module first.
 process.env.SUPABASE_JWT_SECRET = process.env.SUPABASE_JWT_SECRET || 'test-secret'
 process.env.ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin-pass'
+process.env.ADMIN_COOKIE_SECRET = process.env.ADMIN_COOKIE_SECRET || 'test-cookie-secret'
 process.env.DAILY_EVAL_LIMIT = process.env.DAILY_EVAL_LIMIT || '25'
 process.env.MAX_UPLOAD_MB = process.env.MAX_UPLOAD_MB || '60'
 process.env.CLIENT_ORIGIN = ''

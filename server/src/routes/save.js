@@ -4,13 +4,14 @@ const express = require('express')
 const { randomUUID } = require('crypto')
 const auth = require('../middleware/auth')
 const upload = require('../middleware/upload')
+const rateLimit = require('../middleware/rateLimit')
 const db = require('../lib/db')
 
 const router = express.Router()
 
 // POST /api/save — multipart { video, project_id, scores }.
 // The ONLY path that persists a video: upload to Storage, insert saved_takes.
-router.post('/save', auth, upload.single('video'), async (req, res, next) => {
+router.post('/save', rateLimit.save, auth, upload.single('video'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'missing_video' })
     const projectId = req.body.project_id

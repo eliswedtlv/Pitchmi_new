@@ -3,9 +3,11 @@
 const express = require('express')
 const auth = require('../middleware/auth')
 const upload = require('../middleware/upload')
+const rateLimit = require('../middleware/rateLimit')
 const db = require('../lib/db')
 const config = require('../config')
-const { extractAudio, extForMime } = require('../lib/audio')
+const { runMedia } = require('../lib/jobLimiter')
+const { extractAudio } = require('../lib/audio')
 const { transcribe } = require('../lib/scribe')
 const { stripFillers, isFiller, taggedDisfluency } = require('../lib/fillers')
 const { buildSubtitles } = require('../lib/subtitles')
@@ -17,7 +19,7 @@ const router = express.Router()
 // structure directly from the surviving words' REAL timestamps (T-1169: no
 // editor, no re-pacing). Store script + language + subtitle path on the project.
 // The video bytes are discarded after the response.
-router.post('/transcribe', auth, upload.single('video'), async (req, res, next) => {
+router.post('/transcribe', rateLimit.transcribe, auth, upload.single('video'), async (req, res, next) => {
   const started = Date.now()
   try {
     const projectId = req.body.project_id
@@ -27,8 +29,10 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
     const project = await db.getProject(projectId, req.userId)
     if (!project) return res.status(404).json({ error: 'project_not_found' })
 
-    const ext = extForMime(req.file.mimetype)
-    const audio = await extractAudio(req.file.buffer, ext)
+    // Behind the media semaphore (T-10010): the decode is the memory- and
+    // CPU-heavy part of this handler. A full queue rejects with `busy` (503),
+    // and a buffer that is not a real webm/mp4 container rejects with 415.
+    const audio = await runMedia(() => extractAudio(req.file.buffer))
 
     // Hard 30s cap, enforced server-side (T-1172). The browser cap is only a
     // browser cap; curl and the drag-and-drop path bypass it entirely. The

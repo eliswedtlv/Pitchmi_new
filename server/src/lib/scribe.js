@@ -23,23 +23,25 @@ async function transcribe (audioBuffer, mime = 'audio/mp4') {
 
   const ctrl = new AbortController()
   const timer = setTimeout(() => ctrl.abort(new Error('scribe_timeout')), SCRIBE_TIMEOUT_MS)
-  let res
+  // The body read stays INSIDE the timer (T-10010). Clearing it right after
+  // fetch() resolves only covers the headers: an upstream that sends headers and
+  // then stalls the body would hang this handler forever, holding the 60MB
+  // upload and its temp files. Same defect T-1166 fixed on the eval path.
   try {
-    res = await fetch(SCRIBE_URL, {
+    const res = await fetch(SCRIBE_URL, {
       method: 'POST',
       headers: { 'xi-api-key': config.ELEVENLABS_API_KEY },
       body: form,
       signal: ctrl.signal
     })
+    if (!res.ok) {
+      const body = await res.text().catch(() => '')
+      throw new Error(`Scribe ${res.status}: ${body.slice(0, 300)}`)
+    }
+    return normalizeScribe(await res.json())
   } finally {
     clearTimeout(timer)
   }
-  if (!res.ok) {
-    const body = await res.text().catch(() => '')
-    throw new Error(`Scribe ${res.status}: ${body.slice(0, 300)}`)
-  }
-  const data = await res.json()
-  return normalizeScribe(data)
 }
 
 function normalizeScribe (data) {
