@@ -199,6 +199,8 @@ export default function AdminPage() {
                     <th className="px-4 py-2 text-left font-medium">Users</th>
                     <th className="px-4 py-2 text-left font-medium">Avg Score</th>
                     <th className="px-4 py-2 text-left font-medium">Cost</th>
+                    <th className="px-4 py-2 text-left font-medium">STT</th>
+                    <th className="px-4 py-2 text-left font-medium">Eval</th>
                     <th className="px-4 py-2 text-left font-medium">Errors</th>
                     <th className="px-4 py-2 text-left font-medium">Avg Latency</th>
                   </tr>
@@ -210,14 +212,20 @@ export default function AdminPage() {
                       <td className="px-4 py-2">{String(row.evals ?? 0)}</td>
                       <td className="px-4 py-2">{String(row.unique_users ?? 0)}</td>
                       <td className="px-4 py-2">{row.avg_score ? Number(row.avg_score).toFixed(1) : ""}</td>
-                      <td className="px-4 py-2">{row.total_cost_usd ? `$${Number(row.total_cost_usd).toFixed(2)}` : ""}</td>
+                      {/* 4dp, not 2: a real day costs single-cent money, and
+                          toFixed(2) rendered every split as $0.00. Rows written
+                          before T-1172 have no cost breakdown and legitimately
+                          report $0.0000 for the split (never NaN). */}
+                      <td className="px-4 py-2">${Number(row.total_cost_usd ?? 0).toFixed(4)}</td>
+                      <td className="px-4 py-2">${Number(row.total_stt_usd ?? 0).toFixed(4)}</td>
+                      <td className="px-4 py-2">${Number(row.total_eval_usd ?? 0).toFixed(4)}</td>
                       <td className="px-4 py-2 text-red-600">{String(row.errors ?? 0)}</td>
                       <td className="px-4 py-2">{row.avg_latency_ms ? `${Math.round(Number(row.avg_latency_ms))}ms` : ""}</td>
                     </tr>
                   ))}
                   {aggs.length === 0 && !aggsLoading && (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-neutral-400">No data.</td>
+                      <td colSpan={9} className="px-3 py-8 text-center text-neutral-400">No data.</td>
                     </tr>
                   )}
                 </tbody>

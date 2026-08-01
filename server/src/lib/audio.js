@@ -10,7 +10,14 @@ const os = require('os')
 const path = require('path')
 const ffmpegPath = require('ffmpeg-static')
 
-// Extract audio from a video buffer. Returns { buffer, mime, ext }.
+// Extract audio from a video buffer. Returns { buffer, mime, ext, duration_s }.
+//
+// duration_s is the TRUE media duration, read for free from this decode's own
+// stderr (T-1172). `ffmpeg -i` header parsing is NOT an option: Chrome's
+// MediaRecorder emits a streaming WebM whose header carries no duration and
+// ffmpeg reports `Duration: N/A`. The running `time=` progress lines are
+// emitted by the full decode we already run, so the last one is the real
+// length at zero extra cost. null when no `time=` line was printed.
 async function extractAudio (videoBuffer, inputExt = 'webm') {
   const tmp = os.tmpdir()
   const id = randomUUID()
@@ -18,9 +25,9 @@ async function extractAudio (videoBuffer, inputExt = 'webm') {
   const outPath = path.join(tmp, `pitchmi-${id}-out.m4a`)
   await fs.writeFile(inPath, videoBuffer)
   try {
-    await runFfmpeg(['-i', inPath, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'aac', '-b:a', '64k', '-y', outPath])
+    const stderr = await runFfmpeg(['-i', inPath, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'aac', '-b:a', '64k', '-y', outPath])
     const buffer = await fs.readFile(outPath)
-    return { buffer, mime: 'audio/mp4', ext: 'm4a' }
+    return { buffer, mime: 'audio/mp4', ext: 'm4a', duration_s: parseFfmpegDuration(stderr) }
   } finally {
     await fs.rm(inPath, { force: true }).catch(() => {})
     await fs.rm(outPath, { force: true }).catch(() => {})
@@ -57,6 +64,8 @@ async function transcodeForEval (videoBuffer, inputExt = 'webm') {
   }
 }
 
+// Resolves with the accumulated stderr (the caller may mine it for `time=`
+// progress); rejects on a non-zero exit exactly as before.
 function runFfmpeg (args) {
   return new Promise((resolve, reject) => {
     if (!ffmpegPath) return reject(new Error('ffmpeg-static binary not found'))
@@ -65,10 +74,23 @@ function runFfmpeg (args) {
     proc.stderr.on('data', d => { stderr += d.toString() })
     proc.on('error', reject)
     proc.on('close', code => {
-      if (code === 0) resolve()
+      if (code === 0) resolve(stderr)
       else reject(new Error(`ffmpeg exited ${code}: ${stderr.slice(-500)}`))
     })
   })
+}
+
+// Last `time=HH:MM:SS.mss` progress value in an ffmpeg stderr dump, in seconds.
+// null when the dump has no such line (a very short or silent clip can finish
+// before ffmpeg prints one) — callers must fail open on null.
+const TIME_RE = /time=(\d+):(\d\d):(\d\d\.\d+)/g
+
+function parseFfmpegDuration (stderr) {
+  if (!stderr) return null
+  let last = null
+  for (const m of String(stderr).matchAll(TIME_RE)) last = m
+  if (!last) return null
+  return Number(last[1]) * 3600 + Number(last[2]) * 60 + Number(last[3])
 }
 
 // Best-effort extension from a mime type.
@@ -79,4 +101,4 @@ function extForMime (mime) {
   return 'webm'
 }
 
-module.exports = { extractAudio, transcodeForEval, extForMime }
+module.exports = { extractAudio, transcodeForEval, extForMime, parseFfmpegDuration }

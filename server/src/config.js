@@ -33,7 +33,14 @@ const config = {
   SURGE_MAX_CALLS: int(process.env.SURGE_MAX_CALLS, 300),
   SURGE_WINDOW_MIN: int(process.env.SURGE_WINDOW_MIN, 5),
   MAX_UPLOAD_MB: int(process.env.MAX_UPLOAD_MB, 60),
-  SCRIBE_USD_PER_MIN: num(process.env.SCRIBE_USD_PER_MIN, 0.007),
+  // Hard take ceiling (T-1172). The tolerance is not slop for the user — it
+  // absorbs container rounding and MediaRecorder's imprecise stop, which
+  // routinely lands a "30s" take at 30.4s. Reject only above the sum.
+  MAX_TAKE_S: int(process.env.MAX_TAKE_S, 30),
+  TAKE_TOLERANCE_S: num(process.env.TAKE_TOLERANCE_S, 3),
+  // ElevenLabs Scribe list ~$0.24/hr as of 2026-08; override with
+  // SCRIBE_USD_PER_MIN when the contract changes.
+  SCRIBE_USD_PER_MIN: num(process.env.SCRIBE_USD_PER_MIN, 0.004),
 
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || '',
 

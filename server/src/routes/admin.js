@@ -68,7 +68,7 @@ function rollup (rows) {
   for (const r of rows) {
     const day = String(r.ts).slice(0, 10)
     if (!byDay.has(day)) {
-      byDay.set(day, { day, evals: 0, users: new Set(), scoreSum: 0, cost_usd: 0, errors: 0, latencySum: 0, latencyCount: 0 })
+      byDay.set(day, { day, evals: 0, users: new Set(), scoreSum: 0, cost_usd: 0, stt_usd: 0, eval_usd: 0, errors: 0, latencySum: 0, latencyCount: 0 })
     }
     const d = byDay.get(day)
     if (r.user_id) d.users.add(r.user_id)
@@ -78,6 +78,14 @@ function rollup (rows) {
     }
     if (r.action === 'error') d.errors++
     if (typeof r.cost_usd === 'number') d.cost_usd += r.cost_usd
+    // STT/eval split (T-1172). Rows written before that change carry no
+    // `scores.cost`; they contribute 0 to the split but still land in
+    // total_cost_usd, so historical days render without NaN.
+    const c = r.scores && r.scores.cost
+    if (c) {
+      if (typeof c.stt_usd === 'number') d.stt_usd += c.stt_usd
+      if (typeof c.eval_usd === 'number') d.eval_usd += c.eval_usd
+    }
     if (typeof r.latency_ms === 'number') {
       d.latencySum += r.latency_ms
       d.latencyCount++
@@ -90,6 +98,8 @@ function rollup (rows) {
       unique_users: d.users.size,
       avg_score: d.evals ? Math.round(d.scoreSum / d.evals) : 0,
       total_cost_usd: Math.round(d.cost_usd * 10000) / 10000,
+      total_stt_usd: Math.round(d.stt_usd * 10000) / 10000,
+      total_eval_usd: Math.round(d.eval_usd * 10000) / 10000,
       errors: d.errors,
       avg_latency_ms: d.latencyCount ? Math.round(d.latencySum / d.latencyCount) : 0
     }))

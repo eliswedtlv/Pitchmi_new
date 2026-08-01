@@ -117,6 +117,60 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
   })
 })
 
+describe('evaluateVideo — usage accounting (T-1172)', () => {
+  const origFetch = global.fetch
+  afterEach(() => { global.fetch = origFetch })
+
+  function reply (content, usage) {
+    const body = { provider: 'google-vertex', choices: [{ message: { content } }] }
+    if (usage !== undefined) body.usage = usage
+    return { ok: true, text: async () => JSON.stringify(body) }
+  }
+
+  test('the request asks OpenRouter to report spend, without disturbing the Vertex pin', async () => {
+    let captured
+    global.fetch = jest.fn(async (_url, opts) => {
+      captured = JSON.parse(opts.body)
+      return reply(JSON.stringify(VALID), { cost: 0.002 })
+    })
+    await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+
+    expect(captured.usage).toEqual({ include: true })
+    // The pin is load-bearing (T-1162) and must survive the new flag.
+    expect(captured.provider).toMatchObject({ only: ['google-vertex'], allow_fallbacks: false })
+  })
+
+  test('the reported cost + token counts ride out on the result', async () => {
+    global.fetch = jest.fn(async () =>
+      reply(JSON.stringify(VALID), { cost: 0.0031, prompt_tokens: 4200, completion_tokens: 120, total_tokens: 4320 }))
+
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    expect(out.usage).toEqual({ cost: 0.0031, prompt_tokens: 4200, completion_tokens: 120, total_tokens: 4320 })
+  })
+
+  test('a 200 with no usage key -> usage null, no throw', async () => {
+    global.fetch = jest.fn(async () => reply(JSON.stringify(VALID)))
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    expect(out.usage).toBeNull()
+  })
+
+  test('a parse retry SUMS the cost — three billed calls really did cost three', async () => {
+    let calls = 0
+    global.fetch = jest.fn(async () => {
+      calls++
+      const usage = { cost: 0.001, prompt_tokens: 100, completion_tokens: 10, total_tokens: 110 }
+      // Attempts 1 and 2 return a 200 with an unparseable body; attempt 3 parses.
+      return calls < 3 ? reply('not json', usage) : reply(JSON.stringify(VALID), usage)
+    })
+
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    expect(out.attempts).toBe(3)
+    expect(out.usage.cost).toBeCloseTo(0.003, 10)
+    expect(out.usage.prompt_tokens).toBe(300)
+    expect(out.usage.completion_tokens).toBe(30)
+  })
+})
+
 describe('evaluateVideo — upstream timeouts + deadline (T-1165)', () => {
   const origFetch = global.fetch
   afterEach(() => {

@@ -130,6 +130,11 @@ async function callOpenRouter (bytes, mime, prompt, deadline) {
     model: config.EVAL_MODEL,
     temperature: 0.2,
     response_format: { type: 'json_object' },
+    // Ask OpenRouter to return what it actually billed (T-1172). `usage.cost`
+    // is real USD, already correct for the model's per-modality rates — never
+    // re-derive it from token counts and a hardcoded price table, which would
+    // rot the moment OpenRouter reprices.
+    usage: { include: true },
     // Provider routing: base64 video → Vertex only, no silent fallback.
     provider: { only: ['google-vertex'], allow_fallbacks: false },
     messages: [{
@@ -175,7 +180,9 @@ async function callOpenRouter (bytes, mime, prompt, deadline) {
       return {
         content: data.choices?.[0]?.message?.content ?? '',
         // OpenRouter echoes which upstream served the call — metadata only.
-        upstream: data.provider || null
+        upstream: data.provider || null,
+        // Absent when the account/model doesn't report it — never throw on it.
+        usage: data.usage ?? null
       }
     }
     lastStatus = res.status
@@ -220,9 +227,20 @@ async function callGemini (bytes, mime, prompt, deadline) {
     throw new Error(`Gemini ${res.status}: ${(res.text || '').slice(0, 300)}`)
   }
   const data = JSON.parse(res.text)
+  const meta = data.usageMetadata || null
   return {
     content: data.candidates?.[0]?.content?.parts?.map(p => p.text).join('') ?? '',
-    upstream: 'gemini-direct'
+    upstream: 'gemini-direct',
+    // The direct Gemini API reports tokens but not spend. cost stays null —
+    // inventing a figure here would be a lie in the admin dashboard.
+    usage: meta
+      ? {
+          cost: null,
+          prompt_tokens: meta.promptTokenCount ?? 0,
+          completion_tokens: meta.candidatesTokenCount ?? 0,
+          total_tokens: meta.totalTokenCount ?? 0
+        }
+      : null
   }
 }
 
@@ -234,11 +252,26 @@ async function callProvider (bytes, mime, prompt, deadline) {
 
 const STRICT_REMINDER = '\n\nReturn ONLY the JSON object, no prose, no fences.'
 
+// Every upstream attempt was billed, so a take that needed three parse retries
+// really did cost three calls — sum, don't overwrite (T-1172). `cost` stays
+// null until some attempt reports one (gemini-direct never does), so a null
+// total means "not reported", not "free".
+function addUsage (acc, u) {
+  if (!u) return acc
+  const next = acc || { cost: null, prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 }
+  if (typeof u.cost === 'number') next.cost = (next.cost ?? 0) + u.cost
+  next.prompt_tokens += Number(u.prompt_tokens) || 0
+  next.completion_tokens += Number(u.completion_tokens) || 0
+  next.total_tokens += Number(u.total_tokens) || 0
+  return next
+}
+
 async function evaluateVideo (bytes, mime, promptCtx, opts = {}) {
   const deadline = opts.deadline || (Date.now() + TOTAL_BUDGET_MS)
   const prompt = buildPrompt(promptCtx || {})
   let lastRaw = ''
   let upstream = null
+  let usage = null
   // JSON-body retries only: initial, one plain retry, then a stricter retry
   // that appends a terse reminder demanding bare JSON. Transport-level failures
   // (e.g. persistent upstream 5xx or timeouts) are already retried inside
@@ -249,12 +282,14 @@ async function evaluateVideo (bytes, mime, promptCtx, opts = {}) {
     const p = attempt === 2 ? prompt + STRICT_REMINDER : prompt
     // Transport failures (persistent 5xx, 4xx, timeout) throw straight out of
     // the function — they are not JSON-body failures, so no extra parse retries.
-    const { content, upstream: up } = await callProvider(bytes, mime, p, deadline)
+    const { content, upstream: up, usage: u } = await callProvider(bytes, mime, p, deadline)
     upstream = up
+    usage = addUsage(usage, u)
     try {
       const parsed = parseResult(content)
       parsed.attempts = attempt + 1
       parsed.upstream = upstream
+      parsed.usage = usage
       return parsed
     } catch (parseErr) {
       lastRaw = content

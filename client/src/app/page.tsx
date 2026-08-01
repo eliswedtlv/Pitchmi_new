@@ -6,6 +6,7 @@ import { Video, Upload } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { createProject, transcribeVideo } from "@/lib/api"
+import { MAX_TAKE_S } from "@/lib/limits"
 import { useSession } from "@/store/session"
 
 type UseCase = "pitch" | "intro" | "sales" | "social" | "custom"
@@ -46,9 +47,37 @@ export default function HomePage() {
     }
   }
 
+  // Read a local video's duration without uploading a byte. Resolves null when
+  // the browser can't report one (streaming containers, metadata quirks) — the
+  // caller must treat null as "unknown" and let the server decide.
+  function probeDuration(file: File): Promise<number | null> {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file)
+      const video = document.createElement("video")
+      const done = (value: number | null) => {
+        URL.revokeObjectURL(url)
+        resolve(value)
+      }
+      video.preload = "metadata"
+      video.onloadedmetadata = () =>
+        done(Number.isFinite(video.duration) ? video.duration : null)
+      video.onerror = () => done(null)
+      video.src = url
+    })
+  }
+
   async function handleUpload(file: File) {
     if (!file.type.startsWith("video/")) {
       setError("Please upload a video file.")
+      return
+    }
+    // Duration precheck (T-1172): reject before a project exists and before a
+    // single byte is uploaded. Unreadable duration FAILS OPEN — the server's
+    // 413 take_too_long is the real gate, and a metadata quirk in one browser
+    // must not block a legitimate user.
+    const duration = await probeDuration(file)
+    if (duration !== null && duration > MAX_TAKE_S) {
+      setError(`Videos must be ${MAX_TAKE_S} seconds or shorter.`)
       return
     }
     setLoading(true)
@@ -149,7 +178,7 @@ export default function HomePage() {
           <Upload className="h-8 w-8 text-neutral-400" />
           <p className="text-sm text-neutral-500 text-center">
             Or drag &amp; drop an existing video<br />
-            <span className="text-xs text-neutral-400">≤ 60 seconds · webm / mp4 / mov</span>
+            <span className="text-xs text-neutral-400">≤ {MAX_TAKE_S} seconds · webm / mp4 / mov</span>
           </p>
           <input
             ref={fileRef}

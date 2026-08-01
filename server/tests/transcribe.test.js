@@ -7,7 +7,7 @@ jest.mock('../src/lib/db', () => require('./mocks/db'))
 // driven per-test via mockScribe.
 jest.mock('../src/lib/audio', () => ({
   extForMime: () => 'mp4',
-  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mpeg' })
+  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mpeg', duration_s: 12 })
 }))
 let mockScribe
 jest.mock('../src/lib/scribe', () => ({ transcribe: async () => mockScribe }))

@@ -29,6 +29,33 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
 
     const ext = extForMime(req.file.mimetype)
     const audio = await extractAudio(req.file.buffer, ext)
+
+    // Hard 30s cap, enforced server-side (T-1172). The browser cap is only a
+    // browser cap; curl and the drag-and-drop path bypass it entirely. The
+    // check pays the already-necessary decode above to avoid a billable Scribe
+    // call. Reject only past the tolerance, and fail open when the probe found
+    // no `time=` line — a parse regression must degrade to the old behaviour.
+    const mediaS = typeof audio.duration_s === 'number' ? audio.duration_s : null
+    const capS = config.MAX_TAKE_S + config.TAKE_TOLERANCE_S
+    if (mediaS !== null && mediaS > capS) {
+      await db.logEvent({
+        user_id: req.userId,
+        action: 'error',
+        project_id: projectId,
+        error: 'take_too_long',
+        duration_s: mediaS,
+        latency_ms: Date.now() - started
+      }).catch(() => {})
+      return res.status(413).json({
+        error: 'take_too_long',
+        limit_s: config.MAX_TAKE_S,
+        message: {
+          en: 'Takes must be 30 seconds or shorter.',
+          he: 'ההקלטה חייבת להיות עד 30 שניות.'
+        }
+      })
+    }
+
     const result = await transcribe(audio.buffer, audio.mime)
 
     // Strip fillers (אה/אמ/um/uh…) so the subtitles read clean. A dropped filler
@@ -61,7 +88,14 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
       path
     })
 
-    const costUsd = (result.duration_s / 60) * config.SCRIBE_USD_PER_MIN
+    // Vendors bill submitted audio duration, so the probed media length is the
+    // correct basis; `result.duration_s` (the end of the LAST RECOGNISED WORD)
+    // under-bills a take with trailing silence and is only the fallback.
+    // `cost_usd` is the USD incurred by THIS request; rows are summed across
+    // requests, never deduplicated — /api/transcribe and /api/evaluate bill two
+    // different videos through two separate Scribe calls.
+    const billableS = mediaS ?? result.duration_s
+    const costUsd = (billableS / 60) * config.SCRIBE_USD_PER_MIN
     await db.logEvent({
       user_id: req.userId,
       action: 'transcribe',
@@ -69,6 +103,15 @@ router.post('/transcribe', auth, upload.single('video'), async (req, res, next) 
       duration_s: result.duration_s,
       language: result.language,
       latency_ms: Date.now() - started,
+      // Numeric metadata only (privacy rule): which number produced the figure.
+      scores: {
+        cost: {
+          stt_usd: costUsd,
+          eval_usd: null,
+          media_duration_s: mediaS,
+          basis: mediaS !== null ? 'media' : 'words'
+        }
+      },
       cost_usd: costUsd
     })
 

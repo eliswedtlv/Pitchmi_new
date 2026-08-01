@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { recorderConstraints, isPortraitViewport } from "@/lib/recorderConstraints"
+import { MAX_TAKE_S } from "@/lib/limits"
 
 export type RecorderState =
   | "idle"
@@ -11,9 +12,12 @@ export type RecorderState =
   | "stopped"
   | "error"
 
+/** Why recording ended: the user tapped Stop, or the hard cap fired (T-1172). */
+export type StopReason = "user" | "limit"
+
 interface UseRecorderOptions {
   maxDurationS?: number
-  onStop?: (blob: Blob) => void
+  onStop?: (blob: Blob, reason: StopReason) => void
   graceAfterS?: number  // extra grace time after maxDurationS (for karaoke mode)
 }
 
@@ -25,6 +29,7 @@ interface UseRecorderReturn {
   start: () => Promise<void>
   stop: () => void
   error: string | null
+  stopReason: StopReason | null
 }
 
 const COUNTDOWN_FROM = 3
@@ -38,7 +43,7 @@ function getMimeType(): string {
 }
 
 export function useRecorder({
-  maxDurationS = 60,
+  maxDurationS = MAX_TAKE_S,
   onStop,
   graceAfterS = 0,
 }: UseRecorderOptions = {}): UseRecorderReturn {
@@ -46,6 +51,7 @@ export function useRecorder({
   const [countdown, setCountdown] = useState(COUNTDOWN_FROM)
   const [elapsed, setElapsed] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [stopReason, setStopReason] = useState<StopReason | null>(null)
 
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const streamRef = useRef<MediaStream | null>(null)
@@ -54,6 +60,10 @@ export function useRecorder({
   const startTimeRef = useRef<number>(0)
   const rafRef = useRef<number | null>(null)
   const autoStopTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // The reason must be readable synchronously inside recorder.onstop, which
+  // fires long before a setState would land — the ref is the source of truth
+  // and the state is only its mirror for consumers.
+  const stopReasonRef = useRef<StopReason | null>(null)
 
   const cleanup = useCallback(() => {
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
@@ -68,6 +78,12 @@ export function useRecorder({
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current)
     if (recorderRef.current && recorderRef.current.state === "recording") {
+      // First writer wins: if the cap already fired, this is a late tap on a
+      // recorder that has stopped, and it must not relabel an involuntary stop.
+      if (stopReasonRef.current === null) {
+        stopReasonRef.current = "user"
+        setStopReason("user")
+      }
       recorderRef.current.stop()
     }
   }, [])
@@ -75,6 +91,8 @@ export function useRecorder({
   const start = useCallback(async () => {
     setError(null)
     setElapsed(0)
+    stopReasonRef.current = null
+    setStopReason(null)
     chunksRef.current = []
     setState("requesting")
 
@@ -127,7 +145,7 @@ export function useRecorder({
       setState("stopped")
       streamRef.current?.getTracks().forEach((t) => t.stop())
       streamRef.current = null
-      onStop?.(blob)
+      onStop?.(blob, stopReasonRef.current ?? "user")
     }
 
     recorder.start(250)
@@ -144,6 +162,10 @@ export function useRecorder({
     autoStopTimerRef.current = setTimeout(
       () => {
         if (recorderRef.current?.state === "recording") {
+          if (stopReasonRef.current === null) {
+            stopReasonRef.current = "limit"
+            setStopReason("limit")
+          }
           recorderRef.current.stop()
         }
       },
@@ -151,5 +173,5 @@ export function useRecorder({
     )
   }
 
-  return { state, countdown, elapsed, videoRef, start, stop, error }
+  return { state, countdown, elapsed, videoRef, start, stop, error, stopReason }
 }

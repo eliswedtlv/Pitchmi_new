@@ -37,6 +37,7 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
   let transcodeMs = 0
   let videoBytesIn = 0
   let videoBytesEval = 0
+  let mediaS = null
   try {
     if (!req.file) return res.status(400).json({ error: 'missing_video' })
     if (!projectId) return res.status(400).json({ error: 'missing_project_id' })
@@ -53,6 +54,31 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
     const ext = extForMime(req.file.mimetype)
     const scribeStart = Date.now()
     const audio = await extractAudio(req.file.buffer, ext)
+
+    // Hard 30s cap, enforced server-side (T-1172). Sits AFTER the daily-limit
+    // check so quota semantics don't change, and BEFORE Scribe so a rejected
+    // take costs nothing but the decode we already ran. Fails open when the
+    // probe found no `time=` line.
+    mediaS = typeof audio.duration_s === 'number' ? audio.duration_s : null
+    if (mediaS !== null && mediaS > config.MAX_TAKE_S + config.TAKE_TOLERANCE_S) {
+      await db.logEvent({
+        user_id: req.userId,
+        action: 'error',
+        project_id: projectId,
+        error: 'take_too_long',
+        duration_s: mediaS,
+        latency_ms: Date.now() - started
+      }).catch(() => {})
+      return res.status(413).json({
+        error: 'take_too_long',
+        limit_s: config.MAX_TAKE_S,
+        message: {
+          en: 'Takes must be 30 seconds or shorter.',
+          he: 'ההקלטה חייבת להיות עד 30 שניות.'
+        }
+      })
+    }
+
     const take = await transcribe(audio.buffer, audio.mime)
     scribeMs = Date.now() - scribeStart
 
@@ -102,7 +128,16 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
     })
 
     const evalsLeft = Math.max(0, config.DAILY_EVAL_LIMIT - (usedToday + 1))
-    const costUsd = (take.duration_s / 60) * config.SCRIBE_USD_PER_MIN
+
+    // Real cost of THIS request (T-1172): STT billed on the submitted audio
+    // duration (falling back to the last-word-end only when the probe failed),
+    // plus what OpenRouter actually charged for the model call — roughly 45% of
+    // a pass, and invisible until now. `cost_usd` is the row total; rows are
+    // summed across requests, never deduplicated.
+    const billableS = mediaS ?? take.duration_s
+    const sttCostUsd = (billableS / 60) * config.SCRIBE_USD_PER_MIN
+    const evalCostUsd = delivery.usage?.cost ?? null
+    const costUsd = sttCostUsd + (evalCostUsd ?? 0)
 
     const result = {
       overall: combined.overall,
@@ -124,7 +159,15 @@ router.post('/evaluate', auth, upload.single('video'), async (req, res) => {
       scores: {
         ...combined.dimensions,
         overall: combined.overall,
-        timings: { scribe_ms: scribeMs, transcode_ms: transcodeMs, eval_ms: evalMs, video_bytes_in: videoBytesIn, video_bytes_eval: videoBytesEval, attempts: delivery.attempts || 1, upstream: delivery.upstream || null }
+        timings: { scribe_ms: scribeMs, transcode_ms: transcodeMs, eval_ms: evalMs, video_bytes_in: videoBytesIn, video_bytes_eval: videoBytesEval, attempts: delivery.attempts || 1, upstream: delivery.upstream || null },
+        cost: {
+          stt_usd: sttCostUsd,
+          eval_usd: evalCostUsd, // null on gemini-direct or a usage-less 200
+          media_duration_s: mediaS, // null if the probe failed
+          basis: mediaS !== null ? 'media' : 'words',
+          eval_prompt_tokens: delivery.usage?.prompt_tokens ?? null,
+          eval_completion_tokens: delivery.usage?.completion_tokens ?? null
+        }
       },
       latency_ms: Date.now() - started,
       cost_usd: costUsd

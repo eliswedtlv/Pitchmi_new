@@ -6,7 +6,7 @@
 require('./helpers')
 jest.mock('../src/lib/db', () => require('./mocks/db'))
 jest.mock('../src/lib/audio', () => ({
-  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mp4' }),
+  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mp4', duration_s: 12 }),
   transcodeForEval: async () => ({ buffer: Buffer.from('eval-proxy'), mime: 'video/mp4' }),
   extForMime: () => 'webm'
 }))

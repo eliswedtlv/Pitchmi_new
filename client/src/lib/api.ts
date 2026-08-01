@@ -16,12 +16,24 @@ async function authHeaders(): Promise<Record<string, string>> {
 async function handleResponse<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({ error: "unknown" }))
-    throw Object.assign(new Error(body.message ?? body.error ?? "Request failed"), {
-      status: res.status,
-      body,
-    })
+    throw Object.assign(new Error(errorMessage(body)), { status: res.status, body })
   }
   return res.json() as Promise<T>
+}
+
+/**
+ * The server's localized 413s (`take_too_long`, `take_too_large`) send
+ * `message` as `{ en, he }`. Unwrapped it stringifies to "[object Object]" in
+ * every error surface, so pick the English copy; the `body` rides along on the
+ * thrown error for any caller that wants the other language.
+ */
+function errorMessage(body: { message?: unknown; error?: string }): string {
+  const m = body.message
+  if (typeof m === "string") return m
+  if (m && typeof m === "object" && typeof (m as { en?: unknown }).en === "string") {
+    return (m as { en: string }).en
+  }
+  return body.error ?? "Request failed"
 }
 
 // ── Health ─────────────────────────────────────────────────────────────────

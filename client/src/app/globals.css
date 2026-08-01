@@ -34,3 +34,18 @@ body {
 .safe-pos-4 {
   bottom: calc(1rem + env(safe-area-inset-bottom, 0px));
 }
+
+/* Final-seconds cue on the recorder ring (T-1172). A scale pulse, deliberately
+   NOT `animate-ping` — that is already the full-screen 3-2-1 pre-roll, and
+   reusing it here would read as a second start cue. */
+@keyframes ring-pulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+.ring-pulse {
+  animation: ring-pulse 1s ease-in-out infinite;
+  transform-origin: center;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ring-pulse { animation: none; }
+}

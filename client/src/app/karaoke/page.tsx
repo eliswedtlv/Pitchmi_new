@@ -9,6 +9,7 @@ import { useKaraokeClock } from "@/hooks/useKaraokeClock"
 import { useRecorder } from "@/hooks/useRecorder"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { useSession } from "@/store/session"
+import { MAX_TAKE_S } from "@/lib/limits"
 import { resolveDir } from "@/lib/textDir"
 import type { KaraokeWord } from "@/lib/clock"
 
@@ -26,7 +27,11 @@ export default function KaraokePage() {
   const gracePeriod = 3
 
   const { state, countdown, videoRef, start, stop } = useRecorder({
-    maxDurationS: (path?.total_s ?? 60) + gracePeriod,
+    // Bounded by take 1's real length (itself capped at MAX_TAKE_S), plus the
+    // grace that lets a rehearsal finish its last subtitle word. A rehearsal
+    // hitting its ceiling is expected and harmless — it does not define the
+    // script — so the stop reason is deliberately ignored here (T-1172).
+    maxDurationS: (path?.total_s ?? MAX_TAKE_S) + gracePeriod,
     onStop: (blob) => {
       setTakeBlob(blob)
       router.push("/wait")

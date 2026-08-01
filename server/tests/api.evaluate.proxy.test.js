@@ -7,7 +7,7 @@
 require('./helpers')
 jest.mock('../src/lib/db', () => require('./mocks/db'))
 jest.mock('../src/lib/audio', () => ({
-  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mp4' }),
+  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mp4', duration_s: 12 }),
   // 19MB proxy — just over the 18MB EVAL_MAX_BYTES ceiling.
   transcodeForEval: async () => ({ buffer: Buffer.alloc(19 * 1024 * 1024), mime: 'video/mp4' }),
   extForMime: () => 'webm'

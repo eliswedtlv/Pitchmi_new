@@ -8,37 +8,50 @@ import { useRecorder } from "@/hooks/useRecorder"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { useSession } from "@/store/session"
 import { transcribeVideo } from "@/lib/api"
+import { MAX_TAKE_S } from "@/lib/limits"
 import { useState } from "react"
-
-const MAX_S = 60
 
 export default function RecorderPage() {
   const router = useRouter()
   const { project, setProject, setTakeBlob, setPathResult } = useSession()
   const [transcribing, setTranscribing] = useState(false)
   const [transError, setTransError] = useState<string | null>(null)
+  // A take the hard cap cut off, held back from transcribe until the user
+  // chooses (T-1172). Take 1 defines `projects.path`, so a severed script would
+  // poison every rehearsal scored against it — never ship one silently.
+  const [cutOffBlob, setCutOffBlob] = useState<Blob | null>(null)
+
+  async function transcribeAndGo(blob: Blob) {
+    if (!project) return
+    setCutOffBlob(null)
+    setTakeBlob(blob)
+    setTranscribing(true)
+    setTransError(null)
+    try {
+      const result = await transcribeVideo(blob, project.id)
+      // Persist the detected language so karaoke resolves RTL correctly (T-1164)
+      // — the project was created before transcribe ran.
+      setProject({ ...project, language: result.language })
+      // Zero-edit flow (T-1169): transcribe returns the subtitle structure at
+      // the take's real pace — go straight to karaoke, no editor step.
+      setPathResult({ path: result.path, fits: true, est_duration_s: result.path.total_s })
+      router.push("/karaoke")
+    } catch (e) {
+      setTransError((e as Error).message)
+    } finally {
+      setTranscribing(false)
+    }
+  }
 
   const { state, countdown, elapsed, videoRef, start, stop, error } = useRecorder({
-    maxDurationS: MAX_S,
-    onStop: async (blob) => {
+    maxDurationS: MAX_TAKE_S,
+    onStop: async (blob, reason) => {
       if (!project) return
-      setTakeBlob(blob)
-      setTranscribing(true)
-      setTransError(null)
-      try {
-        const result = await transcribeVideo(blob, project.id)
-        // Persist the detected language so karaoke resolves RTL correctly (T-1164)
-        // — the project was created before transcribe ran.
-        setProject({ ...project, language: result.language })
-        // Zero-edit flow (T-1169): transcribe returns the subtitle structure at
-        // the take's real pace — go straight to karaoke, no editor step.
-        setPathResult({ path: result.path, fits: true, est_duration_s: result.path.total_s })
-        router.push("/karaoke")
-      } catch (e) {
-        setTransError((e as Error).message)
-      } finally {
-        setTranscribing(false)
+      if (reason === "limit") {
+        setCutOffBlob(blob)
+        return
       }
+      await transcribeAndGo(blob)
     },
   })
 
@@ -53,9 +66,13 @@ export default function RecorderPage() {
     start()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const remaining = Math.max(0, MAX_S - elapsed)
-  const pct = ((MAX_S - remaining) / MAX_S) * 100
+  const remaining = Math.max(0, MAX_TAKE_S - elapsed)
+  const pct = ((MAX_TAKE_S - remaining) / MAX_TAKE_S) * 100
   const circumference = 2 * Math.PI * 44 // r=44
+  // Urgency rescaled for a 30s take (T-1172): at 60s "red under 10" was the
+  // final sixth; at 30s the same threshold would be the final third and read as
+  // permanent alarm. White → amber ≤10s → red ≤5s, pulse only in the last 3.
+  const ringStroke = remaining <= 5 ? "#ef4444" : remaining <= 10 ? "#f59e0b" : "#ffffff"
 
   if (transcribing) {
     return (
@@ -95,21 +112,23 @@ export default function RecorderPage() {
       {state === "recording" && (
         <div className="absolute top-4 right-4">
           <svg width="100" height="100" viewBox="0 0 100 100">
-            <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
-            <circle
-              cx="50" cy="50" r="44"
-              fill="none"
-              stroke={remaining < 10 ? "#ef4444" : "#ffffff"}
-              strokeWidth="8"
-              strokeDasharray={circumference}
-              strokeDashoffset={circumference * (pct / 100)}
-              strokeLinecap="round"
-              transform="rotate(-90 50 50)"
-              style={{ transition: "stroke-dashoffset 0.2s linear" }}
-            />
-            <text x="50" y="55" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold">
-              {Math.ceil(remaining)}
-            </text>
+            <g className={remaining <= 3 ? "ring-pulse" : undefined}>
+              <circle cx="50" cy="50" r="44" fill="none" stroke="rgba(255,255,255,0.2)" strokeWidth="8" />
+              <circle
+                cx="50" cy="50" r="44"
+                fill="none"
+                stroke={ringStroke}
+                strokeWidth="8"
+                strokeDasharray={circumference}
+                strokeDashoffset={circumference * (pct / 100)}
+                strokeLinecap="round"
+                transform="rotate(-90 50 50)"
+                style={{ transition: "stroke-dashoffset 0.2s linear" }}
+              />
+              <text x="50" y="55" textAnchor="middle" fill="white" fontSize="22" fontWeight="bold">
+                {Math.ceil(remaining)}
+              </text>
+            </g>
           </svg>
         </div>
       )}
@@ -125,6 +144,45 @@ export default function RecorderPage() {
             Stop
           </Button>
           <p className="text-white/50 text-sm">Tap anywhere to stop</p>
+        </div>
+      )}
+
+      {/* Hard-cap interstitial (T-1172). Blocks the transcribe until the user
+          decides — this does not extend recording by a millisecond, it just
+          refuses to ship a half-finished script into projects.path. */}
+      {cutOffBlob && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-black/80 px-6"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="max-w-sm w-full space-y-5 text-center text-white">
+            <h2 className="text-2xl font-bold">Time&apos;s up — {MAX_TAKE_S} seconds.</h2>
+            <p className="text-white/70 text-sm leading-relaxed">
+              If your pitch got cut off, record it again. Your subtitles are built from
+              this take, so a half-finished take means a half-finished script.
+            </p>
+            <div className="space-y-2">
+              <Button
+                className="w-full"
+                size="lg"
+                variant="success"
+                onClick={() => {
+                  setCutOffBlob(null)
+                  start()
+                }}
+              >
+                Record again
+              </Button>
+              <Button
+                className="w-full"
+                size="lg"
+                variant="secondary"
+                onClick={() => transcribeAndGo(cutOffBlob)}
+              >
+                Use this take
+              </Button>
+            </div>
+          </div>
         </div>
       )}
 
