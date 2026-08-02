@@ -8,12 +8,16 @@ import type { Project, PathResult, EvalResult } from "@/lib/api"
 
 interface SessionState {
   project: Project | null
+  // The typed script (T-10018), kept so "Edit text" on the results screen can
+  // pre-fill the home textarea with what the user actually wrote.
+  script: string
   takeBlob: Blob | null
   takeBlobUrl: string | null
   pathResult: PathResult | null
   evalResult: EvalResult | null
 
   setProject: (p: Project) => void
+  setScript: (text: string) => void
   setTakeBlob: (blob: Blob | null) => void
   setPathResult: (r: PathResult | null) => void
   setEvalResult: (r: EvalResult | null) => void
@@ -22,12 +26,14 @@ interface SessionState {
 
 export const useSession = create<SessionState>((set, get) => ({
   project: null,
+  script: "",
   takeBlob: null,
   takeBlobUrl: null,
   pathResult: null,
   evalResult: null,
 
   setProject: (project) => set({ project }),
+  setScript: (script) => set({ script }),
 
   setTakeBlob: (blob) => {
     const prev = get().takeBlobUrl
@@ -48,6 +54,7 @@ export const useSession = create<SessionState>((set, get) => ({
     if (prev) URL.revokeObjectURL(prev)
     set({
       project: null,
+      script: "",
       takeBlob: null,
       takeBlobUrl: null,
       pathResult: null,

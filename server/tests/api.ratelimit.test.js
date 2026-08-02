@@ -20,20 +20,15 @@ beforeEach(() => {
 })
 
 describe('per-IP rate limits', () => {
-  test('the 31st /api/transcribe in the hour -> 429 rate_limited', async () => {
-    const app = createApp()
-    for (let i = 0; i < 30; i++) {
-      const r = await request(app).post('/api/transcribe')
-      expect(r.status).not.toBe(429)
-    }
-    const blocked = await request(app).post('/api/transcribe')
-    expect(blocked.status).toBe(429)
-    expect(blocked.body).toEqual({ error: 'rate_limited' })
-  })
-
+  // T-10018 deleted /api/transcribe (and with it its limiter): the typed
+  // script seeds its own path, so /api/evaluate is the only billable route
+  // left. Its ceiling is unchanged.
   test('the 31st /api/evaluate in the hour -> 429 rate_limited', async () => {
     const app = createApp()
-    for (let i = 0; i < 30; i++) await request(app).post('/api/evaluate')
+    for (let i = 0; i < 30; i++) {
+      const r = await request(app).post('/api/evaluate')
+      expect(r.status).not.toBe(429)
+    }
     const blocked = await request(app).post('/api/evaluate')
     expect(blocked.status).toBe(429)
     expect(blocked.body).toEqual({ error: 'rate_limited' })
@@ -48,25 +43,32 @@ describe('per-IP rate limits', () => {
 
   test('a trip logs metadata only: action + route, never an IP', async () => {
     const app = createApp()
-    for (let i = 0; i < 31; i++) await request(app).post('/api/transcribe')
+    for (let i = 0; i < 31; i++) await request(app).post('/api/evaluate')
     const rows = dbMock.__state.events.filter(e => e.action === 'rate_limited')
     expect(rows).toHaveLength(1)
-    expect(rows[0]).toEqual({ action: 'rate_limited', error: '/api/transcribe' })
+    expect(rows[0]).toEqual({ action: 'rate_limited', error: '/api/evaluate' })
   })
 
-  test('the limiters are independent: transcribe exhausted, save still open', async () => {
+  test('the limiters are independent: evaluate exhausted, save still open', async () => {
     const app = createApp()
-    for (let i = 0; i < 31; i++) await request(app).post('/api/transcribe')
+    for (let i = 0; i < 31; i++) await request(app).post('/api/evaluate')
     const save = await request(app).post('/api/save')
     expect(save.status).not.toBe(429)
+  })
+
+  test('/api/script carries no limiter — it costs nothing and calls nothing', async () => {
+    const app = createApp()
+    for (let i = 0; i < 40; i++) {
+      expect((await request(app).post('/api/script')).status).not.toBe(429)
+    }
   })
 
   test('distinct client IPs get distinct budgets (trust proxy)', async () => {
     const app = createApp()
     for (let i = 0; i < 31; i++) {
-      await request(app).post('/api/transcribe').set('X-Forwarded-For', '203.0.113.7')
+      await request(app).post('/api/evaluate').set('X-Forwarded-For', '203.0.113.7')
     }
-    const other = await request(app).post('/api/transcribe').set('X-Forwarded-For', '198.51.100.4')
+    const other = await request(app).post('/api/evaluate').set('X-Forwarded-For', '198.51.100.4')
     expect(other.status).not.toBe(429)
   })
 })

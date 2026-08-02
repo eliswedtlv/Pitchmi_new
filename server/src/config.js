@@ -54,6 +54,18 @@ const config = {
   // ElevenLabs Scribe list ~$0.24/hr as of 2026-08; override with
   // SCRIBE_USD_PER_MIN when the contract changes.
   SCRIBE_USD_PER_MIN: num(process.env.SCRIBE_USD_PER_MIN, 0.004),
+  // Typed-script ceiling (T-10018). Also bounds the alignment DP in
+  // lib/scriptPath.js, which is O(script words x spoken words).
+  MAX_SCRIPT_CHARS: int(process.env.MAX_SCRIPT_CHARS, 1200),
+  // Below this share of typed words anchored to a real spoken word, the take
+  // was not a delivery of THIS script, so /api/evaluate keeps the stored path
+  // rather than re-timing against garbage. 0.5 is a first guess with no data
+  // behind it — tune from the coverage logged on every evaluate event.
+  MIN_ALIGN_COVERAGE: num(process.env.MIN_ALIGN_COVERAGE, 0.5),
+  // Reading rate for the throwaway seed path only (T-10018). CHARACTERS per
+  // second, not WPM: word length differs too much between English and Hebrew
+  // for a word-based rate to travel. Replaced by measured timings after take 1.
+  SEED_CHARS_PER_SECOND: num(process.env.SEED_CHARS_PER_SECOND, 13),
 
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || '',
 

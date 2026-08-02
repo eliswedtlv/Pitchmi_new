@@ -1,12 +1,14 @@
 "use client"
 
-import { useState, useRef } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Video, Upload } from "lucide-react"
+import { Video } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { createProject, transcribeVideo } from "@/lib/api"
+import { createProject, saveScript } from "@/lib/api"
 import { MAX_TAKE_S } from "@/lib/limits"
+import { estimateSeconds, splitAtSeconds } from "@/lib/estimate"
+import { resolveDir } from "@/lib/textDir"
 import { useSession } from "@/store/session"
 
 type UseCase = "pitch" | "intro" | "sales" | "social" | "custom"
@@ -19,18 +21,31 @@ const USE_CASES: { id: UseCase; label: string; emoji: string }[] = [
   { id: "custom", label: "Custom", emoji: "✏️" },
 ]
 
+// Shared by the textarea and the highlight layer behind it. Any divergence
+// here and the amber tail stops lining up with the words it is marking.
+const TEXT_BOX = "px-3 py-2 text-base leading-relaxed whitespace-pre-wrap break-words"
+
 export default function HomePage() {
   const router = useRouter()
-  const { setProject, setTakeBlob, setPathResult } = useSession()
+  const { script, setProject, setScript, setPathResult } = useSession()
 
   const [useCase, setUseCase] = useState<UseCase>("pitch")
   const [customText, setCustomText] = useState("")
+  // Pre-filled when the user came back via "Edit text" on the results screen.
+  const [text, setText] = useState(script)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [dragging, setDragging] = useState(false)
-  const fileRef = useRef<HTMLInputElement | null>(null)
+  const mirrorRef = useRef<HTMLDivElement | null>(null)
 
-  async function handleRecordClick() {
+  const seconds = estimateSeconds(text)
+  const overBy = Math.round(seconds - MAX_TAKE_S)
+  const isOver = seconds > MAX_TAKE_S
+  const { head, tail } = splitAtSeconds(text, MAX_TAKE_S)
+  // Hebrew right-aligns as it is typed; the language is not known yet, so the
+  // content itself decides (T-1164).
+  const dir = resolveDir(null, text)
+
+  async function handleStart() {
     setLoading(true)
     setError(null)
     try {
@@ -39,75 +54,22 @@ export default function HomePage() {
         use_case_custom: useCase === "custom" ? customText : undefined,
       })
       setProject(project)
-      router.push("/recorder")
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // Read a local video's duration without uploading a byte. Resolves null when
-  // the browser can't report one (streaming containers, metadata quirks) — the
-  // caller must treat null as "unknown" and let the server decide.
-  function probeDuration(file: File): Promise<number | null> {
-    return new Promise((resolve) => {
-      const url = URL.createObjectURL(file)
-      const video = document.createElement("video")
-      const done = (value: number | null) => {
-        URL.revokeObjectURL(url)
-        resolve(value)
-      }
-      video.preload = "metadata"
-      video.onloadedmetadata = () =>
-        done(Number.isFinite(video.duration) ? video.duration : null)
-      video.onerror = () => done(null)
-      video.src = url
-    })
-  }
-
-  async function handleUpload(file: File) {
-    if (!file.type.startsWith("video/")) {
-      setError("Please upload a video file.")
-      return
-    }
-    // Duration precheck (T-1172): reject before a project exists and before a
-    // single byte is uploaded. Unreadable duration FAILS OPEN — the server's
-    // 413 take_too_long is the real gate, and a metadata quirk in one browser
-    // must not block a legitimate user.
-    const duration = await probeDuration(file)
-    if (duration !== null && duration > MAX_TAKE_S) {
-      setError(`Videos must be ${MAX_TAKE_S} seconds or shorter.`)
-      return
-    }
-    setLoading(true)
-    setError(null)
-    try {
-      const project = await createProject({
-        use_case: useCase,
-        use_case_custom: useCase === "custom" ? customText : undefined,
+      // The server stores the script and hands back a seed path — a first,
+      // disposable guess at the pace. The first take replaces it with the
+      // user's real timings (T-10018).
+      const result = await saveScript(project.id, text)
+      setScript(text)
+      setPathResult({
+        path: result.path,
+        fits: true,
+        est_duration_s: result.est_duration_s,
       })
-      setProject(project)
-      setTakeBlob(file)
-      // Transcribe the upload
-      const result = await transcribeVideo(file, project.id)
-      // Persist the detected language for RTL resolution downstream (T-1164).
-      setProject({ ...project, language: result.language })
-      // Zero-edit flow (T-1169): straight to karaoke at the take's real pace.
-      setPathResult({ path: result.path, fits: true, est_duration_s: result.path.total_s })
       router.push("/karaoke")
     } catch (e) {
       setError((e as Error).message)
     } finally {
       setLoading(false)
     }
-  }
-
-  function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    setDragging(false)
-    const file = e.dataTransfer.files[0]
-    if (file) handleUpload(file)
   }
 
   return (
@@ -154,43 +116,70 @@ export default function HomePage() {
           </CardContent>
         </Card>
 
-        {/* Record button */}
+        {/* Script */}
+        <Card>
+          <CardHeader>
+            <CardTitle>What are you going to say?</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* The textarea sits on a transparent background over a mirror of
+                its own text, so the over-length tail can be tinted in place.
+                Both layers share TEXT_BOX and scroll together. */}
+            <div className="relative">
+              {isOver && (
+                <div
+                  ref={mirrorRef}
+                  aria-hidden
+                  dir={dir}
+                  className={`pointer-events-none absolute inset-0 overflow-hidden rounded-md border border-transparent ${TEXT_BOX}`}
+                >
+                  <span className="text-transparent">{head}</span>
+                  <span data-testid="over-length-tail" className="rounded bg-amber-100 text-transparent">
+                    {tail}
+                  </span>
+                </div>
+              )}
+              <textarea
+                aria-label="Your script"
+                dir={dir}
+                rows={7}
+                value={text}
+                onChange={(e) => setText(e.target.value)}
+                onScroll={(e) => {
+                  if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop
+                }}
+                placeholder="Type or paste what you want to say…"
+                className={`relative w-full resize-none rounded-md border border-neutral-300 bg-transparent text-neutral-900 placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 ${TEXT_BOX}`}
+              />
+            </div>
+
+            {/* Estimate. A hint, never a gate — the 30s cap is checked on the
+                take you actually record, at the speed you actually talk. */}
+            <div className="flex items-baseline justify-between gap-3 text-sm">
+              <span className={isOver ? "font-medium text-amber-600" : "text-neutral-500"}>
+                {isOver
+                  ? `About ${overBy} second${overBy === 1 ? "" : "s"} over — trim it a little`
+                  : `~${Math.round(seconds)}s`}
+              </span>
+              <span className="text-xs text-neutral-400 text-right">
+                Rough estimate · the {MAX_TAKE_S}s limit is checked on your take
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Record */}
         <Button
-          onClick={handleRecordClick}
-          disabled={loading || (useCase === "custom" && !customText.trim())}
+          onClick={handleStart}
+          disabled={
+            loading || !text.trim() || (useCase === "custom" && !customText.trim())
+          }
           size="lg"
           className="w-full gap-3 text-base h-14"
         >
           <Video className="h-5 w-5" />
-          {loading ? "Setting up…" : "Record a take"}
+          {loading ? "Setting up…" : "Record it"}
         </Button>
-
-        {/* Upload / drop zone */}
-        <div
-          onDragOver={(e) => { e.preventDefault(); setDragging(true) }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={handleDrop}
-          onClick={() => fileRef.current?.click()}
-          className={`flex cursor-pointer flex-col items-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 transition-colors ${
-            dragging ? "border-neutral-900 bg-neutral-50" : "border-neutral-300 hover:border-neutral-400"
-          }`}
-        >
-          <Upload className="h-8 w-8 text-neutral-400" />
-          <p className="text-sm text-neutral-500 text-center">
-            Or drag &amp; drop an existing video<br />
-            <span className="text-xs text-neutral-400">≤ {MAX_TAKE_S} seconds · webm / mp4 / mov</span>
-          </p>
-          <input
-            ref={fileRef}
-            type="file"
-            accept="video/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0]
-              if (file) handleUpload(file)
-            }}
-          />
-        </div>
 
         {/* Error */}
         {error && (

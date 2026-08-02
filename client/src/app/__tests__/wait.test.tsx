@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   getAd: vi.fn(),
   evaluateVideo: vi.fn(),
   setEvalResult: vi.fn(),
+  setPathResult: vi.fn(),
 }))
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }))
@@ -16,6 +17,7 @@ vi.mock("@/store/session", () => ({
     project: { id: "p1" },
     takeBlob: new Blob(["take"]),
     setEvalResult: h.setEvalResult,
+    setPathResult: h.setPathResult,
   }),
 }))
 
@@ -126,5 +128,42 @@ describe("WaitPage — transport outcomes route correctly (never an eternal spin
     render(<WaitPage />)
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
     expect(screen.getByText(/daily evaluation limit/i)).toBeTruthy()
+  })
+})
+
+// T-10018: every take teaches the prompter the user's real pace. The wait
+// screen is where that re-timed path arrives, and it has to be adopted before
+// "Try again" sends the user back to /karaoke.
+describe("WaitPage — adopting the re-timed prompter path", () => {
+  const RETIMED = {
+    words: [{ w: "hello", t_start: 0.4, t_end: 0.9, line: 0 }],
+    lines: [{ index: 0, text: "hello", t_start: 0.4, t_end: 0.9 }],
+    total_s: 0.9,
+  }
+
+  it("stores a returned path so the next take follows the measured pace", async () => {
+    h.evaluateVideo.mockResolvedValue({
+      overall: 90, dimensions: {}, comments: [], flags: [], evals_left_today: 4, path: RETIMED,
+    })
+    render(<WaitPage />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(h.setPathResult).toHaveBeenCalledWith({
+      path: RETIMED,
+      fits: true,
+      est_duration_s: 0.9,
+    })
+    expect(h.push).toHaveBeenCalledWith("/results")
+  })
+
+  it("leaves the current path alone when the take drifted too far to re-time", async () => {
+    h.evaluateVideo.mockResolvedValue({
+      overall: 60, dimensions: {}, comments: [], flags: [], evals_left_today: 4,
+    })
+    render(<WaitPage />)
+    await act(async () => { await Promise.resolve(); await Promise.resolve() })
+
+    expect(h.setPathResult).not.toHaveBeenCalled()
+    expect(h.push).toHaveBeenCalledWith("/results")
   })
 })

@@ -10,6 +10,7 @@ const { runMedia } = require('../lib/jobLimiter')
 const { extractAudio, transcodeForEval } = require('../lib/audio')
 const { transcribe } = require('../lib/scribe')
 const { scoreTake } = require('../lib/score')
+const { buildPathFromScript } = require('../lib/scriptPath')
 const { evaluateVideo } = require('../lib/evaluate')
 const { combineResult } = require('../lib/combine')
 
@@ -87,7 +88,31 @@ router.post('/evaluate', rateLimit.evaluate, auth, upload.single('video'), async
     const take = await transcribe(audio.buffer, audio.mime)
     scribeMs = Date.now() - scribeStart
 
+    // Scored against the path the user was ACTUALLY following — this line must
+    // stay above the re-timing below, or a take gets judged against timings
+    // derived from itself and timing accuracy becomes meaningless.
     const scored = scoreTake(take.words, path)
+
+    // Learn the real pace from this take (T-10018). The typed script is the
+    // source of truth for the words; this take is the source of truth for when
+    // each of them was said, so every take makes the next rehearsal closer to
+    // the user's own rhythm. Below MIN_ALIGN_COVERAGE the take was not a
+    // delivery of this script at all (heavy improvisation, wrong project,
+    // mostly silence) and the stored path is left exactly as it was.
+    //
+    // Persisted here rather than with the response on purpose: these timings
+    // are a measured fact about the take and stay valid even if the AI eval
+    // below times out.
+    let retimed = null
+    let coverage = null
+    if (project.script) {
+      const aligned = buildPathFromScript(project.script, take.words)
+      coverage = aligned.coverage
+      if (aligned.path.words.length && coverage >= config.MIN_ALIGN_COVERAGE) {
+        retimed = aligned.path
+        await db.updateProject(projectId, req.userId, { path: retimed })
+      }
+    }
 
     // Shrink the take to a minimal eval proxy before the upstream call (T-1166).
     // Real takes exceed the base64 request ceiling and stall every attempt; the
@@ -152,6 +177,9 @@ router.post('/evaluate', rateLimit.evaluate, auth, upload.single('video'), async
       language: take.language || project.language || null,
       evals_left_today: evalsLeft
     }
+    // Only present when this take actually re-timed the prompter; the client
+    // stores it so the next take rehearses against the user's own pace.
+    if (retimed) result.path = retimed
 
     await db.logEvent({
       user_id: req.userId,
@@ -164,6 +192,11 @@ router.post('/evaluate', rateLimit.evaluate, auth, upload.single('video'), async
       scores: {
         ...combined.dimensions,
         overall: combined.overall,
+        // Alignment coverage of this take against the typed script, and whether
+        // it was good enough to re-time the prompter (T-10018). Numeric
+        // metadata only — this is the data MIN_ALIGN_COVERAGE gets tuned from.
+        coverage,
+        retimed: !!retimed,
         timings: { scribe_ms: scribeMs, transcode_ms: transcodeMs, eval_ms: evalMs, video_bytes_in: videoBytesIn, video_bytes_eval: videoBytesEval, attempts: delivery.attempts || 1, upstream: delivery.upstream || null },
         cost: {
           stt_usd: sttCostUsd,

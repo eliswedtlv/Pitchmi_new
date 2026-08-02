@@ -2,7 +2,7 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Share2, RotateCcw, Video } from "lucide-react"
+import { Share2, RotateCcw, Video, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -159,7 +159,20 @@ export default function ResultsPage() {
             <RotateCcw className="h-5 w-5" />
             Try again
           </Button>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-3 gap-3">
+            {/* Edit text (T-10018): back to the script screen with the words
+                still in the box. Saving the edit re-seeds the path server-side,
+                so the next take is never scored against timings measured for
+                different words. `reset()` is deliberately NOT called — that
+                would wipe the script this button exists to keep. */}
+            <Button
+              onClick={() => router.push("/")}
+              variant="outline"
+              className="gap-2"
+            >
+              <Pencil className="h-4 w-4" />
+              Edit text
+            </Button>
             <Button
               onClick={() => { reset(); router.push("/") }}
               variant="outline"

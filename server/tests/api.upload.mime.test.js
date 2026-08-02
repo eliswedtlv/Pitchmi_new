@@ -47,7 +47,7 @@ function upload (route, contentType, filename = 'take.bin') {
 describe('declared-mime gate (T-10010)', () => {
   test('text/html -> 415 and ffmpeg is never reached', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
-    const res = await upload('/api/transcribe', 'text/html', 'playlist.html')
+    const res = await upload('/api/evaluate', 'text/html', 'playlist.html')
     expect(res.status).toBe(415)
     expect(res.body).toEqual({ error: 'unsupported_media_type' })
     expect(mockAudio.extractAudio).not.toHaveBeenCalled()
@@ -72,7 +72,7 @@ describe('declared-mime gate (T-10010)', () => {
   ])('%s reaches the decoder', async (contentType, filename) => {
     dbMock.__seedProject('proj-1', 'user-1')
     mockAudio.extractAudio.mockResolvedValue({ buffer: Buffer.from('a'), mime: 'audio/mp4', duration_s: 5 })
-    const res = await upload('/api/transcribe', contentType, filename)
+    const res = await upload('/api/evaluate', contentType, filename)
     expect(res.status).not.toBe(415)
     expect(mockAudio.extractAudio).toHaveBeenCalled()
   })
@@ -101,7 +101,7 @@ describe('declared-mime gate (T-10010)', () => {
     ].join('\r\n')
 
     const res = await request(createApp())
-      .post('/api/transcribe')
+      .post('/api/evaluate')
       .set('Authorization', `Bearer ${userToken('user-1')}`)
       .set('Content-Type', `multipart/form-data; boundary=${b}`)
       .send(body)

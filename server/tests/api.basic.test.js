@@ -16,8 +16,8 @@ describe('basic endpoints', () => {
     expect(res.body).toEqual({ status: 'ok' })
   })
 
-  test('#2 auth gate: POST /api/transcribe without JWT -> 401', async () => {
-    const res = await request(createApp()).post('/api/transcribe')
+  test('#2 auth gate: POST /api/script without JWT -> 401', async () => {
+    const res = await request(createApp()).post('/api/script')
     expect(res.status).toBe(401)
   })
 

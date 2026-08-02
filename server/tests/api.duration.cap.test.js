@@ -1,10 +1,13 @@
 'use strict'
 
-// T-1172: the 30s cap is enforced SERVER-side on both upload routes — the
+// T-1172: the 30s cap is enforced SERVER-side on the upload route — the
 // browser cap is only a browser cap. An over-limit take must be rejected with
 // 413 take_too_long BEFORE Scribe is called (that is the whole point: pay the
 // decode we already ran, skip the billable STT call), and an unreadable
 // duration must fail OPEN.
+//
+// T-10018 deleted /api/transcribe, so /api/evaluate is the only upload route
+// left; the cap and its ordering guarantees are unchanged.
 
 require('./helpers')
 jest.mock('../src/lib/db', () => require('./mocks/db'))
@@ -53,7 +56,7 @@ function post (route) {
     .attach('video', Buffer.from('fake-video-bytes'), { filename: 'take.webm', contentType: 'video/webm' })
 }
 
-describe.each(['/api/transcribe', '/api/evaluate'])('%s — 30s hard cap', (route) => {
+describe.each(['/api/evaluate'])('%s — 30s hard cap', (route) => {
   test('45s take -> 413 take_too_long, Scribe NEVER called, error event logged', async () => {
     dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
     mockDurationS = 45
@@ -113,26 +116,25 @@ describe('/api/evaluate — cap ordering', () => {
     expect(res.status).toBe(429)
     expect(res.body).toEqual({ error: 'daily_limit', limit: 25 })
   })
-})
 
-describe('/api/transcribe — cap ordering', () => {
-  test('a silent OVER-limit take is rejected as too long, not as no_speech', async () => {
-    dbMock.__seedProject('proj-1', 'user-1')
+  test('a silent OVER-limit take is rejected as too long, before Scribe', async () => {
+    dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
     mockDurationS = 45
     mockScribe.transcribe.mockResolvedValue({ words: [], language: 'en', duration_s: 0 })
 
-    const res = await post('/api/transcribe')
+    const res = await post('/api/evaluate')
     expect(res.status).toBe(413)
     expect(res.body.error).toBe('take_too_long')
+    expect(mockScribe.transcribe).not.toHaveBeenCalled()
   })
 
-  test('a silent within-limit take still returns 422 no_speech', async () => {
-    dbMock.__seedProject('proj-1', 'user-1')
+  test('a silent within-limit take is still scored (a bad take is not an error)', async () => {
+    dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
     mockDurationS = 12
     mockScribe.transcribe.mockResolvedValue({ words: [], language: 'en', duration_s: 0 })
 
-    const res = await post('/api/transcribe')
-    expect(res.status).toBe(422)
-    expect(res.body.error).toBe('no_speech')
+    const res = await post('/api/evaluate')
+    expect(res.status).toBe(200)
+    expect(res.body.dimensions.accuracy).toBe(0)
   })
 })

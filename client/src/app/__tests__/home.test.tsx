@@ -1,135 +1,177 @@
-import { render, screen, cleanup, act, waitFor } from "@testing-library/react"
+import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
+// T-10018: the entry point is TEXT. The user types or pastes a script, the
+// server seeds a karaoke path from it, and the first take is recorded straight
+// away — no improvise-first take, no upload-a-video path.
+//
 // T-1170 §B4: with Save-to-cloud removed nothing writes to storage, so the
-// "My saved videos" entry point is hidden. The /videos screen itself stays.
-// T-1172: the upload path gets a duration precheck before any project exists.
+// "My saved videos" entry point stays hidden.
 
 const h = vi.hoisted(() => ({
   push: vi.fn(),
   createProject: vi.fn(),
-  transcribeVideo: vi.fn(),
+  saveScript: vi.fn(),
+  setProject: vi.fn(),
+  setScript: vi.fn(),
+  setPathResult: vi.fn(),
+  script: "",
 }))
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }))
 vi.mock("@/lib/api", () => ({
   createProject: h.createProject,
-  transcribeVideo: h.transcribeVideo,
+  saveScript: h.saveScript,
 }))
 vi.mock("@/store/session", () => ({
-  useSession: () => ({ setProject: vi.fn(), setTakeBlob: vi.fn(), setPathResult: vi.fn() }),
+  useSession: () => ({
+    script: h.script,
+    setProject: h.setProject,
+    setScript: h.setScript,
+    setPathResult: h.setPathResult,
+  }),
 }))
 
 import HomePage from "../page"
 
+const SEED = {
+  path: { words: [{ w: "hi", t_start: 0, t_end: 0.4, line: 0 }], lines: [], total_s: 6.2 },
+  word_count: 12,
+  est_duration_s: 6.2,
+}
+
+const textarea = () => screen.getByLabelText("Your script") as HTMLTextAreaElement
+const recordButton = () => screen.getByRole("button", { name: /record it/i })
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  h.script = ""
+  h.createProject.mockResolvedValue({ id: "p1" })
+  h.saveScript.mockResolvedValue(SEED)
+})
+
 afterEach(cleanup)
 
-describe("HomePage", () => {
+describe("HomePage — the script screen", () => {
+  it("renders a script textarea and none of the old record/upload entry points", () => {
+    render(<HomePage />)
+
+    expect(textarea()).toBeTruthy()
+    expect(screen.queryByRole("button", { name: /record a take/i })).toBeNull()
+    expect(document.querySelector('input[type="file"]')).toBeNull()
+    expect(screen.queryByText(/drag & drop/i)).toBeNull()
+    expect(screen.queryByText(/drag &amp; drop/i)).toBeNull()
+  })
+
+  it("keeps the use-case picker", () => {
+    render(<HomePage />)
+    for (const label of ["Pitch", "Intro", "Sales", "Social", "Custom"]) {
+      expect(screen.getByText(label)).toBeTruthy()
+    }
+  })
+
   it("does not link to My saved videos", () => {
     render(<HomePage />)
     expect(screen.queryByText(/my saved videos/i)).toBeNull()
     expect(document.querySelector('a[href="/videos"]')).toBeNull()
   })
 
-  it("advertises the 30-second limit", () => {
+  it("keeps the button disabled until something is typed", () => {
     render(<HomePage />)
-    expect(screen.getByText(/≤ 30 seconds/)).toBeTruthy()
+    expect(recordButton()).toHaveProperty("disabled", true)
+
+    fireEvent.change(textarea(), { target: { value: "   \n  " } })
+    expect(recordButton()).toHaveProperty("disabled", true)
+
+    fireEvent.change(textarea(), { target: { value: "ship it now" } })
+    expect(recordButton()).toHaveProperty("disabled", false)
+  })
+
+  it("creates the project, saves the script, stores the seed path and goes to karaoke", async () => {
+    render(<HomePage />)
+    fireEvent.change(textarea(), { target: { value: "we are building a tool for founders" } })
+    fireEvent.click(recordButton())
+
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/karaoke"))
+    expect(h.createProject).toHaveBeenCalledWith({ use_case: "pitch", use_case_custom: undefined })
+    expect(h.saveScript).toHaveBeenCalledWith("p1", "we are building a tool for founders")
+    expect(h.setScript).toHaveBeenCalledWith("we are building a tool for founders")
+    expect(h.setPathResult).toHaveBeenCalledWith({
+      path: SEED.path,
+      fits: true,
+      est_duration_s: 6.2,
+    })
+  })
+
+  it("surfaces a server rejection instead of navigating", async () => {
+    h.saveScript.mockRejectedValue(new Error("Write at least a few words before you record."))
+
+    render(<HomePage />)
+    fireEvent.change(textarea(), { target: { value: "ship it" } })
+    fireEvent.click(recordButton())
+
+    await waitFor(() => expect(screen.getByText(/at least a few words/i)).toBeTruthy())
+    expect(h.push).not.toHaveBeenCalled()
+  })
+
+  it("pre-fills the textarea from the session script (Edit text round-trip)", () => {
+    h.script = "the script I wrote earlier"
+    render(<HomePage />)
+    expect(textarea().value).toBe("the script I wrote earlier")
+  })
+
+  it("right-aligns Hebrew as it is typed", () => {
+    render(<HomePage />)
+    expect(textarea().getAttribute("dir")).toBe("ltr")
+
+    fireEvent.change(textarea(), { target: { value: "שלום קוראים לי אלי" } })
+    expect(textarea().getAttribute("dir")).toBe("rtl")
   })
 })
 
-describe("HomePage — upload duration precheck (T-1172)", () => {
-  // jsdom never loads real media, so the detached <video> is stubbed: each test
-  // decides what duration the browser "reports" (or that it fails to report).
-  let reported: number | typeof NaN | null
+describe("HomePage — length estimate and over-length flag", () => {
+  const words = (n: number) => Array.from({ length: n }, (_, i) => `word${i}`).join(" ")
 
-  beforeEach(() => {
-    vi.clearAllMocks()
-    reported = null
-    // jsdom ships no object-URL support at all, so these are defined, not spied.
-    Object.defineProperty(URL, "createObjectURL", { configurable: true, value: vi.fn(() => "blob:test") })
-    Object.defineProperty(URL, "revokeObjectURL", { configurable: true, value: vi.fn() })
-    const realCreate = document.createElement.bind(document)
-    vi.spyOn(document, "createElement").mockImplementation((tag: string, ...rest) => {
-      const el = realCreate(tag, ...rest)
-      if (tag !== "video") return el
-      Object.defineProperty(el, "duration", { get: () => reported })
-      // Fire the metadata (or error) callback as soon as a src is assigned.
-      Object.defineProperty(el, "src", {
-        set() {
-          queueMicrotask(() => {
-            if (reported === null) (el as HTMLVideoElement).onerror?.(new Event("error"))
-            else (el as HTMLVideoElement).onloadedmetadata?.(new Event("loadedmetadata"))
-          })
-        },
-      })
-      return el
-    })
-  })
-
-  afterEach(() => vi.restoreAllMocks())
-
-  function upload(file: File) {
+  it("shows a rough estimate for a short script and flags nothing", () => {
     render(<HomePage />)
-    const input = document.querySelector('input[type="file"]') as HTMLInputElement
-    Object.defineProperty(input, "files", { value: [file], configurable: true })
-    return act(async () => {
-      input.dispatchEvent(new Event("change", { bubbles: true }))
-    })
-  }
+    // 40 words at 150 wpm = 16s.
+    fireEvent.change(textarea(), { target: { value: words(40) } })
 
-  const video = () => new File(["bytes"], "take.mp4", { type: "video/mp4" })
-
-  it("rejects a >30s video before any project is created or byte uploaded", async () => {
-    reported = 47
-    await upload(video())
-
-    await waitFor(() => expect(screen.getByText(/30 seconds or shorter/i)).toBeTruthy())
-    expect(h.createProject).not.toHaveBeenCalled()
-    expect(h.transcribeVideo).not.toHaveBeenCalled()
-    expect(URL.revokeObjectURL).toHaveBeenCalled()
+    expect(screen.getByText("~16s")).toBeTruthy()
+    expect(screen.queryByText(/seconds over/i)).toBeNull()
+    expect(screen.queryByTestId("over-length-tail")).toBeNull()
   })
 
-  it("accepts a 30s video", async () => {
-    reported = 30
-    h.createProject.mockResolvedValue({ id: "p1" })
-    h.transcribeVideo.mockResolvedValue({
-      script: "hi",
-      language: "en",
-      path: { words: [], lines: [], total_s: 0.4 },
-      duration_s: 0.4,
-    })
-    await upload(video())
+  it("flags an over-length script in amber, dims the tail, and still allows recording", () => {
+    render(<HomePage />)
+    // 120 words at 150 wpm = 48s, i.e. 18s over the 30s cap.
+    fireEvent.change(textarea(), { target: { value: words(120) } })
 
-    await waitFor(() => expect(h.createProject).toHaveBeenCalledTimes(1))
-    expect(screen.queryByText(/30 seconds or shorter/i)).toBeNull()
+    const flag = screen.getByText(/18 seconds over/i)
+    expect(flag.className).toMatch(/amber/)
+
+    // The tail past the 30-second point is marked, and it is exactly the words
+    // after the 75th (30s x 150wpm / 60).
+    const tail = screen.getByTestId("over-length-tail")
+    expect(tail.textContent?.trim().startsWith("word75")).toBe(true)
+    expect(tail.textContent?.trim().split(/\s+/)).toHaveLength(45)
+
+    // Eli's ruling: flag it, the user cuts. Never block, never rewrite.
+    expect(recordButton()).toHaveProperty("disabled", false)
   })
 
-  it("fails OPEN when the browser can't report a duration — the server is the gate", async () => {
-    reported = NaN
-    h.createProject.mockResolvedValue({ id: "p1" })
-    h.transcribeVideo.mockResolvedValue({
-      script: "hi",
-      language: "en",
-      path: { words: [], lines: [], total_s: 0.4 },
-      duration_s: 0.4,
-    })
-    await upload(video())
-
-    await waitFor(() => expect(h.createProject).toHaveBeenCalledTimes(1))
-    expect(screen.queryByText(/30 seconds or shorter/i)).toBeNull()
+  it("says plainly that the estimate is only a hint", () => {
+    render(<HomePage />)
+    fireEvent.change(textarea(), { target: { value: words(10) } })
+    expect(screen.getByText(/rough estimate/i)).toBeTruthy()
   })
 
-  it("fails OPEN when metadata never loads at all", async () => {
-    reported = null // drives the <video> onerror path
-    h.createProject.mockResolvedValue({ id: "p1" })
-    h.transcribeVideo.mockResolvedValue({
-      script: "hi",
-      language: "en",
-      path: { words: [], lines: [], total_s: 0.4 },
-      duration_s: 0.4,
-    })
-    await upload(video())
+  it("offers no AI rewrite, shorten or trim action", () => {
+    render(<HomePage />)
+    fireEvent.change(textarea(), { target: { value: words(120) } })
 
-    await waitFor(() => expect(h.createProject).toHaveBeenCalledTimes(1))
+    for (const name of [/rewrite/i, /shorten/i, /trim it for me/i, /fix it/i]) {
+      expect(screen.queryByRole("button", { name })).toBeNull()
+    }
   })
 })

@@ -86,30 +86,25 @@ export async function createProject(data: {
   return handleResponse(res)
 }
 
-// ── Transcribe ─────────────────────────────────────────────────────────────
+// ── Script ─────────────────────────────────────────────────────────────────
 
-export interface TranscribeResult {
-  // Filler-stripped transcript text (reference only — nothing edits it).
-  script: string
-  language: string
-  // Karaoke subtitle structure, built server-side straight from the words' real
-  // timestamps (T-1169: no editor, no /api/path step).
+export interface ScriptResult {
+  /**
+   * A SEED path (T-10018) — a throwaway estimate at a fixed rate, good enough
+   * to rehearse against once. /api/evaluate replaces it with the user's own
+   * measured timings after every take.
+   */
   path: KaraokePath
-  duration_s: number
+  word_count: number
+  est_duration_s: number
 }
 
-export async function transcribeVideo(
-  video: File | Blob,
-  projectId: string,
-): Promise<TranscribeResult> {
+export async function saveScript(projectId: string, text: string): Promise<ScriptResult> {
   const headers = await authHeaders()
-  const form = new FormData()
-  form.append("video", video)
-  form.append("project_id", projectId)
-  const res = await fetch(`${BASE}/api/transcribe`, {
+  const res = await fetch(`${BASE}/api/script`, {
     method: "POST",
-    headers,
-    body: form,
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ project_id: projectId, text }),
   })
   return handleResponse(res)
 }
@@ -137,8 +132,9 @@ export interface KaraokePath {
 }
 
 // Karaoke playback state shared across screens. `path` is the subtitle
-// structure from /api/transcribe; the other fields are kept for the session/UI
-// contract (there is no longer a fit check — the take always fits its own pace).
+// structure from /api/script (seeded) or /api/evaluate (re-timed from a real
+// take); the other fields are kept for the session/UI contract — there is no
+// fit check, the estimate is only a hint and the 30s cap is the real gate.
 export interface PathResult {
   path: KaraokePath
   fits: boolean
@@ -161,6 +157,12 @@ export interface EvalResult {
   flags: Array<{ type: string; line?: number }>
   language: string
   evals_left_today: number
+  /**
+   * The prompter re-timed from THIS take (T-10018), present only when the take
+   * matched the script closely enough to trust. The next rehearsal follows the
+   * user's own measured pace instead of the seed estimate.
+   */
+  path?: KaraokePath
 }
 
 /** Evaluate is slow (Scribe + video eval + JSON retries: ~60–120s, worst case
@@ -170,8 +172,8 @@ export const EVAL_TIMEOUT_MS = 5 * 60 * 1000
 /**
  * Uploads the take and waits for the AI evaluation.
  *
- * Uses the SAME fetch transport that {@link transcribeVideo} uses and that is
- * proven on iOS Safari — the T-1160 XMLHttpRequest rewrite silently failed on
+ * Uses the plain fetch transport proven on iOS Safari — the T-1160
+ * XMLHttpRequest rewrite silently failed on
  * iPhone (the POST never left the browser after the CORS preflight, and no XHR
  * handler ever fired, so the wait screen spun forever). Reliability wins over
  * byte-level upload progress here.

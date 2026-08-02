@@ -13,7 +13,7 @@ const health = require('./routes/health')
 const ad = require('./routes/ad')
 const admin = require('./routes/admin')
 const projects = require('./routes/projects')
-const transcribe = require('./routes/transcribe')
+const script = require('./routes/script')
 const evaluate = require('./routes/evaluate')
 const save = require('./routes/save')
 const takes = require('./routes/takes')
@@ -52,7 +52,7 @@ function createApp () {
 
   // Authed feature routes.
   app.use('/api', projects)
-  app.use('/api', transcribe)
+  app.use('/api', script)
   app.use('/api', evaluate)
   app.use('/api', save)
   app.use('/api', takes)

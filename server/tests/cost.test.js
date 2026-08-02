@@ -54,26 +54,28 @@ describe('Scribe rate + billing basis', () => {
     expect(config.SCRIBE_USD_PER_MIN).toBe(0.004)
   })
 
-  test('transcribe bills the PROBED media duration, not the last-word-end', async () => {
-    dbMock.__seedProject('proj-1', 'user-1')
+  // T-10018 deleted /api/transcribe; /api/evaluate is the only billable STT
+  // caller left, and it carries the same basis logic unchanged.
+  test('STT bills the PROBED media duration, not the last-word-end', async () => {
+    dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
     mockDurationS = 28 // 8s of trailing silence past the last word at 20s
 
-    expect((await post('/api/transcribe')).status).toBe(200)
+    expect((await post('/api/evaluate')).status).toBe(200)
 
-    const evt = dbMock.__state.events.find(e => e.action === 'transcribe')
-    expect(evt.cost_usd).toBeCloseTo((28 / 60) * 0.004, 10)
+    const evt = dbMock.__state.events.find(e => e.action === 'evaluate')
+    expect(evt.scores.cost.stt_usd).toBeCloseTo((28 / 60) * 0.004, 10)
     expect(evt.scores.cost.media_duration_s).toBe(28)
     expect(evt.scores.cost.basis).toBe('media')
   })
 
   test('probe failure falls back to the last-word-end and says so', async () => {
-    dbMock.__seedProject('proj-1', 'user-1')
+    dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
     mockDurationS = null
 
-    expect((await post('/api/transcribe')).status).toBe(200)
+    expect((await post('/api/evaluate')).status).toBe(200)
 
-    const evt = dbMock.__state.events.find(e => e.action === 'transcribe')
-    expect(evt.cost_usd).toBeCloseTo((20 / 60) * 0.004, 10)
+    const evt = dbMock.__state.events.find(e => e.action === 'evaluate')
+    expect(evt.scores.cost.stt_usd).toBeCloseTo((20 / 60) * 0.004, 10)
     expect(evt.scores.cost.media_duration_s).toBeNull()
     expect(evt.scores.cost.basis).toBe('words')
   })

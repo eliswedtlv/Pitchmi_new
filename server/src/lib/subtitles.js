@@ -13,7 +13,7 @@
 // The only thing carried over from the old path.js is the broadcast-teleprompter
 // line grouper below.
 
-const { normalize, charLen } = require('./text')
+const { normalize, charLen, segmentWords } = require('./text')
 
 // Broadcast-teleprompter line construction (T-1162 §B): short lines that break
 // at natural phrase boundaries. Character-based caps so Hebrew/RTL behave; CJK
@@ -165,6 +165,25 @@ function buildSubtitles (words) {
   return { words: outWords, lines, total_s: totalS }
 }
 
+// Tokenize a TYPED script the way buildSubtitles tokenizes spoken words
+// (T-10018): surface with trailing punctuation stripped, plus the clause /
+// sentence flags the line grouper reads. `segmentWords` already reports those
+// flags for typed text, so this only has to match buildSubtitles' surface
+// handling — that is what keeps the seed path and the re-timed path grouped
+// and worded identically, so the prompter text never reflows between takes.
+function scriptTokens (text) {
+  return segmentWords(text)
+    .map(t => {
+      const raw = String(t.w)
+      return {
+        w: raw.replace(TRAILING_PUNCT, '').trim() || raw.trim(),
+        clauseBreak: !!t.clauseBreak,
+        sentenceEnd: !!t.sentenceEnd
+      }
+    })
+    .filter(t => t.w)
+}
+
 function round3 (n) {
   return Math.round(n * 1000) / 1000
 }
@@ -173,4 +192,4 @@ function round1 (n) {
   return Math.round(n * 10) / 10
 }
 
-module.exports = { buildSubtitles, breakIntoLines }
+module.exports = { buildSubtitles, breakIntoLines, scriptTokens }

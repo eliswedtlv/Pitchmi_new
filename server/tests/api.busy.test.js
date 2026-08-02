@@ -16,13 +16,16 @@ const mockAudio = {
   extractAudio: jest.fn(() => new Promise(resolve => {
     release = () => resolve({ buffer: Buffer.from('audio'), mime: 'audio/mp4', duration_s: 5 })
   })),
-  transcodeForEval: jest.fn()
+  transcodeForEval: jest.fn(async () => ({ buffer: Buffer.from('eval-proxy'), mime: 'video/mp4' }))
 }
 jest.mock('../src/lib/audio', () => mockAudio)
 jest.mock('../src/lib/scribe', () => ({
   transcribe: async () => ({
     text: 'hello', language: 'en', words: [{ w: 'hello', start: 0, end: 0.5 }], duration_s: 0.5
   })
+}))
+jest.mock('../src/lib/evaluate', () => ({
+  evaluateVideo: async () => ({ voice: 80, body: 80, delivery: 80, comments: ['a', 'b', 'c'], attempts: 1 })
 }))
 
 const request = require('supertest')
@@ -39,7 +42,7 @@ beforeEach(() => {
 
 function post (app) {
   return request(app)
-    .post('/api/transcribe')
+    .post('/api/evaluate')
     .set('Authorization', `Bearer ${userToken('user-1')}`)
     .field('project_id', 'proj-1')
     .attach('video', Buffer.from('fake-video-bytes'), { filename: 'take.webm', contentType: 'video/webm' })
@@ -47,7 +50,9 @@ function post (app) {
 
 test('an upload arriving with the media queue full gets 503 busy', async () => {
   const app = createApp()
-  dbMock.__seedProject('proj-1', 'user-1')
+  dbMock.__seedProject('proj-1', 'user-1', {
+    path: { words: [{ w: 'hello', t_start: 0, t_end: 0.5, line: 0 }] }
+  })
 
   // .then() is what actually dispatches a superagent request — without it the
   // first upload would never leave the starting line and never take the slot.

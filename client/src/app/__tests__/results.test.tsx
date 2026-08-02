@@ -1,10 +1,11 @@
 import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-// Results-screen actions (T-1170 §B): exactly three buttons — Try again (green
-// primary), New video, Share. Download and Save-to-cloud are gone; Share uses
-// the OS share sheet and falls back to a direct download when files can't be
-// shared (most desktop browsers).
+// Results-screen actions (T-1170 §B): Try again (green primary), New video,
+// Share. Download and Save-to-cloud are gone; Share uses the OS share sheet and
+// falls back to a direct download when files can't be shared (most desktop
+// browsers). T-10018 adds Edit text alongside them, without changing the
+// hierarchy — Try again is still the primary.
 
 const h = vi.hoisted(() => ({
   push: vi.fn(),
@@ -59,13 +60,33 @@ describe("ResultsPage actions", () => {
     expect(h.push).toHaveBeenCalledWith("/karaoke")
   })
 
-  it("renders only Try again / New video / Share", () => {
+  it("renders only Try again / Edit text / New video / Share", () => {
     render(<ResultsPage />)
     const names = screen.getAllByRole("button").map((b) => b.textContent?.trim())
-    expect(names).toEqual(["Try again", "New video", "Share"])
+    expect(names).toEqual(["Try again", "Edit text", "New video", "Share"])
     expect(screen.queryByRole("button", { name: /download/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /save to cloud/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /my videos/i })).toBeNull()
+  })
+
+  // T-10018: the way back to the words. The script must survive the trip, so
+  // this button must NOT reset the session the way "New video" does — saving
+  // the edited text re-seeds the path server-side and the next take rehearses
+  // against the new words.
+  it("Edit text goes home WITHOUT clearing the session script", () => {
+    render(<ResultsPage />)
+    fireEvent.click(screen.getByRole("button", { name: /edit text/i }))
+
+    expect(h.push).toHaveBeenCalledWith("/")
+    expect(h.session.reset).not.toHaveBeenCalled()
+  })
+
+  it("New video still clears the session before going home", () => {
+    render(<ResultsPage />)
+    fireEvent.click(screen.getByRole("button", { name: /new video/i }))
+
+    expect(h.session.reset).toHaveBeenCalledTimes(1)
+    expect(h.push).toHaveBeenCalledWith("/")
   })
 
   it("Share calls navigator.share with the video file when files are supported", async () => {

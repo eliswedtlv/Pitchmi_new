@@ -21,7 +21,7 @@ const STAGE_WIDTH: Record<EvalStage, string> = {
 
 export default function WaitPage() {
   const router = useRouter()
-  const { project, takeBlob, setEvalResult } = useSession()
+  const { project, takeBlob, setEvalResult, setPathResult } = useSession()
   const [ad, setAd] = useState<AdConfig | null>(null)
   const [adSkipped, setAdSkipped] = useState(false)
   const [stage, setStage] = useState<EvalStage>("uploading")
@@ -46,6 +46,16 @@ export default function WaitPage() {
     evaluateVideo(takeBlob, project.id, () => setStage((s) => nextStage(s, "sent")))
       .then((result) => {
         setEvalResult(result)
+        // The take just re-timed the prompter (T-10018) — adopt it, so "Try
+        // again" rehearses against the user's own measured pace instead of the
+        // seed estimate. Absent when the take drifted too far from the script.
+        if (result.path) {
+          setPathResult({
+            path: result.path,
+            fits: true,
+            est_duration_s: result.path.total_s,
+          })
+        }
         router.push("/results")
       })
       .catch((e: unknown) => {
