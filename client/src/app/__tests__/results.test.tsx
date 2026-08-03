@@ -51,10 +51,21 @@ afterEach(() => {
 })
 
 describe("ResultsPage actions", () => {
-  it("shows Try again as the green primary button", () => {
+  // T-10022 rewrote this assertion deliberately, it was not dropped. It used to
+  // pin the literal `bg-green-600`; under the release direction green means
+  // "scored >= 80" and nothing else, so a permanently green button would teach
+  // the user the colour is decorative. What the test was actually protecting —
+  // Try again is unmistakably THE primary action — is asserted directly instead:
+  // it carries the primary token fill, and it is the only filled button here.
+  it("shows Try again as the one primary (filled) button", () => {
     render(<ResultsPage />)
     const btn = screen.getByRole("button", { name: /try again/i })
-    expect(btn.className).toMatch(/bg-green-600/)
+    expect(btn.className).toMatch(/bg-primary/)
+
+    const filled = screen
+      .getAllByRole("button")
+      .filter((b) => /bg-primary/.test(b.className))
+    expect(filled).toHaveLength(1)
 
     fireEvent.click(btn)
     expect(h.push).toHaveBeenCalledWith("/karaoke")

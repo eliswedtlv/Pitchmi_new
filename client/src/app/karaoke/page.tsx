@@ -57,7 +57,13 @@ export default function KaraokePage() {
   if (!path) return null
 
   return (
-    <div className="fixed inset-0 bg-black overflow-hidden">
+    // `.scheme-dark` pins the dark token values on this subtree (T-10022). The
+    // camera screens are dark in BOTH colour schemes — deliberately: this is a
+    // full-bleed live preview, and light chrome over it is unreadable and washes
+    // out the picture. That is why the chrome below can use the same tokens as
+    // the rest of the app instead of ad-hoc blacks. Do not "fix" this to follow
+    // the OS scheme. The Prompter itself is out of scope and untouched.
+    <div className="scheme-dark fixed inset-0 bg-media overflow-hidden">
       {/* Full-screen camera preview */}
       <video
         ref={videoRef}
@@ -79,14 +85,19 @@ export default function KaraokePage() {
         />
       )}
 
-      {/* Countdown overlaid on the video */}
+      {/* Countdown overlaid on the video. The one place `text-display` appears
+          outside the score — it is the same job: one number, nothing else. */}
       {state === "countdown" && countdown > 0 && (
-        <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-          <span className="text-8xl font-bold text-white drop-shadow-lg">{countdown}</span>
+        <div className="absolute inset-0 flex items-center justify-center bg-media/40">
+          <span className="nums text-[5rem] font-medium leading-none text-media-fg drop-shadow-lg">
+            {countdown}
+          </span>
         </div>
       )}
 
-      {/* Stop button */}
+      {/* Stop button. One of only two places a shadow survives the no-shadow
+          policy — it floats over live video, where a border alone would not
+          separate it from whatever happens to be behind it. */}
       {state === "recording" && (
         <div className="absolute inset-x-0 flex justify-center safe-pos-4">
           <Button onClick={stop} variant="destructive" size="lg" className="gap-2 shadow-lg">
@@ -101,7 +112,11 @@ export default function KaraokePage() {
           no way out but editing the URL. */}
       {error && (
         <div className="absolute inset-x-0 top-1/3 mx-auto max-w-sm w-full px-4">
-          <p className="rounded-md bg-red-900/80 px-4 py-3 text-sm text-red-200">{error}</p>
+          {/* Opaque surface, not a soft tint: this sits over a live camera feed,
+              and a 15%-alpha fill over moving video is unreadable. */}
+          <p className="rounded-control border border-bad/40 bg-surface px-4 py-3 text-meta text-bad-fg">
+            {error}
+          </p>
           <Button className="mt-3 w-full" onClick={() => router.push("/")}>
             Go back
           </Button>

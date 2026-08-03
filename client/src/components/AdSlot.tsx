@@ -37,7 +37,9 @@ export function AdSlot({ config, onSkip }: AdSlotProps) {
   }, [])
 
   return (
-    <div className="relative w-full rounded-lg overflow-hidden bg-black aspect-video">
+    // Restyled to the tokens (T-10022) — WHEN this appears is untouched and
+    // remains T-10023's call.
+    <div className="scheme-dark relative w-full rounded-panel overflow-hidden border border-line bg-media aspect-video">
       <video
         ref={videoRef}
         src={config.url}
@@ -47,16 +49,16 @@ export function AdSlot({ config, onSkip }: AdSlotProps) {
         loop
         className="w-full h-full object-cover"
       />
-      <div className="absolute top-2 left-2">
-        <Badge variant="secondary" className="text-xs">Ad</Badge>
+      <div className="absolute top-2 start-2">
+        <Badge variant="secondary">Ad</Badge>
       </div>
-      <div className="absolute bottom-2 right-2">
+      <div className="absolute bottom-2 end-2">
         {canSkip ? (
           <Button size="sm" variant="secondary" onClick={onSkip}>
             Skip Ad
           </Button>
         ) : (
-          <span className="text-white text-sm bg-black/60 px-2 py-1 rounded">
+          <span className="nums rounded-control bg-media/60 px-2.5 py-1 text-micro text-media-fg">
             Skip in {secondsLeft}s
           </span>
         )}

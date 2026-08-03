@@ -1,5 +1,22 @@
 import type { Metadata, Viewport } from "next"
+import { Inter, Heebo } from "next/font/google"
 import "./globals.css"
+
+// Two families, one stack (T-10022). Inter has NO Hebrew coverage, and Hebrew is
+// first-class here (T-1164) — on its own it would drop every Hebrew screen into
+// an unstyled system fallback mid-sentence. Heebo sits immediately behind it and
+// picks up exactly those glyphs. Both are self-hosted by next/font at build time
+// and subset to the one script each is here for.
+const inter = Inter({
+  subsets: ["latin"],
+  variable: "--font-inter",
+  display: "swap",
+})
+const heebo = Heebo({
+  subsets: ["hebrew"],
+  variable: "--font-heebo",
+  display: "swap",
+})
 
 export const metadata: Metadata = {
   title: "PitchMi — Improve Your Spoken Video",
@@ -21,8 +38,8 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en">
-      <body className="min-h-screen bg-background text-foreground antialiased">
+    <html lang="en" className={`${inter.variable} ${heebo.variable}`}>
+      <body className="min-h-screen bg-canvas text-fg text-body antialiased">
         {children}
       </body>
     </html>

@@ -155,8 +155,10 @@ describe("HomePage — length estimate and over-length flag", () => {
     // 120 words at 150 wpm = 48s, i.e. 18s over the 30s cap.
     fireEvent.change(textarea(), { target: { value: words(120) } })
 
+    // T-10022: was `/amber/`, i.e. a raw Tailwind palette step — the exact thing
+    // the token pass removes. Same behaviour, asserted on the semantic token.
     const flag = screen.getByText(/18 seconds over/i)
-    expect(flag.className).toMatch(/amber/)
+    expect(flag.className).toMatch(/text-warn-fg/)
 
     // The tail past the 30-second point is marked, and it is exactly the words
     // after the 75th (30s x 150wpm / 60).

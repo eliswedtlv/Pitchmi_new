@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation"
 import { Share2, RotateCcw, Video, Pencil } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useSession } from "@/store/session"
 
 const DIM_LABELS: Record<string, string> = {
@@ -24,16 +23,22 @@ const FLAG_LABELS: Record<string, string> = {
   off_script: "Off script",
 }
 
+/** The three score bands, as tokens. Same thresholds as before (≥80 / ≥65). */
+function band(score: number) {
+  if (score >= 80) return { bar: "bg-good", text: "text-good-fg" }
+  if (score >= 65) return { bar: "bg-warn", text: "text-warn-fg" }
+  return { bar: "bg-bad", text: "text-bad-fg" }
+}
+
 function ScoreBar({ label, score }: { label: string; score: number }) {
-  const color = score >= 80 ? "bg-green-500" : score >= 65 ? "bg-amber-500" : "bg-red-500"
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-sm">
-        <span className="text-neutral-700">{label}</span>
-        <span className="font-semibold text-neutral-900">{score}</span>
+    <div className="space-y-1.5">
+      <div className="flex justify-between gap-3 text-meta">
+        <span className="text-fg-muted">{label}</span>
+        <span className="nums font-medium text-fg">{score}</span>
       </div>
-      <div className="h-2 rounded-full bg-neutral-200 overflow-hidden">
-        <div className={`h-full rounded-full transition-all ${color}`} style={{ width: `${score}%` }} />
+      <div className="h-1.5 rounded-full bg-track overflow-hidden">
+        <div className={`h-full rounded-full ${band(score).bar}`} style={{ width: `${score}%` }} />
       </div>
     </div>
   )
@@ -71,13 +76,10 @@ export default function ResultsPage() {
     a.click()
   }
 
-  const overallColor =
-    evalResult.overall >= 80 ? "text-green-600" : evalResult.overall >= 65 ? "text-amber-600" : "text-red-600"
-
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 pt-8 safe-b-8">
+    <main className="min-h-screen px-4 pt-8 safe-b-8">
       <div className="max-w-lg mx-auto space-y-6">
-        <h1 className="text-2xl font-bold text-neutral-900 text-center">Your Results</h1>
+        <h1 className="text-title font-medium text-fg">Your Results</h1>
 
         {/* Video playback — object-contain keeps the correct aspect for both
             portrait (phone) and landscape (desktop) takes; no sideways letterbox. */}
@@ -86,80 +88,81 @@ export default function ResultsPage() {
             src={takeBlobUrl}
             controls
             playsInline
-            className="mx-auto max-h-[70vh] w-auto max-w-full rounded-xl bg-black object-contain"
+            className="mx-auto max-h-[60vh] w-auto max-w-full rounded-panel bg-media object-contain"
           />
         )}
 
-        {/* Overall score */}
-        <Card>
-          <CardContent className="pt-6 text-center space-y-1">
-            <p className="text-sm text-neutral-500">Overall score</p>
-            <p className={`text-7xl font-bold ${overallColor}`}>{evalResult.overall}</p>
-            <p className="text-xs text-neutral-400">{evalResult.evals_left_today} evaluations left today</p>
-          </CardContent>
-        </Card>
+        {/* Score + breakdown as ONE object (Teal's Final Resume Check): the
+            headline number sits beside the dimension list rather than above it,
+            so the eye lands on the number and then reads across into what made
+            it. On a phone the two halves stack, separated by a rule. */}
+        <section className="rounded-panel border border-line bg-surface">
+          <div className="grid gap-5 p-5 sm:grid-cols-[auto_1fr] sm:items-center sm:gap-8 sm:p-6">
+            <div className="flex items-baseline gap-3 sm:block sm:space-y-1">
+              <p
+                className={`nums text-display font-medium leading-none ${band(evalResult.overall).text}`}
+              >
+                {evalResult.overall}
+              </p>
+              <p className="text-meta uppercase tracking-[0.08em] text-fg-subtle">Overall score</p>
+            </div>
 
-        {/* Dimension bars */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Performance breakdown</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {Object.entries(evalResult.dimensions).map(([dim, score]) => (
-              <ScoreBar key={dim} label={DIM_LABELS[dim] ?? dim} score={score} />
-            ))}
-          </CardContent>
-        </Card>
+            <div className="space-y-3 border-t border-line pt-5 sm:border-t-0 sm:border-s sm:ps-8 sm:pt-0">
+              {Object.entries(evalResult.dimensions).map(([dim, score]) => (
+                <ScoreBar key={dim} label={DIM_LABELS[dim] ?? dim} score={score} />
+              ))}
+            </div>
+          </div>
 
-        {/* Coach comments */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Coach feedback</CardTitle>
-          </CardHeader>
-          <CardContent>
+          <p className="nums border-t border-line px-5 py-2.5 text-micro text-fg-subtle sm:px-6">
+            {evalResult.evals_left_today} evaluations left today
+          </p>
+        </section>
+
+        {/* Coach feedback, with the flags as its footer — they are the same
+            judgement at a different resolution, not a separate report. */}
+        <section className="rounded-panel border border-line bg-surface">
+          <div className="p-5 sm:p-6 space-y-4">
+            <h2 className="text-meta font-medium uppercase tracking-[0.08em] text-fg-subtle">
+              Coach feedback
+            </h2>
             <ul className="space-y-3">
               {evalResult.comments.map((c, i) => (
-                <li key={i} className="flex items-start gap-2 text-sm text-neutral-700">
-                  <span className="text-neutral-400 flex-shrink-0 font-mono">{i + 1}.</span>
+                <li key={i} className="flex items-start gap-3 text-body text-fg">
+                  <span className="nums shrink-0 text-meta leading-6 text-fg-subtle">{i + 1}</span>
                   <span dir="auto" className="min-w-0">{c}</span>
                 </li>
               ))}
             </ul>
-          </CardContent>
-        </Card>
+          </div>
 
-        {/* Flags */}
-        {evalResult.flags.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base">Flags</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-wrap gap-2">
-                {evalResult.flags.map((flag, i) => (
-                  <Badge key={i} variant="warning">
-                    {FLAG_LABELS[flag.type] ?? flag.type}
-                    {flag.line !== undefined ? ` (line ${flag.line + 1})` : ""}
-                  </Badge>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+          {evalResult.flags.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-line px-5 py-4 sm:px-6">
+              <span className="text-micro uppercase tracking-[0.08em] text-fg-subtle">Flags</span>
+              {evalResult.flags.map((flag, i) => (
+                <Badge key={i} variant="warning">
+                  {FLAG_LABELS[flag.type] ?? flag.type}
+                  {flag.line !== undefined ? ` (line ${flag.line + 1})` : ""}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </section>
 
         {/* Actions (T-1170 §B): re-recording the same script is the most common
-            next step, so Try again is the green primary. */}
+            next step, so Try again is the primary — and under this direction
+            (T-10022) that means it is the screen's ONE filled button, not a
+            green one: green here means "you scored ≥ 80". */}
         <div className="space-y-3">
           <Button
             onClick={() => router.push("/karaoke")}
-            variant="success"
             size="lg"
             className="w-full gap-2"
           >
             <RotateCcw className="h-5 w-5" />
             Try again
           </Button>
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {/* Edit text (T-10018): back to the script screen with the words
                 still in the box. Saving the edit re-seeds the path server-side,
                 so the next take is never scored against timings measured for
@@ -168,7 +171,7 @@ export default function ResultsPage() {
             <Button
               onClick={() => router.push("/")}
               variant="outline"
-              className="gap-2"
+              className="gap-2 px-2"
             >
               <Pencil className="h-4 w-4" />
               Edit text
@@ -176,12 +179,12 @@ export default function ResultsPage() {
             <Button
               onClick={() => { reset(); router.push("/") }}
               variant="outline"
-              className="gap-2"
+              className="gap-2 px-2"
             >
               <Video className="h-4 w-4" />
               New video
             </Button>
-            <Button onClick={handleShare} variant="secondary" className="gap-2">
+            <Button onClick={handleShare} variant="outline" className="gap-2 px-2">
               <Share2 className="h-4 w-4" />
               Share
             </Button>

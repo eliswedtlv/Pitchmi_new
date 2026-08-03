@@ -1,21 +1,192 @@
 @import "tailwindcss";
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   Raw palettes (T-10022). The ONLY place a colour literal appears in this app.
+   Every semantic token below points at one of these; every screen references a
+   semantic token. If you are adding a `bg-white` or a `text-neutral-900` to a
+   screen, the token you actually want is already here.
+
+   Two full sets — `--l-*` light, `--d-*` dark — so the dark scheme is a designed
+   theme rather than an inversion: a near-black canvas (not #000), elevation by
+   *lighter* surface rather than by shadow, and desaturated accents that don't
+   vibrate on near-black. See docs/design-direction.md.
+   ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* light */
+  --l-canvas: #f6f6f7;
+  --l-surface: #ffffff;
+  --l-raised: #f4f4f5;
+  --l-line: #e5e5e8;
+  --l-line-strong: #d1d1d6;
+  --l-track: #e4e4e7;
+  --l-fg: #18181b;
+  --l-fg-muted: #52555c;
+  --l-fg-subtle: #676a71;
+  --l-primary: #18181b;
+  --l-primary-fg: #fafafa;
+  --l-good: #16a34a;
+  --l-good-fg: #15803d;
+  --l-good-soft: #dcfce7;
+  --l-warn: #d97706;
+  --l-warn-fg: #96470a;
+  --l-warn-soft: #fef3c7;
+  --l-bad: #dc2626;
+  --l-bad-fg: #b91c1c;
+  --l-bad-soft: #fee2e2;
+
+  /* dark */
+  --d-canvas: #0b0b0c;
+  --d-surface: #141416;
+  --d-raised: #1c1c1f;
+  --d-line: #27272b;
+  --d-line-strong: #3a3a40;
+  --d-track: #2a2a2f;
+  --d-fg: #f4f4f5;
+  --d-fg-muted: #a1a3aa;
+  --d-fg-subtle: #83868e;
+  --d-primary: #f4f4f5;
+  --d-primary-fg: #111113;
+  --d-good: #22c55e;
+  --d-good-fg: #4ade80;
+  --d-good-soft: rgb(34 197 94 / 0.15);
+  --d-warn: #f59e0b;
+  --d-warn-fg: #fbbf24;
+  --d-warn-soft: rgb(245 158 11 / 0.16);
+  --d-bad: #ef4444;
+  --d-bad-fg: #f87171;
+  --d-bad-soft: rgb(239 68 68 / 0.15);
 }
 
+/* Design tokens. Tailwind v4 has no tailwind.config.js — the theme lives here,
+   and these names are the utilities: `bg-surface`, `text-fg-muted`,
+   `border-line`, `text-display`, `rounded-panel`. */
+@theme {
+  --font-sans: var(--font-inter), var(--font-heebo), system-ui, -apple-system, sans-serif;
+
+  --color-canvas: var(--l-canvas);
+  --color-surface: var(--l-surface);
+  --color-raised: var(--l-raised);
+  --color-line: var(--l-line);
+  --color-line-strong: var(--l-line-strong);
+  --color-track: var(--l-track);
+  --color-fg: var(--l-fg);
+  --color-fg-muted: var(--l-fg-muted);
+  --color-fg-subtle: var(--l-fg-subtle);
+  --color-primary: var(--l-primary);
+  --color-primary-fg: var(--l-primary-fg);
+  --color-good: var(--l-good);
+  --color-good-fg: var(--l-good-fg);
+  --color-good-soft: var(--l-good-soft);
+  --color-warn: var(--l-warn);
+  --color-warn-fg: var(--l-warn-fg);
+  --color-warn-soft: var(--l-warn-soft);
+  --color-bad: var(--l-bad);
+  --color-bad-fg: var(--l-bad-fg);
+  --color-bad-soft: var(--l-bad-soft);
+
+  /* Scheme-independent. The destructive button is the karaoke Stop control,
+     which floats over a live camera feed and is therefore on dark chrome in
+     both schemes; this red is picked so white text holds AA (5.7:1) on it
+     without depending on which scheme is active. */
+  --color-danger: #c81e1e;
+  --color-danger-fg: #ffffff;
+
+  /* Media surfaces: the letterbox behind a <video>, the camera feed backdrop,
+     and text laid directly over either. Genuinely scheme-independent — a
+     letterbox is black in both schemes — and named so that a future `bg-black`
+     grep does not read as an un-migrated screen. */
+  --color-media: #000000;
+  --color-media-fg: #ffffff;
+
+  /* Six type steps. There is no seventh — if a size is missing, the answer is
+     one of these, not a new one. Weight tops out at 600: large text takes its
+     authority from size and tracking, not from ink. */
+  --text-micro: 0.75rem;
+  --text-micro--line-height: 1.4;
+  --text-meta: 0.8125rem;
+  --text-meta--line-height: 1.5;
+  --text-body: 0.9375rem;
+  --text-body--line-height: 1.6;
+  --text-lead: 1.0625rem;
+  --text-lead--line-height: 1.45;
+  --text-title: 1.5rem;
+  --text-title--line-height: 1.25;
+  --text-title--letter-spacing: -0.02em;
+  --text-display: 3rem;
+  --text-display--line-height: 1;
+  --text-display--letter-spacing: -0.03em;
+
+  /* Two radii. Pills use rounded-full; nothing else has a corner value. */
+  --radius-control: 0.625rem;
+  --radius-panel: 0.875rem;
+}
+
+/* Dark scheme — follows the OS. No in-app toggle in this task (T-10022); if one
+   is ever wanted it is a `.scheme-light` twin of the class below plus a
+   persisted class on <html>, and no screen changes. */
 @media (prefers-color-scheme: dark) {
   :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+    --color-canvas: var(--d-canvas);
+    --color-surface: var(--d-surface);
+    --color-raised: var(--d-raised);
+    --color-line: var(--d-line);
+    --color-line-strong: var(--d-line-strong);
+    --color-track: var(--d-track);
+    --color-fg: var(--d-fg);
+    --color-fg-muted: var(--d-fg-muted);
+    --color-fg-subtle: var(--d-fg-subtle);
+    --color-primary: var(--d-primary);
+    --color-primary-fg: var(--d-primary-fg);
+    --color-good: var(--d-good);
+    --color-good-fg: var(--d-good-fg);
+    --color-good-soft: var(--d-good-soft);
+    --color-warn: var(--d-warn);
+    --color-warn-fg: var(--d-warn-fg);
+    --color-warn-soft: var(--d-warn-soft);
+    --color-bad: var(--d-bad);
+    --color-bad-fg: var(--d-bad-fg);
+    --color-bad-soft: var(--d-bad-soft);
   }
 }
 
+/* Pins the dark values on a subtree regardless of the OS scheme. Used by the
+   camera screens: /karaoke is a full-bleed live preview and light chrome over
+   video is both unreadable and washes out the picture, so it is dark in BOTH
+   schemes — deliberately, not by omission. Same for the /videos player overlay.
+   This is what lets that chrome use the same tokens as everywhere else instead
+   of ad-hoc blacks. Do not "fix" these screens into a light variant. */
+.scheme-dark {
+  --color-canvas: var(--d-canvas);
+  --color-surface: var(--d-surface);
+  --color-raised: var(--d-raised);
+  --color-line: var(--d-line);
+  --color-line-strong: var(--d-line-strong);
+  --color-track: var(--d-track);
+  --color-fg: var(--d-fg);
+  --color-fg-muted: var(--d-fg-muted);
+  --color-fg-subtle: var(--d-fg-subtle);
+  --color-primary: var(--d-primary);
+  --color-primary-fg: var(--d-primary-fg);
+  --color-good: var(--d-good);
+  --color-good-fg: var(--d-good-fg);
+  --color-good-soft: var(--d-good-soft);
+  --color-warn: var(--d-warn);
+  --color-warn-fg: var(--d-warn-fg);
+  --color-warn-soft: var(--d-warn-soft);
+  --color-bad: var(--d-bad);
+  --color-bad-fg: var(--d-bad-fg);
+  --color-bad-soft: var(--d-bad-soft);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: system-ui, -apple-system, sans-serif;
+  font-family: var(--font-sans);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tabular figures for anything that is a measurement — score, dimension values,
+   the seconds estimate — so digits don't jitter as they change. */
+.nums {
+  font-variant-numeric: tabular-nums;
 }
 
 /* Safe-area helpers — keep bottom CTAs clear of the iOS Safari toolbar / home
@@ -46,6 +217,16 @@ body {
   animation: ring-pulse 1s ease-in-out infinite;
   transform-origin: center;
 }
+
+/* The wait screen's progress fill. The only motion added by T-10022. */
+.progress-fill {
+  transition: width 700ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ring-pulse { animation: none; }
+  .progress-fill { transition: none; }
+  /* The wait screen's active-stage spinner. Tailwind's animate-spin does not
+     opt out of reduced motion on its own. */
+  .animate-spin { animation: none; }
 }

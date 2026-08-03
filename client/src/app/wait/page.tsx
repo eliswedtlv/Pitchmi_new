@@ -2,22 +2,12 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { AdSlot } from "@/components/AdSlot"
+import { WaitView } from "@/components/WaitView"
 import { useSession } from "@/store/session"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { getAd, evaluateVideo, type AdConfig } from "@/lib/api"
-import { nextStage, STAGE_LABEL, type EvalStage } from "@/lib/evalStages"
+import { nextStage, type EvalStage } from "@/lib/evalStages"
 import { evalTooLong } from "@/lib/strings"
-
-// Widths reflect ONLY the two honest, state-driven stages. No timer ever
-// advances the label past reality — the eval either resolves (→ results) or
-// fails (→ error screen); it never sits on a fake "Scoring" step forever.
-const STAGE_WIDTH: Record<EvalStage, string> = {
-  uploading: "25%",
-  analyzing: "70%",
-  done: "100%",
-  error: "100%",
-}
 
 export default function WaitPage() {
   const router = useRouter()
@@ -72,44 +62,15 @@ export default function WaitPage() {
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (error) {
-    return (
-      <main className="min-h-screen bg-neutral-50 flex items-center justify-center px-4">
-        <div className="max-w-sm w-full space-y-4 text-center">
-          <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-4 text-red-700">{error}</p>
-          <button
-            onClick={() => router.push("/")}
-            className="text-sm text-neutral-500 hover:text-neutral-700 underline"
-          >
-            Back to home
-          </button>
-        </div>
-      </main>
-    )
-  }
-
+  // Markup lives in WaitView (T-10022) so the /dev/ui/wait fixture can shoot the
+  // real screen without a live backend. Nothing above this line moved.
   return (
-    <main className="min-h-screen bg-neutral-900 flex flex-col items-center justify-center px-4 gap-8">
-      {/* Ad — Skip only hides this element; it never affects the pending eval. */}
-      {ad && !adSkipped && (
-        <div className="w-full max-w-md">
-          <AdSlot config={ad} onSkip={() => setAdSkipped(true)} />
-        </div>
-      )}
-
-      {/* Progress */}
-      <div className="w-full max-w-md space-y-4">
-        <div className="h-1.5 rounded-full bg-neutral-700 overflow-hidden">
-          <div
-            className="h-full bg-white rounded-full transition-all duration-700 ease-out"
-            style={{ width: STAGE_WIDTH[stage] }}
-          />
-        </div>
-        <p className="text-white text-center text-sm">{STAGE_LABEL[stage]}</p>
-        <p className="text-neutral-400 text-center text-xs">
-          This can take up to two minutes — keep this screen open.
-        </p>
-      </div>
-    </main>
+    <WaitView
+      stage={stage}
+      error={error}
+      ad={adSkipped ? null : ad}
+      onSkipAd={() => setAdSkipped(true)}
+      onHome={() => router.push("/")}
+    />
   )
 }

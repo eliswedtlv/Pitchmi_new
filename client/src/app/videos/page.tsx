@@ -63,19 +63,20 @@ export default function VideosPage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 pt-8 safe-b-8">
+    <main className="min-h-screen px-4 pt-8 safe-b-8">
       <div className="max-w-2xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-neutral-900">My Videos</h1>
-          <Link href="/" className="text-sm text-neutral-500 hover:text-neutral-700">
+        <div className="flex items-center justify-between gap-4">
+          <h1 className="text-title font-medium text-fg">My Videos</h1>
+          <Link href="/" className="text-meta text-fg-muted hover:text-fg transition-colors">
             ← Home
           </Link>
         </div>
 
-        {/* Playback modal */}
+        {/* Playback modal. Dark chrome in both schemes, like /karaoke — it is a
+            video surface, and the one other place a shadow is allowed. */}
         {playUrl && (
           <div
-            className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4 safe-b-4"
+            className="scheme-dark fixed inset-0 z-50 bg-media/80 flex items-center justify-center p-4 safe-b-4"
             onClick={() => setPlayUrl(null)}
           >
             <div onClick={(e) => e.stopPropagation()} className="w-full max-w-xl">
@@ -84,7 +85,7 @@ export default function VideosPage() {
                 controls
                 autoPlay
                 playsInline
-                className="mx-auto max-h-[80vh] w-auto max-w-full rounded-xl bg-black object-contain"
+                className="mx-auto max-h-[80vh] w-auto max-w-full rounded-panel bg-media object-contain shadow-lg"
               />
               <Button onClick={() => setPlayUrl(null)} variant="secondary" className="mt-3 w-full">
                 Close
@@ -93,12 +94,16 @@ export default function VideosPage() {
           </div>
         )}
 
-        {loading && <p className="text-neutral-500 text-center py-12">Loading your videos…</p>}
-        {error && <p className="text-red-700 text-sm">{error}</p>}
+        {loading && <p className="text-meta text-fg-muted text-center py-12">Loading your videos…</p>}
+        {error && (
+          <p className="rounded-control border border-bad/30 bg-bad-soft px-4 py-3 text-meta text-bad-fg">
+            {error}
+          </p>
+        )}
 
         {!loading && takes.length === 0 && (
           <div className="text-center py-20 space-y-4">
-            <p className="text-neutral-400">No saved videos yet.</p>
+            <p className="text-body text-fg-muted">No saved videos yet.</p>
             <Link href="/">
               <Button>Record your first take</Button>
             </Link>
@@ -108,20 +113,20 @@ export default function VideosPage() {
         <div className="space-y-3">
           {takes.map((take) => (
             <Card key={take.id}>
-              <CardContent className="pt-4">
+              <CardContent className="p-4 sm:p-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">
                       {take.scores?.overall !== undefined && (
-                        <Badge variant="secondary" className="text-sm font-bold">
+                        <Badge variant="secondary" className="nums text-meta font-medium">
                           {take.scores.overall}
                         </Badge>
                       )}
                       {take.duration_s && (
-                        <span className="text-xs text-neutral-500">{take.duration_s.toFixed(1)}s</span>
+                        <span className="nums text-micro text-fg-muted">{take.duration_s.toFixed(1)}s</span>
                       )}
                     </div>
-                    <p className="text-xs text-neutral-400">
+                    <p className="nums text-micro text-fg-subtle">
                       {new Date(take.created_at).toLocaleDateString()}
                     </p>
                   </div>
@@ -133,8 +138,9 @@ export default function VideosPage() {
                     <Button
                       size="sm"
                       variant="ghost"
+                      aria-label="Delete take"
                       onClick={() => handleDelete(take.id)}
-                      className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      className="text-bad-fg hover:bg-bad-soft"
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
