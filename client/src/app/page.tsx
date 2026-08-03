@@ -11,16 +11,6 @@ import { estimateSeconds, splitAtSeconds } from "@/lib/estimate"
 import { resolveDir } from "@/lib/textDir"
 import { useSession } from "@/store/session"
 
-type UseCase = "pitch" | "intro" | "sales" | "social" | "custom"
-
-const USE_CASES: { id: UseCase; label: string; emoji: string }[] = [
-  { id: "pitch", label: "Pitch", emoji: "🚀" },
-  { id: "intro", label: "Intro", emoji: "👋" },
-  { id: "sales", label: "Sales", emoji: "💼" },
-  { id: "social", label: "Social", emoji: "📱" },
-  { id: "custom", label: "Custom", emoji: "✏️" },
-]
-
 // Shared by the textarea and the highlight layer behind it. Any divergence
 // here and the amber tail stops lining up with the words it is marking.
 const TEXT_BOX = "px-3 py-2 text-base leading-relaxed whitespace-pre-wrap break-words"
@@ -29,8 +19,6 @@ export default function HomePage() {
   const router = useRouter()
   const { script, setProject, setScript, setPathResult } = useSession()
 
-  const [useCase, setUseCase] = useState<UseCase>("pitch")
-  const [customText, setCustomText] = useState("")
   // Pre-filled when the user came back via "Edit text" on the results screen.
   const [text, setText] = useState(script)
   const [loading, setLoading] = useState(false)
@@ -49,10 +37,7 @@ export default function HomePage() {
     setLoading(true)
     setError(null)
     try {
-      const project = await createProject({
-        use_case: useCase,
-        use_case_custom: useCase === "custom" ? customText : undefined,
-      })
+      const project = await createProject()
       setProject(project)
       // The server stores the script and hands back a seed path — a first,
       // disposable guess at the pace. The first take replaces it with the
@@ -78,43 +63,10 @@ export default function HomePage() {
         {/* Header */}
         <div className="text-center space-y-2">
           <h1 className="text-4xl font-bold tracking-tight text-neutral-900">PitchMi</h1>
-          <p className="text-neutral-500 text-lg">Perfect your spoken video in minutes.</p>
+          <p className="text-neutral-500 text-lg">
+            If you can’t say it in 30 seconds, don’t say it
+          </p>
         </div>
-
-        {/* Use-case picker */}
-        <Card>
-          <CardHeader>
-            <CardTitle>What are you recording?</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-              {USE_CASES.map((uc) => (
-                <button
-                  key={uc.id}
-                  onClick={() => setUseCase(uc.id)}
-                  className={`flex flex-col items-center gap-1 rounded-lg border-2 p-3 text-sm font-medium transition-colors ${
-                    useCase === uc.id
-                      ? "border-neutral-900 bg-neutral-900 text-white"
-                      : "border-neutral-200 bg-white text-neutral-700 hover:bg-neutral-50"
-                  }`}
-                >
-                  <span>{uc.emoji}</span>
-                  <span>{uc.label}</span>
-                </button>
-              ))}
-            </div>
-
-            {useCase === "custom" && (
-              <textarea
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm placeholder:text-neutral-400 focus:outline-none focus:ring-2 focus:ring-neutral-900 resize-none"
-                rows={2}
-                placeholder="Describe your video (e.g. product demo for investors)"
-                value={customText}
-                onChange={(e) => setCustomText(e.target.value)}
-              />
-            )}
-          </CardContent>
-        </Card>
 
         {/* Script */}
         <Card>
@@ -171,9 +123,7 @@ export default function HomePage() {
         {/* Record */}
         <Button
           onClick={handleStart}
-          disabled={
-            loading || !text.trim() || (useCase === "custom" && !customText.trim())
-          }
+          disabled={loading || !text.trim()}
           size="lg"
           className="w-full gap-3 text-base h-14"
         >

@@ -3,7 +3,8 @@ import "./globals.css"
 
 export const metadata: Metadata = {
   title: "PitchMi — Improve Your Spoken Video",
-  description: "Record, transcribe, and perfect your spoken video with AI coaching.",
+  description:
+    "If you can’t say it in 30 seconds, don’t say it. Rehearse to a teleprompter of your own words and get AI delivery coaching.",
 }
 
 // viewport-fit=cover lets content extend under the iOS home indicator so we can

@@ -63,11 +63,19 @@ describe("HomePage — the script screen", () => {
     expect(screen.queryByText(/drag &amp; drop/i)).toBeNull()
   })
 
-  it("keeps the use-case picker", () => {
+  it("has no use-case picker", () => {
     render(<HomePage />)
     for (const label of ["Pitch", "Intro", "Sales", "Social", "Custom"]) {
-      expect(screen.getByText(label)).toBeTruthy()
+      expect(screen.queryByText(label)).toBeNull()
     }
+    expect(screen.queryByText(/what are you recording/i)).toBeNull()
+    expect(screen.queryByPlaceholderText(/describe your video/i)).toBeNull()
+  })
+
+  it("shows the 30-second slogan and not the old one", () => {
+    render(<HomePage />)
+    expect(screen.getByText(/if you can’t say it in 30 seconds/i)).toBeTruthy()
+    expect(screen.queryByText(/perfect your spoken video in minutes/i)).toBeNull()
   })
 
   it("does not link to My saved videos", () => {
@@ -93,7 +101,7 @@ describe("HomePage — the script screen", () => {
     fireEvent.click(recordButton())
 
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/karaoke"))
-    expect(h.createProject).toHaveBeenCalledWith({ use_case: "pitch", use_case_custom: undefined })
+    expect(h.createProject).toHaveBeenCalledWith()
     expect(h.saveScript).toHaveBeenCalledWith("p1", "we are building a tool for founders")
     expect(h.setScript).toHaveBeenCalledWith("we are building a tool for founders")
     expect(h.setPathResult).toHaveBeenCalledWith({

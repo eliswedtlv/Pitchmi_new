@@ -143,8 +143,6 @@ router.post('/evaluate', rateLimit.evaluate, auth, upload.single('video'), async
 
     const evalStart = Date.now()
     const delivery = await evaluateVideo(proxy.buffer, 'video/mp4', {
-      useCase: project.use_case,
-      useCaseCustom: project.use_case_custom,
       language: take.language || project.language
     }, { deadline })
     evalMs = Date.now() - evalStart

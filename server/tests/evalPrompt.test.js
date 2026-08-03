@@ -8,7 +8,7 @@
 const { buildPrompt } = require('../src/lib/evaluate')
 
 describe('eval prompt persona (T-1169)', () => {
-  const prompt = buildPrompt({ useCase: 'pitch', language: 'Hebrew' })
+  const prompt = buildPrompt({ language: 'Hebrew' })
 
   test('keeps the messenger-not-message rule', () => {
     expect(prompt).toMatch(/judge the messenger, never the message/i)
@@ -28,5 +28,18 @@ describe('eval prompt persona (T-1169)', () => {
     expect(prompt).toMatch(/delivery-pace and timing direction/i)
     // Pace coaching must still be framed as HOW, not WHAT.
     expect(prompt).toMatch(/keep judging the messenger, not the message/i)
+  })
+
+  // T-10021: every placeholder must be substituted. An orphaned token left in
+  // eval.md would be sent to the model as literal prompt text.
+  test('leaves no unsubstituted placeholder', () => {
+    expect(prompt).not.toMatch(/\{\{/)
+  })
+
+  test('drops the use case and states the 30s cap', () => {
+    expect(prompt).not.toMatch(/Use-case adaptation/i)
+    expect(prompt).not.toMatch(/≤ ?60 ?seconds/)
+    expect(prompt).not.toMatch(/≤60s/)
+    expect(prompt).toMatch(/≤ 30 seconds/)
   })
 })

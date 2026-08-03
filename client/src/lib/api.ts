@@ -72,16 +72,12 @@ export interface Project {
   updated_at: string
 }
 
-export async function createProject(data: {
-  title?: string
-  use_case: string
-  use_case_custom?: string
-}): Promise<Project> {
+export async function createProject(data?: { title?: string }): Promise<Project> {
   const headers = await authHeaders()
   const res = await fetch(`${BASE}/api/projects`, {
     method: "POST",
     headers: { ...headers, "Content-Type": "application/json" },
-    body: JSON.stringify(data),
+    body: JSON.stringify(data ?? {}),
   })
   return handleResponse(res)
 }

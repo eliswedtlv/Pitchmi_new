@@ -56,7 +56,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
 
   test('garbage falls through all 3 attempts → error + metadata-only event', async () => {
     const calls = mockOpenRouter('totally not json')
-    await expect(evaluateVideo(Buffer.from('v'), 'video/webm', { useCase: 'pitch' }))
+    await expect(evaluateVideo(Buffer.from('v'), 'video/webm', {}))
       .rejects.toThrow('no JSON object in model output')
     expect(calls()).toBe(3) // initial + retry + stricter retry
 
@@ -69,7 +69,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
 
   test('fenced JSON succeeds on first attempt, no error event', async () => {
     const calls = mockOpenRouter('```json\n' + JSON.stringify(VALID) + '\n```')
-    const out = await evaluateVideo(Buffer.from('v'), 'video/webm', { useCase: 'pitch' })
+    const out = await evaluateVideo(Buffer.from('v'), 'video/webm', {})
     expect(out).toMatchObject(VALID)
     expect(out.attempts).toBe(1) // stage metadata for the evaluate event
     expect(out.upstream).toBe('google-vertex') // upstream provider echoed back
@@ -83,7 +83,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
       captured = JSON.parse(opts.body)
       return { ok: true, text: async () => JSON.stringify({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
     })
-    await evaluateVideo(Buffer.from('mp4-bytes'), 'video/mp4', { useCase: 'pitch' })
+    await evaluateVideo(Buffer.from('mp4-bytes'), 'video/mp4', {})
 
     // Provider routing pins the call to a base64-video-capable backend.
     expect(captured.provider).toMatchObject({ only: ['google-vertex'], allow_fallbacks: false })
@@ -100,7 +100,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
       if (calls < 3) return { ok: false, status: 500, text: async () => 'Internal Server Error' }
       return { ok: true, text: async () => JSON.stringify({ provider: 'google-vertex', choices: [{ message: { content: JSON.stringify(VALID) } }] }) }
     })
-    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', {})
     expect(out).toMatchObject(VALID)
     expect(calls).toBe(3) // two 500s + one success, all inside a single parse attempt
   })
@@ -111,7 +111,7 @@ describe('evaluateVideo — retries + diagnostic logging', () => {
       calls++
       return { ok: false, status: 500, text: async () => 'Internal Server Error' }
     })
-    await expect(evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' }))
+    await expect(evaluateVideo(Buffer.from('v'), 'video/mp4', {}))
       .rejects.toThrow(/OpenRouter 500/)
     expect(calls).toBe(3) // 1 + 2 backoff retries, then surfaced — no extra parse re-calls
   })
@@ -133,7 +133,7 @@ describe('evaluateVideo — usage accounting (T-1172)', () => {
       captured = JSON.parse(opts.body)
       return reply(JSON.stringify(VALID), { cost: 0.002 })
     })
-    await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    await evaluateVideo(Buffer.from('v'), 'video/mp4', {})
 
     expect(captured.usage).toEqual({ include: true })
     // The pin is load-bearing (T-1162) and must survive the new flag.
@@ -144,13 +144,13 @@ describe('evaluateVideo — usage accounting (T-1172)', () => {
     global.fetch = jest.fn(async () =>
       reply(JSON.stringify(VALID), { cost: 0.0031, prompt_tokens: 4200, completion_tokens: 120, total_tokens: 4320 }))
 
-    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', {})
     expect(out.usage).toEqual({ cost: 0.0031, prompt_tokens: 4200, completion_tokens: 120, total_tokens: 4320 })
   })
 
   test('a 200 with no usage key -> usage null, no throw', async () => {
     global.fetch = jest.fn(async () => reply(JSON.stringify(VALID)))
-    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', {})
     expect(out.usage).toBeNull()
   })
 
@@ -163,7 +163,7 @@ describe('evaluateVideo — usage accounting (T-1172)', () => {
       return calls < 3 ? reply('not json', usage) : reply(JSON.stringify(VALID), usage)
     })
 
-    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' })
+    const out = await evaluateVideo(Buffer.from('v'), 'video/mp4', {})
     expect(out.attempts).toBe(3)
     expect(out.usage.cost).toBeCloseTo(0.003, 10)
     expect(out.usage.prompt_tokens).toBe(300)
@@ -182,7 +182,7 @@ describe('evaluateVideo — upstream timeouts + deadline (T-1165)', () => {
     let calls = 0
     global.fetch = jest.fn(async () => { calls++; return { ok: true, json: async () => ({}) } })
     await expect(
-      evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' }, { deadline: Date.now() - 1 })
+      evaluateVideo(Buffer.from('v'), 'video/mp4', {}, { deadline: Date.now() - 1 })
     ).rejects.toMatchObject({ code: 'eval_upstream_timeout', status: 504 })
     expect(calls).toBe(0)
   })
@@ -197,7 +197,7 @@ describe('evaluateVideo — upstream timeouts + deadline (T-1165)', () => {
     }))
 
     const deadline = Date.now() + 240000
-    const p = evaluateVideo(Buffer.from('v'), 'video/mp4', { useCase: 'pitch' }, { deadline })
+    const p = evaluateVideo(Buffer.from('v'), 'video/mp4', {}, { deadline })
     const assertion = expect(p).rejects.toMatchObject({ code: 'eval_upstream_timeout' })
 
     // Attempt 0 (60s) → backoff 250ms → attempt 1 (60s) → backoff 500ms →

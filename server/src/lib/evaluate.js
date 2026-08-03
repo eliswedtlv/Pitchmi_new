@@ -17,20 +17,8 @@ function promptTemplate () {
   return PROMPT_TEMPLATE
 }
 
-const USE_CASE_GUIDANCE = {
-  pitch: 'pitch → tight, energetic, confident.',
-  intro: 'intro → warm, relaxed, approachable.',
-  sales: 'sales → persuasive, benefit-forward energy.',
-  social: 'social → expressive, personality-forward.'
-}
-
-function buildPrompt ({ useCase, useCaseCustom, language }) {
-  let guidance = USE_CASE_GUIDANCE[useCase]
-  if (useCase === 'custom' || !guidance) {
-    guidance = `custom → adapt delivery expectations to: ${useCaseCustom || 'the speaker\'s described goal'}.`
-  }
+function buildPrompt ({ language }) {
   return promptTemplate()
-    .replace('{{USE_CASE_GUIDANCE}}', guidance)
     .replace('{{LANGUAGE}}', language || 'the take\'s spoken language')
 }
 
