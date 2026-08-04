@@ -24,9 +24,9 @@
   --l-fg-subtle: #676a71;
   --l-primary: #18181b;
   --l-primary-fg: #fafafa;
-  --l-accent: #4f46e5;
+  --l-accent: #a21caf;
   --l-accent-fg: #ffffff;
-  --l-accent-soft: #eef2ff;
+  --l-accent-soft: #fae8ff;
   --l-good: #16a34a;
   --l-good-fg: #15803d;
   --l-good-soft: #dcfce7;
@@ -49,9 +49,9 @@
   --d-fg-subtle: #83868e;
   --d-primary: #f4f4f5;
   --d-primary-fg: #111113;
-  --d-accent: #818cf8;
+  --d-accent: #e879f9;
   --d-accent-fg: #111113;
-  --d-accent-soft: rgb(129 140 248 / 0.16);
+  --d-accent-soft: rgb(232 121 249 / 0.16);
   --d-good: #22c55e;
   --d-good-fg: #4ade80;
   --d-good-soft: rgb(34 197 94 / 0.15);
@@ -81,13 +81,26 @@
   --color-primary: var(--l-primary);
   --color-primary-fg: var(--l-primary-fg);
 
-  /* The one brand accent (T-10024). Indigo, chosen because it is the hue
-     furthest from all three score bands at once (≈244° against green 142°,
-     amber 32°, red 0°) — it can never be misread as a score. Light `#4f46e5`
-     measures 6.29:1 on `surface` and 5.82:1 on `canvas` as text, 6.29:1 with
-     white on it as a fill, and 4.96:1 against `track` as a scrubber fill; dark
-     `#818cf8` measures 6.17 / 6.60 / 6.32 / 4.79 for the same four cases. It is
-     spent on exactly three things — see docs/design-direction.md §T-10024. */
+  /* The one brand accent (T-10024, re-valued T-10027). Fuchsia, and it has to
+     satisfy TWO constraints at once, not one:
+
+     (1) Far from all three score bands, so it can never be misread as a score.
+         Bands sit at red 0°, amber 32°, green 142°; light `#a21caf` is 295° and
+         dark `#e879f9` is 292°, i.e. 65° from the nearest band (red, measured
+         the short way round the wheel).
+     (2) Outside the ~240–280° indigo-violet band, which is the default accent
+         of AI-built interfaces and reads as one. This is the constraint T-10024
+         missed: indigo `#4f46e5` is 243°, dead centre of it. Blue (~220°) also
+         clears both; fuchsia is further from the generic-SaaS default and reads
+         as performance rather than enterprise dashboard.
+
+     Light `#a21caf` measures 6.32:1 on `surface` and 5.85:1 on `canvas` as
+     text, 6.32:1 with white on it as a fill, and 4.98:1 against `track` as a
+     scrubber fill; dark `#e879f9` measures 7.48 / 8.00 / 7.66 / 5.80 for the
+     same four cases. `--l-accent-soft` is fuchsia-100, NOT the 50: the 50
+     (`#fdf4ff`) measures 1.006:1 against `--l-canvas`, which is no tint at all
+     on the one surface it is used on. It is spent on exactly three things —
+     see docs/design-direction.md §T-10024. */
   --color-accent: var(--l-accent);
   --color-accent-fg: var(--l-accent-fg);
   --color-accent-soft: var(--l-accent-soft);

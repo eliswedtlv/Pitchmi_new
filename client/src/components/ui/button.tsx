@@ -17,8 +17,8 @@ const buttonVariants = cva(
         // brand accent is spent (T-10024). T-10022 made this near-black on the
         // reasoning that no accent at all keeps green/amber/red meaning "score
         // band" and nothing else. The reasoning holds; the conclusion overshot,
-        // and left a product with correct typography and no identity. Indigo
-        // sits nowhere near the score arc, so the discipline survives intact:
+        // and left a product with correct typography and no identity. The
+        // accent sits nowhere near the score arc, so the discipline survives:
         // still exactly one filled button per screen, still never a score
         // colour. See docs/design-direction.md §T-10024.
         default: "bg-accent text-accent-fg hover:opacity-90",

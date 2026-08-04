@@ -365,20 +365,45 @@ minimal" is not a finding, so nothing below reduces to it.
 
 ## The direction, concretely
 
-### One accent: indigo
+### One accent: fuchsia (T-10027; indigo, T-10024, considered and rejected)
 
 | Token | Light | Dark | Role |
 |---|---|---|---|
-| `accent` | `#4f46e5` | `#818cf8` | the filled action, the focus ring, progress and position fills, the wordmark |
+| `accent` | `#a21caf` | `#e879f9` | the filled action, the focus ring, progress and position fills, the wordmark |
 | `accent-fg` | `#ffffff` | `#111113` | text and icons **on** an accent fill |
-| `accent-soft` | `#eef2ff` | `rgb(129 140 248 / .16)` | the tint form — the active wait stage |
+| `accent-soft` | `#fae8ff` | `rgb(232 121 249 / .16)` | the tint form — the active wait stage |
 
-Indigo because it is the hue furthest from **all three** score bands at once: ≈244°
-against green 142°, amber 32°, red 0°. Teal was rejected despite being nominally open —
-it is the closest open hue to `good`, and "is that green or is that the brand?" is the
-one question this decision exists to prevent. In dark the accent is a *lighter, less
-saturated* step, for the same reason `warn-fg` is (`#fbbf24`, not a mid-amber): a
-mid-indigo vibrates on near-black.
+**Two constraints, and the accent has to satisfy both.**
+
+1. **Far from all three score bands.** They sit at red 0°, amber 32°, green 142°. The
+   whole reason this token exists is that "is that green or is that the brand?" must never
+   be a question a user can ask, which is also why teal was rejected despite being
+   nominally open — it is the closest open hue to `good`.
+2. **Outside the ~240–280° indigo-violet band.** That band is the default accent of
+   AI-built interfaces: Tailwind UI shipped `indigo-500` as its placeholder in 2019, it
+   propagated through tutorials, templates and open-source projects, models trained on
+   that corpus, and a purple-blue button is now the statistical median of a generated
+   interface. A product about to go public cannot wear the colour that says "generated".
+
+**Indigo `#4f46e5` — considered, shipped in T-10024, and rejected here.** It was picked by
+the first constraint alone and it satisfies it perfectly: at 243° it is the hue furthest
+from all three bands at once. But 243° is dead centre of the second band. The research
+that produced it (Default's electric violet, shadcn/ui's division of labour by size and
+role, OpenSea's state-and-position rule, Linear's product site — references 18–21 above)
+is still the entire reason the accent exists and none of it is overturned; only the hue
+is. A research-led pick lands in 240–280° *by gravity*, because the reference corpus is
+full of AI products. Recorded rather than deleted so the next reader knows indigo was
+evaluated, not overlooked.
+
+What survives both constraints is blue (~220°) or magenta/fuchsia (~295°). **Fuchsia**,
+because it is the further of the two from the generic-SaaS default and reads as
+performance/stage rather than enterprise dashboard, which is what PitchMi is — and
+because its light value is contrast-equivalent to indigo's, so the swap cost no
+re-tuning anywhere. Light `#a21caf` is 295°, dark `#e879f9` is 292°; the minimum
+separation from any score band is **65°** (to red, measured the short way round the
+wheel), and both sit clear above the 280° edge of the AI band. In dark the accent is
+still a *lighter, less saturated* step, for the same reason `warn-fg` is (`#fbbf24`, not
+a mid-amber): a mid-fuchsia vibrates on near-black.
 
 **Measured, in the context each value is actually used in** — T-10022's lesson was that
 `amber-700` passes on white at 4.99:1 and fails at 4.45:1 in the place it is really used,
@@ -386,24 +411,33 @@ so a bare against-the-canvas number proves nothing.
 
 | Use | Needs | Light | Dark |
 |---|---|---|---|
-| `accent-fg` on an accent fill — the Record it / Try again label | 4.5:1 | **6.29** | **6.32** |
-| `accent` as text on `surface` | 4.5:1 | **6.29** | **6.17** |
-| `accent` as text on `canvas` — the wordmark | 4.5:1 | **5.82** | **6.60** |
-| `accent` fill against `track` — the scrubber, the wait bar | 3:1 | **4.96** | **4.79** |
-| `accent` focus ring against `canvas` | 3:1 | **5.82** | **6.60** |
-| `accent` border against `surface` — the composer's focused frame | 3:1 | **6.29** | **6.17** |
-| `accent` border on `accent-soft` against `canvas` — the active wait stage | 3:1 | **5.82** | **6.60** |
-| `fg` text on `accent-soft` — the active wait stage's label | 4.5:1 | **15.84** | **14.61** |
+| `accent-fg` on an accent fill — the Record it / Try again label | 4.5:1 | **6.32** | **7.66** |
+| `accent` as text on `surface` | 4.5:1 | **6.32** | **7.48** |
+| `accent` as text on `canvas` — the wordmark | 4.5:1 | **5.85** | **8.00** |
+| `accent` fill against `track` — the scrubber, the wait bar | 3:1 | **4.98** | **5.80** |
+| `accent` focus ring against `canvas` | 3:1 | **5.85** | **8.00** |
+| `accent` border against `surface` — the composer's focused frame | 3:1 | **6.32** | **7.48** |
+| `accent` border on `accent-soft` against `canvas` — the active wait stage | 3:1 | **5.85** | **8.00** |
+| `fg` text on `accent-soft` — the active wait stage's label | 4.5:1 | **15.23** | **14.28** |
 
-Nothing is below its threshold. The active wait stage's border started at `accent/30`,
-which measures 1.63:1 (light) / 2.01:1 (dark) — no worse than the existing
+Nothing is below its threshold, and every dark row improved over indigo's. The dark
+`accent-soft` number is measured on the **composite** — 16% `#e879f9` over `--d-canvas`
+`#0b0b0c` is `#2e1d32` — not on the rgba literal. The active wait stage's border started
+at `accent/30`, which measures 1.63:1 (light) / 2.01:1 (dark) — no worse than the existing
 `border-line-strong` at 1.41:1, and the row is identified by its tint, its type size and
 its spinner rather than by its outline, so it would not have been a violation. It was
 taken to full strength anyway because the number was free.
 
-Default's own `#5757f8` was **not** adopted: it measures 4.47:1 against `surface`, which
-clears the bar for a button label but leaves no margin at all for the wordmark on
-`canvas`. `#4f46e5` is one step darker in the same hue.
+**`accent-soft` is fuchsia-100, not fuchsia-50, and that is deliberate.** Measured against
+`--l-canvas` `#f6f6f7` — the one surface the tint is ever used on, since the active wait
+stage sits on `canvas` — fuchsia-50 `#fdf4ff` is **1.006:1**, i.e. the tint effectively
+does not exist. Indigo-50 `#eef2ff` was **1.035:1**. Fuchsia-100 `#fae8ff` is **1.077:1**,
+which preserves a visible tint of the same order. Do not "fix" this back to the 50.
+
+Default's own `#5757f8` was **not** adopted in T-10024: it measures 4.47:1 against
+`surface`, which clears the bar for a button label but leaves no margin at all for the
+wordmark on `canvas`. That reasoning stands on its own terms and is moot now — the whole
+hue family it belongs to is what T-10027 moved away from.
 
 ### Where the accent is allowed — the whole rule
 
