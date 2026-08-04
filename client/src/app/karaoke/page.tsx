@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Square } from "lucide-react"
+import { Brand } from "@/components/Brand"
 import { Button } from "@/components/ui/button"
 import { Prompter } from "@/components/Prompter"
 import { useKaraokeClock } from "@/hooks/useKaraokeClock"
@@ -72,6 +73,18 @@ export default function KaraokePage() {
         playsInline
         className="absolute inset-0 w-full h-full object-cover"
       />
+
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.75rem)]">
+        <Brand markOnly inverse />
+        <span className="flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-micro font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+          <span
+            className={`h-2 w-2 rounded-full ${
+              state === "recording" ? "bg-bad ring-4 ring-bad/20" : "bg-white/45"
+            }`}
+          />
+          {state === "recording" ? "Recording" : "Rehearsal"}
+        </span>
+      </div>
 
       {/* Karaoke subtitles overlaid on the video (upper third, near camera) */}
       {(state === "recording" || state === "countdown") && (

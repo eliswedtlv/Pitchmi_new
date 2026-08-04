@@ -72,9 +72,10 @@ describe("HomePage — the script screen", () => {
     expect(screen.queryByPlaceholderText(/describe your video/i)).toBeNull()
   })
 
-  it("shows the 30-second slogan and not the old one", () => {
+  it("shows the rehearsal-studio promise and the 30-second format", () => {
     render(<HomePage />)
-    expect(screen.getByText(/if you can’t say it in 30 seconds/i)).toBeTruthy()
+    expect(screen.getByText(/say it like/i)).toBeTruthy()
+    expect(screen.getByText(/30 seconds · no signup/i)).toBeTruthy()
     expect(screen.queryByText(/perfect your spoken video in minutes/i)).toBeNull()
   })
 

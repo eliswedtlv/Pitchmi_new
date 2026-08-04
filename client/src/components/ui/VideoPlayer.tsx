@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils"
 interface VideoPlayerProps {
   src: string
   className?: string
+  autoPlay?: boolean
 }
 
 /** `m:ss`, and `0:00` for every flavour of "we don't know yet". */
@@ -56,7 +57,7 @@ function usableDuration(raw: number | undefined): number | null {
   return typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : null
 }
 
-export function VideoPlayer({ src, className }: VideoPlayerProps) {
+export function VideoPlayer({ src, className, autoPlay = false }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -147,6 +148,7 @@ export function VideoPlayer({ src, className }: VideoPlayerProps) {
         <video
           ref={videoRef}
           src={src}
+          autoPlay={autoPlay}
           playsInline
           className="max-h-[60vh] w-auto max-w-full object-contain lg:max-h-[26rem]"
         />

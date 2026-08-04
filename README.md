@@ -1,6 +1,6 @@
 # PitchMi
 
-Record and improve short spoken videos (≤ 60s). Record a take → get a word-level transcript → edit it → the edited text becomes a **timed karaoke path** that guides your next take in a teleprompter → the AI scores your **delivery** (voice, body language, delivery, timing, accuracy — never *what* you say) and gives sharp coach feedback → repeat until you love it → download, share, or save to the cloud.
+Write a script for a short spoken video (≤ 30s), rehearse it on camera against a timed **karaoke teleprompter**, and get sharp coaching on **delivery**—voice, body language, timing, and accuracy, never *what* you say. Every take re-times the next rehearsal to your measured speaking pace. Repeat until it lands, then share or download through the operating system.
 
 No signup. A Supabase **anonymous** identity is created per device on first load.
 

@@ -29,7 +29,7 @@ const VIEWPORTS = [
 ] as const
 
 const SCREENS = [
-  { name: "home", url: "/", ready: "text=If you can’t say it in 30 seconds" },
+  { name: "home", url: "/", ready: "text=Say it like" },
   { name: "results", url: "/dev/ui/results", ready: "text=Overall score" },
   { name: "wait", url: "/dev/ui/wait", ready: "text=Analyzing your take" },
   { name: "wait-error", url: "/dev/ui/wait-error", ready: "text=took too long" },

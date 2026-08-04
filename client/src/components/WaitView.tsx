@@ -1,22 +1,19 @@
 "use client"
 
-import { Check, Loader2 } from "lucide-react"
+import { Check, Loader2, LockKeyhole } from "lucide-react"
+import { Brand } from "@/components/Brand"
 import { AdSlot } from "@/components/AdSlot"
 import { Button } from "@/components/ui/button"
 import { STAGE_LABEL, type EvalStage } from "@/lib/evalStages"
 import type { AdConfig } from "@/lib/api"
 
-// Widths reflect ONLY the two honest, state-driven stages. No timer ever
-// advances the label past reality — the eval either resolves (→ results) or
-// fails (→ error screen); it never sits on a fake "Scoring" step forever.
 const STAGE_WIDTH: Record<EvalStage, string> = {
-  uploading: "25%",
-  analyzing: "70%",
+  uploading: "26%",
+  analyzing: "72%",
   done: "100%",
   error: "100%",
 }
 
-/** The two stages that actually exist, in order. Labels come from the machine. */
 const STEPS: EvalStage[] = ["uploading", "analyzing"]
 
 interface WaitViewProps {
@@ -27,36 +24,48 @@ interface WaitViewProps {
   onHome: () => void
 }
 
-/**
- * The wait screen's markup, split out from `app/wait/page.tsx` (T-10022) so the
- * dev fixture at `/dev/ui/wait` can screenshot the REAL screen without firing a
- * live evaluation. All of the logic — the eval call, the error mapping, the
- * routing, the wake lock — stays in the page; this file draws and nothing else.
- *
- * Shape borrowed from Airtable's "Generating your app…" (the process is the
- * headline, with a hairline bar pinned to the top edge of the viewport rather
- * than floating mid-composition) and Hers' three-step loader (a passed stage
- * keeps its check instead of being replaced by the next label).
- *
- * T-10024 changes three things and no more: the hairline bar and the ACTIVE
- * stage now carry the brand accent (this is the "progress and position" third of
- * the accent rule — the only screen in the product whose entire job is to say
- * "PitchMi is working"), the content block takes the shared `.shell` width so a
- * 1440 viewport is not a 28rem card marooned in the middle of it, and the active
- * row gets a little more air at `lg`. The Airtable-derived pinning, the two real
- * stages and the centred composition are untouched.
- */
+function VoiceSignal({ paused = false }: { paused?: boolean }) {
+  const heights = ["h-8", "h-14", "h-20", "h-12", "h-6"]
+  return (
+    <div aria-hidden className="flex h-24 items-center justify-center gap-2.5">
+      {heights.map((height, index) => (
+        <span
+          key={index}
+          className={`${height} w-2 rounded-full bg-accent ${
+            paused ? "opacity-50" : "voice-bar"
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
+
 export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) {
   if (error) {
     return (
-      <main className="min-h-screen flex items-center justify-center px-4 safe-b-8">
-        <div className="shell max-w-sm space-y-5 text-center">
-          <p className="rounded-panel border border-bad/30 bg-bad-soft px-5 py-4 text-body text-bad-fg">
-            {error}
-          </p>
-          <Button variant="ghost" size="sm" onClick={onHome}>
-            Back to home
-          </Button>
+      <main className="scheme-dark min-h-screen bg-canvas px-[18px] text-fg safe-b-8 sm:px-8">
+        <div className="studio-shell flex min-h-screen flex-col">
+          <header className="flex h-16 shrink-0 items-center justify-between border-b border-line">
+            <Brand inverse />
+            <span className="text-micro font-semibold uppercase tracking-[0.16em] text-fg-subtle">
+              Evaluation stopped
+            </span>
+          </header>
+          <div className="flex flex-1 items-center justify-center py-12">
+            <section className="w-full max-w-lg text-center">
+              <VoiceSignal paused />
+              <p className="mt-8 text-micro font-semibold uppercase tracking-[0.16em] text-bad-fg">
+                Take not scored
+              </p>
+              <h1 className="mt-3 text-[clamp(2rem,7vw,3.5rem)] font-semibold leading-[0.98] tracking-[-0.055em] text-fg">
+                The booth went quiet.
+              </h1>
+              <p className="mx-auto mt-5 max-w-md text-body text-fg-muted">{error}</p>
+              <Button size="lg" className="mt-8 min-w-48" onClick={onHome}>
+                Back to home
+              </Button>
+            </section>
+          </div>
         </div>
       </main>
     )
@@ -65,9 +74,8 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
   const activeIdx = STEPS.indexOf(stage)
 
   return (
-    <main className="min-h-screen flex flex-col items-center justify-center px-4 gap-10 safe-b-8">
-      {/* Overall progress, pinned to the very top edge of the viewport. */}
-      <div className="fixed inset-x-0 top-0 h-0.5 bg-track">
+    <main className="scheme-dark min-h-screen bg-canvas px-[18px] text-fg safe-b-8 sm:px-8">
+      <div className="fixed inset-x-0 top-0 z-10 h-0.5 bg-track">
         <div
           data-testid="wait-progress"
           className="progress-fill h-full bg-accent"
@@ -75,54 +83,84 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
         />
       </div>
 
-      {/* Ad — Skip only hides this element; it never affects the pending eval. */}
-      {ad && (
-        <div className="w-full max-w-md">
-          <AdSlot config={ad} onSkip={onSkipAd} />
+      <div className="studio-shell flex min-h-screen flex-col">
+        <header className="flex h-16 shrink-0 items-center justify-between border-b border-line">
+          <Brand inverse />
+          <div className="flex items-center gap-2 text-micro font-semibold uppercase tracking-[0.14em] text-fg-subtle">
+            <LockKeyhole className="h-3.5 w-3.5 text-accent" />
+            Processed privately
+          </div>
+        </header>
+
+        <div
+          className={`grid flex-1 items-center gap-10 py-10 ${
+            ad ? "lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.72fr)]" : ""
+          }`}
+        >
+          <section className="mx-auto w-full max-w-2xl">
+            <div className="flex items-center gap-3 text-micro font-semibold uppercase tracking-[0.16em] text-fg-subtle">
+              <span className="nums text-accent">02</span>
+              <span className="h-px w-8 bg-line-strong" />
+              <span>Analyze the take</span>
+            </div>
+
+            <VoiceSignal />
+
+            <div className="text-center">
+              <h1 className="text-[clamp(2.5rem,7vw,5.25rem)] font-semibold leading-[0.92] tracking-[-0.065em] text-fg">
+                Your take is
+                <span className="block text-accent">in the booth.</span>
+              </h1>
+              <p className="mx-auto mt-5 max-w-lg text-body text-fg-muted">
+                We’re matching your words, measuring the rhythm, and watching the
+                delivery. This can take up to two minutes.
+              </p>
+            </div>
+
+            <ol className="mx-auto mt-10 max-w-lg border-y border-line">
+              {STEPS.map((step, index) => {
+                const done = activeIdx > index
+                const active = activeIdx === index
+                return (
+                  <li
+                    key={step}
+                    className={`grid grid-cols-[2rem_1fr_auto] items-center gap-3 border-b border-line px-1 py-4 last:border-b-0 ${
+                      active ? "text-fg" : "text-fg-subtle"
+                    }`}
+                  >
+                    <span className="nums text-micro font-semibold text-fg-subtle">
+                      0{index + 1}
+                    </span>
+                    <span className={`text-body ${active ? "font-medium" : ""}`}>
+                      {STAGE_LABEL[step]}
+                    </span>
+                    <span
+                      className={`flex h-6 w-6 items-center justify-center rounded-full ${
+                        done
+                          ? "bg-good text-primary-fg"
+                          : active
+                            ? "bg-accent-soft text-accent"
+                            : "border border-line-strong"
+                      }`}
+                    >
+                      {done && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+                      {active && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                    </span>
+                  </li>
+                )
+              })}
+            </ol>
+          </section>
+
+          {ad && (
+            <aside className="mx-auto w-full max-w-md border-t border-line pt-6 lg:border-s lg:border-t-0 lg:ps-10 lg:pt-0">
+              <p className="mb-3 text-micro font-semibold uppercase tracking-[0.14em] text-fg-subtle">
+                While you wait
+              </p>
+              <AdSlot config={ad} onSkip={onSkipAd} />
+            </aside>
+          )}
         </div>
-      )}
-
-      <div className="shell space-y-6 lg:space-y-8">
-        <p className="text-micro font-medium uppercase tracking-[0.18em] text-accent text-center">
-          PitchMi
-        </p>
-
-        {/* The stages stay on screen: a passed one keeps its check, the active
-            one spins, a pending one stays dim. The wait is accounted for.
-            The ACTIVE row is the screen's headline — there is deliberately no
-            separate heading above it, because the only strings available are
-            these same stage labels (`lib/evalStages.ts`, untouched) and printing
-            one of them twice reads as a stutter, not as hierarchy. */}
-        <ol className="space-y-2">
-          {STEPS.map((step, i) => {
-            const done = activeIdx > i
-            const active = activeIdx === i
-            return (
-              <li
-                key={step}
-                className={`flex items-center gap-3 rounded-control border transition-colors ${
-                  active
-                    ? "border-accent bg-accent-soft px-4 py-4 text-lead text-fg lg:py-5"
-                    : "border-line bg-surface px-4 py-3 text-meta text-fg-subtle"
-                }`}
-              >
-                <span
-                  className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full ${
-                    done ? "bg-good text-primary-fg" : "border border-line-strong"
-                  }`}
-                >
-                  {done && <Check className="h-3 w-3" strokeWidth={3} />}
-                  {active && <Loader2 className="h-3.5 w-3.5 animate-spin text-fg-muted" />}
-                </span>
-                <span className="min-w-0">{STAGE_LABEL[step]}</span>
-              </li>
-            )
-          })}
-        </ol>
-
-        <p className="text-micro text-fg-subtle text-center">
-          This can take up to two minutes — keep this screen open.
-        </p>
       </div>
     </main>
   )

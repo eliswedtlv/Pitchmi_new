@@ -1,6 +1,6 @@
 # PitchMi — Agent Instructions (root)
 
-**PitchMi** is a responsive web app for creating and improving spoken videos of up to one minute. The loop: record a first take → transcribe (word-level timestamps) → edit the transcript → the edited text becomes a timed **karaoke path** (synced subtitles) that guides the next recording in a teleprompter → after each take the AI evaluates **presentation only** (voice, body, delivery, timing, accuracy — never the substance/topic) → repeat until satisfied → download / share / explicitly save to cloud. No signup in v1: Supabase **anonymous auth** gives an invisible per-device identity.
+**PitchMi** is a responsive web app for rehearsing scripted spoken videos of up to 30 seconds. The loop: type or paste a script → rehearse it on camera against a timed **karaoke path** (synced teleprompter) → transcribe the take with word-level timestamps → objectively score timing/accuracy and re-time the next path to the speaker’s measured pace → use AI to evaluate **presentation only** (voice, body, delivery — never the substance/topic) → repeat until satisfied → share/download through the operating system. No signup in v1: Supabase **anonymous auth** gives an invisible per-device identity.
 
 ## Monorepo map
 

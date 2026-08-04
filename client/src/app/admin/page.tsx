@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { Brand } from "@/components/Brand"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -72,9 +73,10 @@ export default function AdminPage() {
 
   if (!authed) {
     return (
-      <main className="min-h-screen bg-neutral-50 flex items-center justify-center px-4">
+      <main className="min-h-screen bg-canvas flex items-center justify-center px-4">
         <Card className="w-full max-w-sm">
           <CardHeader>
+            <Brand className="mb-5" />
             <CardTitle>Admin Login</CardTitle>
           </CardHeader>
           <CardContent>
@@ -84,10 +86,10 @@ export default function AdminPage() {
                 placeholder="Admin password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className="h-11 w-full rounded-control border border-line-strong bg-surface px-3 text-body text-fg placeholder:text-fg-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
                 autoFocus
               />
-              {loginError && <p className="text-sm text-red-700">{loginError}</p>}
+              {loginError && <p className="text-meta text-bad-fg">{loginError}</p>}
               <Button type="submit" className="w-full">Login</Button>
             </form>
           </CardContent>
@@ -97,15 +99,18 @@ export default function AdminPage() {
   }
 
   return (
-    <main className="min-h-screen bg-neutral-50 px-4 pt-8 safe-b-8">
-      <div className="max-w-5xl mx-auto space-y-6">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold text-neutral-900">Admin</h1>
+    <main className="min-h-screen bg-canvas px-4 pt-8 safe-b-8">
+      <div className="mx-auto max-w-5xl space-y-6">
+        <div className="flex items-center justify-between border-b border-line pb-5">
+          <div className="flex items-center gap-5">
+            <Brand />
+            <h1 className="text-title font-semibold text-fg">Admin</h1>
+          </div>
           <Badge variant="success">Authenticated</Badge>
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-2 border-b border-neutral-200 pb-2">
+        <div className="flex gap-1 border-b border-line pb-2">
           {(["logs", "aggregates", "service"] as Tab[]).map((t) => (
             <button
               key={t}
@@ -113,10 +118,10 @@ export default function AdminPage() {
                 setTab(t)
                 if (t === "aggregates" && aggs.length === 0) loadAggregates()
               }}
-              className={`px-4 py-2 text-sm font-medium capitalize rounded-t transition-colors ${
+              className={`rounded-control px-4 py-2 text-meta font-semibold capitalize transition-colors ${
                 tab === t
-                  ? "bg-neutral-900 text-white"
-                  : "text-neutral-600 hover:text-neutral-900"
+                  ? "bg-accent text-accent-fg"
+                  : "text-fg-muted hover:bg-raised hover:text-fg"
               }`}
             >
               {t}
@@ -133,16 +138,16 @@ export default function AdminPage() {
                 placeholder="Filter by action (e.g. evaluate)"
                 value={actionFilter}
                 onChange={(e) => setActionFilter(e.target.value)}
-                className="flex-1 rounded-md border border-neutral-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-neutral-900"
+                className="h-10 flex-1 rounded-control border border-line-strong bg-surface px-3 text-meta text-fg placeholder:text-fg-subtle focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/20"
               />
               <Button onClick={loadLogs} disabled={logsLoading}>
                 {logsLoading ? "Loading…" : "Refresh"}
               </Button>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+            <div className="overflow-x-auto rounded-panel border border-line bg-surface">
               <table className="w-full text-xs">
-                <thead className="bg-neutral-50 text-neutral-600">
+                <thead className="bg-raised text-fg-muted">
                   <tr>
                     <th className="px-3 py-2 text-left font-medium">Time</th>
                     <th className="px-3 py-2 text-left font-medium">Action</th>
@@ -155,23 +160,23 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {(logs as Record<string, unknown>[]).map((row, i) => (
-                    <tr key={i} className="border-t border-neutral-100 hover:bg-neutral-50">
-                      <td className="px-3 py-2 text-neutral-500">
+                    <tr key={i} className="border-t border-line hover:bg-raised/60">
+                      <td className="px-3 py-2 text-fg-muted">
                         {new Date(row.ts as string).toLocaleString()}
                       </td>
                       <td className="px-3 py-2 font-medium">{String(row.action ?? "")}</td>
-                      <td className="px-3 py-2 text-neutral-500 font-mono">
+                      <td className="px-3 py-2 text-fg-muted font-mono">
                         {String(row.user_id ?? "").slice(0, 8)}…
                       </td>
                       <td className="px-3 py-2">{String(row.language ?? "")}</td>
                       <td className="px-3 py-2">{row.latency_ms ? `${row.latency_ms}ms` : ""}</td>
                       <td className="px-3 py-2">{row.cost_usd ? `$${Number(row.cost_usd).toFixed(4)}` : ""}</td>
-                      <td className="px-3 py-2 text-red-600">{String(row.error ?? "")}</td>
+                      <td className="px-3 py-2 text-bad-fg">{String(row.error ?? "")}</td>
                     </tr>
                   ))}
                   {logs.length === 0 && !logsLoading && (
                     <tr>
-                      <td colSpan={7} className="px-3 py-8 text-center text-neutral-400">
+                      <td colSpan={7} className="px-3 py-8 text-center text-fg-subtle">
                         No events found.
                       </td>
                     </tr>
@@ -190,9 +195,9 @@ export default function AdminPage() {
                 {aggsLoading ? "Loading…" : "Refresh"}
               </Button>
             </div>
-            <div className="overflow-x-auto rounded-xl border border-neutral-200 bg-white">
+            <div className="overflow-x-auto rounded-panel border border-line bg-surface">
               <table className="w-full text-sm">
-                <thead className="bg-neutral-50 text-neutral-600">
+                <thead className="bg-raised text-fg-muted">
                   <tr>
                     <th className="px-4 py-2 text-left font-medium">Date</th>
                     <th className="px-4 py-2 text-left font-medium">Evals</th>
@@ -207,7 +212,7 @@ export default function AdminPage() {
                 </thead>
                 <tbody>
                   {(aggs as Record<string, unknown>[]).map((row, i) => (
-                    <tr key={i} className="border-t border-neutral-100">
+                    <tr key={i} className="border-t border-line">
                       <td className="px-4 py-2">{String(row.day ?? "")}</td>
                       <td className="px-4 py-2">{String(row.evals ?? 0)}</td>
                       <td className="px-4 py-2">{String(row.unique_users ?? 0)}</td>
@@ -219,13 +224,13 @@ export default function AdminPage() {
                       <td className="px-4 py-2">${Number(row.total_cost_usd ?? 0).toFixed(4)}</td>
                       <td className="px-4 py-2">${Number(row.total_stt_usd ?? 0).toFixed(4)}</td>
                       <td className="px-4 py-2">${Number(row.total_eval_usd ?? 0).toFixed(4)}</td>
-                      <td className="px-4 py-2 text-red-600">{String(row.errors ?? 0)}</td>
+                      <td className="px-4 py-2 text-bad-fg">{String(row.errors ?? 0)}</td>
                       <td className="px-4 py-2">{row.avg_latency_ms ? `${Math.round(Number(row.avg_latency_ms))}ms` : ""}</td>
                     </tr>
                   ))}
                   {aggs.length === 0 && !aggsLoading && (
                     <tr>
-                      <td colSpan={9} className="px-3 py-8 text-center text-neutral-400">No data.</td>
+                      <td colSpan={9} className="px-3 py-8 text-center text-fg-subtle">No data.</td>
                     </tr>
                   )}
                 </tbody>
@@ -243,7 +248,7 @@ export default function AdminPage() {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-neutral-700">Service status</span>
+                  <span className="text-meta text-fg-muted">Service status</span>
                   <Badge variant={serviceEnabled === false ? "destructive" : "success"}>
                     {serviceEnabled === false ? "PAUSED" : "ACTIVE"}
                   </Badge>
@@ -260,7 +265,7 @@ export default function AdminPage() {
                     ? "Re-enable service"
                     : "Pause service"}
                 </Button>
-                <p className="text-xs text-neutral-400">
+                <p className="text-micro text-fg-subtle">
                   Pausing will return 503 to all non-admin API calls.
                 </p>
               </CardContent>

@@ -1,15 +1,14 @@
 import type { Metadata, Viewport } from "next"
-import { Inter, Heebo } from "next/font/google"
+import { Instrument_Sans, Heebo } from "next/font/google"
 import "./globals.css"
 
-// Two families, one stack (T-10022). Inter has NO Hebrew coverage, and Hebrew is
-// first-class here (T-1164) — on its own it would drop every Hebrew screen into
-// an unstyled system fallback mid-sentence. Heebo sits immediately behind it and
-// picks up exactly those glyphs. Both are self-hosted by next/font at build time
-// and subset to the one script each is here for.
-const inter = Inter({
+// Instrument Sans gives the Latin product surface a more authored, editorial
+// voice than the old default Inter stack. Hebrew remains first-class: Heebo sits
+// immediately behind it and picks up those glyphs without changing the layout
+// contract of mixed-script lines.
+const instrument = Instrument_Sans({
   subsets: ["latin"],
-  variable: "--font-inter",
+  variable: "--font-instrument",
   display: "swap",
 })
 const heebo = Heebo({
@@ -19,9 +18,9 @@ const heebo = Heebo({
 })
 
 export const metadata: Metadata = {
-  title: "PitchMi — Improve Your Spoken Video",
+  title: "PitchMi — Say it like you mean it",
   description:
-    "If you can’t say it in 30 seconds, don’t say it. Rehearse to a teleprompter of your own words and get AI delivery coaching.",
+    "A private rehearsal studio for 30-second videos. Follow your own script, improve your delivery, and try the next take at your pace.",
 }
 
 // viewport-fit=cover lets content extend under the iOS home indicator so we can
@@ -38,7 +37,7 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="en" className={`${inter.variable} ${heebo.variable}`}>
+    <html lang="en" className={`${instrument.variable} ${heebo.variable}`}>
       <body className="min-h-screen bg-canvas text-fg text-body antialiased">
         {children}
       </body>

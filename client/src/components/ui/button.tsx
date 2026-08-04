@@ -9,20 +9,12 @@ import { forwardRef } from "react"
 // and get the same buttons. Variant NAMES are load-bearing: five screens call
 // them by name, so they are kept even where the treatment changed.
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-control text-meta font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:opacity-40",
+  "inline-flex items-center justify-center gap-2 rounded-control text-meta font-semibold transition-[background-color,border-color,color,transform] duration-150 active:translate-y-px focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2 focus-visible:ring-offset-canvas disabled:pointer-events-none disabled:translate-y-0 disabled:opacity-40",
   {
     variants: {
       variant: {
-        // The one filled action, and now the loudest of the three places the
-        // brand accent is spent (T-10024). T-10022 made this near-black on the
-        // reasoning that no accent at all keeps green/amber/red meaning "score
-        // band" and nothing else. The reasoning holds; the conclusion overshot,
-        // and left a product with correct typography and no identity. The
-        // accent sits nowhere near the score arc, so the discipline survives:
-        // still exactly one filled button per screen, still never a score
-        // colour. See docs/design-direction.md §T-10024.
-        default: "bg-accent text-accent-fg hover:opacity-90",
-        destructive: "bg-danger text-danger-fg hover:opacity-90",
+        default: "bg-accent text-accent-fg hover:bg-accent/90",
+        destructive: "bg-danger text-danger-fg hover:bg-danger/90",
         outline: "border border-line-strong bg-surface text-fg hover:bg-raised",
         ghost: "text-fg hover:bg-raised",
         secondary: "border border-line bg-raised text-fg hover:border-line-strong",
