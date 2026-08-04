@@ -51,20 +51,20 @@ afterEach(() => {
 })
 
 describe("ResultsPage actions", () => {
-  // T-10022 rewrote this assertion deliberately, it was not dropped. It used to
-  // pin the literal `bg-green-600`; under the release direction green means
-  // "scored >= 80" and nothing else, so a permanently green button would teach
-  // the user the colour is decorative. What the test was actually protecting —
-  // Try again is unmistakably THE primary action — is asserted directly instead:
-  // it carries the primary token fill, and it is the only filled button here.
-  it("shows Try again as the one primary (filled) button", () => {
+  // Rewritten twice, deliberately, and never dropped. It originally pinned the
+  // literal `bg-green-600`; T-10022 moved it to `bg-primary` because green means
+  // "scored >= 80" and nothing else; T-10024 moves it to `bg-accent` because the
+  // one filled action is now where the brand accent is spent. The thing under
+  // test has not changed across any of the three: Try again is unmistakably THE
+  // primary action, because it is the only filled button on the screen.
+  it("shows Try again as the one filled (primary) button", () => {
     render(<ResultsPage />)
     const btn = screen.getByRole("button", { name: /try again/i })
-    expect(btn.className).toMatch(/bg-primary/)
+    expect(btn.className).toMatch(/bg-accent/)
 
     const filled = screen
       .getAllByRole("button")
-      .filter((b) => /bg-primary/.test(b.className))
+      .filter((b) => /bg-accent|bg-primary/.test(b.className))
     expect(filled).toHaveLength(1)
 
     fireEvent.click(btn)
@@ -73,11 +73,32 @@ describe("ResultsPage actions", () => {
 
   it("renders only Try again / Edit text / New video / Share", () => {
     render(<ResultsPage />)
-    const names = screen.getAllByRole("button").map((b) => b.textContent?.trim())
+    const names = screen
+      .getAllByRole("button")
+      // T-10024: the take player contributes its own controls (play, mute and
+      // the click-anywhere overlay on the picture). This assertion is about the
+      // screen's ACTIONS, so it reads the action row rather than every button
+      // in the document.
+      .filter((b) => (b.textContent ?? "").trim().length > 0)
+      .map((b) => b.textContent?.trim())
     expect(names).toEqual(["Try again", "Edit text", "New video", "Share"])
     expect(screen.queryByRole("button", { name: /download/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /save to cloud/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /my videos/i })).toBeNull()
+  })
+
+  // T-10024: the native `<video controls>` chrome was the largest object on the
+  // screen users show other people. It is gone; `playsInline` is not, because
+  // without it iOS Safari takes the take fullscreen and the user leaves.
+  it("plays the take in the custom player, not the browser's chrome", () => {
+    render(<ResultsPage />)
+    const video = document.querySelector("video") as HTMLVideoElement
+
+    expect(video).toBeTruthy()
+    expect(video.hasAttribute("controls")).toBe(false)
+    expect(video.hasAttribute("playsinline")).toBe(true)
+    expect(screen.getAllByRole("button", { name: "Play" }).length).toBeGreaterThan(0)
+    expect(screen.getByLabelText("Seek")).toBeTruthy()
   })
 
   // T-10018: the way back to the words. The script must survive the trip, so

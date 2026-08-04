@@ -60,15 +60,24 @@ export default function HomePage() {
 
   return (
     // Top-aligned on a phone — a vertically centred composition fights the
-    // on-screen keyboard — and centred from `sm` up, where there is nothing else
-    // on the page to anchor it.
-    <main className="min-h-screen flex flex-col px-4 pt-10 sm:justify-center sm:pt-4 safe-b-12">
-      <div className="w-full max-w-lg mx-auto space-y-6">
+    // on-screen keyboard. T-10024 drops the `sm:justify-center` that used to
+    // centre it on wider screens: the screen no longer needs centring because it
+    // no longer ends two thirds of the way down. The writing surface itself
+    // grows to consume the height (Wabi's full-screen composer, screen
+    // `939ed5e8-…`, read as an image — a blank text area that owns the space
+    // between the header rule and the footer action, and reads as finished
+    // precisely because it is empty on purpose). No filler was added: the space
+    // went to the one element the screen is about.
+    <main className="min-h-screen flex flex-col px-4 pt-10 safe-b-12">
+      <div className="shell flex flex-1 flex-col gap-6">
         {/* Header. The slogan is the headline, not a subtitle: the 30-second
             constraint is the product's point, and the counter below is only its
             consequence. The wordmark rides above it as a quiet eyebrow. */}
         <header className="space-y-3">
-          <p className="text-micro font-medium uppercase tracking-[0.18em] text-fg-subtle">
+          {/* The wordmark is the first of the three places the accent is spent
+              (T-10024) — identity, and the only decorative-looking use of colour
+              in the product. */}
+          <p className="text-micro font-medium uppercase tracking-[0.18em] text-accent">
             PitchMi
           </p>
           <h1 className="text-title font-medium text-fg text-balance">
@@ -80,17 +89,32 @@ export default function HomePage() {
             composer), so there is no card shell around it — the panel below is
             the box itself, with the estimate attached as its own footer strip
             on a hairline rule (Product Hunt's in-field counter). */}
-        <section className="space-y-2">
+        <section className="flex min-h-0 flex-1 flex-col gap-2">
           {/* Not a <label for>: the textarea's accessible name is its own
               aria-label ("Your script"), and pointing a label at it would give
               the field two competing names. This line is the section's caption. */}
           <p className="text-meta text-fg-muted">What are you going to say?</p>
 
-          <div className="rounded-panel border border-line bg-surface overflow-hidden focus-within:border-line-strong transition-colors">
+          {/* The panel is the screen's dominant object and grows to fill what
+              the header and the Record button leave. `focus-within:border-accent`
+              is the third and quietest place the brand accent is spent
+              (T-10024) — the frame acknowledging that this is where you are. */}
+          <div className="flex min-h-[10rem] flex-1 flex-col overflow-hidden rounded-panel border border-line bg-surface transition-colors focus-within:border-accent">
             {/* The textarea sits on a transparent background over a mirror of
                 its own text, so the over-length tail can be tinted in place.
-                Both layers share TEXT_BOX and scroll together. */}
-            <div className="relative">
+                Both layers share TEXT_BOX and scroll together.
+
+                THE FRAGILITY (T-10018, re-proved in T-10024): this container is
+                the shared coordinate space. The mirror is `absolute inset-0` on
+                it and the textarea is `absolute inset-0` too, so both layers are
+                exactly the same box — which is the only reason the amber tail
+                lands on the words it marks. Nothing here may set a font, a size,
+                a line-height, a padding or a width on one layer and not the
+                other; that is what TEXT_BOX is for, and a divergence produces a
+                highlight over the WRONG words with no failing test and no error.
+                Growing the box was safe precisely because only the height
+                changed and both layers take their height from this element. */}
+            <div className="relative min-h-0 flex-1">
               {isOver && (
                 <div
                   ref={mirrorRef}
@@ -114,7 +138,14 @@ export default function HomePage() {
                   if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop
                 }}
                 placeholder="Type or paste what you want to say…"
-                className={`relative w-full resize-none border border-transparent bg-transparent text-fg placeholder:text-fg-subtle focus:outline-none ${TEXT_BOX}`}
+                // `absolute inset-0`, matching the mirror above it exactly.
+                // T-10024 needed the textarea to fill the panel rather than
+                // take its height from `rows`; `h-full` does not do that (a
+                // percentage height against a flex item stays auto here, and
+                // `rows` wins), and more importantly this makes the two layers
+                // literally the same rectangle instead of two boxes that happen
+                // to agree. `rows` stays as the no-CSS fallback.
+                className={`absolute inset-0 resize-none border border-transparent bg-transparent text-fg placeholder:text-fg-subtle focus:outline-none ${TEXT_BOX}`}
               />
             </div>
 

@@ -21,6 +21,10 @@ const OUT = path.resolve(__dirname, "../../docs/ui")
 
 const VIEWPORTS = [
   { name: "390", width: 390, height: 844 }, // iPhone 12 portrait
+  // T-10024: 1024 is the `lg` breakpoint itself — the width where a desktop
+  // layout most often breaks, because the second column appears in the same
+  // frame that the container stops growing.
+  { name: "1024", width: 1024, height: 768 },
   { name: "1440", width: 1440, height: 900 },
 ] as const
 
@@ -29,6 +33,11 @@ const SCREENS = [
   { name: "results", url: "/dev/ui/results", ready: "text=Overall score" },
   { name: "wait", url: "/dev/ui/wait", ready: "text=Analyzing your take" },
   { name: "wait-error", url: "/dev/ui/wait-error", ready: "text=took too long" },
+  // Restyled in T-10024 (shared shell width + a two-up grid at `lg`), so it is
+  // shot too. It has no fixture: /videos reads Supabase directly, and with no
+  // client configured it renders its error line above the empty state — which
+  // is still the real shell, the real card and the real primary button.
+  { name: "videos", url: "/videos", ready: "text=My Videos" },
 ] as const
 
 const SCHEMES = ["light", "dark"] as const

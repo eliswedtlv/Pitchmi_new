@@ -64,7 +64,7 @@ export default function VideosPage() {
 
   return (
     <main className="min-h-screen px-4 pt-8 safe-b-8">
-      <div className="max-w-2xl mx-auto space-y-6">
+      <div className="shell-wide space-y-6">
         <div className="flex items-center justify-between gap-4">
           <h1 className="text-title font-medium text-fg">My Videos</h1>
           <Link href="/" className="text-meta text-fg-muted hover:text-fg transition-colors">
@@ -110,7 +110,7 @@ export default function VideosPage() {
           </div>
         )}
 
-        <div className="space-y-3">
+        <div className="grid gap-3 lg:grid-cols-2">
           {takes.map((take) => (
             <Card key={take.id}>
               <CardContent className="p-4 sm:p-4">

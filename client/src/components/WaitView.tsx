@@ -37,12 +37,20 @@ interface WaitViewProps {
  * headline, with a hairline bar pinned to the top edge of the viewport rather
  * than floating mid-composition) and Hers' three-step loader (a passed stage
  * keeps its check instead of being replaced by the next label).
+ *
+ * T-10024 changes three things and no more: the hairline bar and the ACTIVE
+ * stage now carry the brand accent (this is the "progress and position" third of
+ * the accent rule — the only screen in the product whose entire job is to say
+ * "PitchMi is working"), the content block takes the shared `.shell` width so a
+ * 1440 viewport is not a 28rem card marooned in the middle of it, and the active
+ * row gets a little more air at `lg`. The Airtable-derived pinning, the two real
+ * stages and the centred composition are untouched.
  */
 export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) {
   if (error) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4 safe-b-8">
-        <div className="w-full max-w-sm space-y-5 text-center">
+        <div className="shell max-w-sm space-y-5 text-center">
           <p className="rounded-panel border border-bad/30 bg-bad-soft px-5 py-4 text-body text-bad-fg">
             {error}
           </p>
@@ -62,7 +70,7 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
       <div className="fixed inset-x-0 top-0 h-0.5 bg-track">
         <div
           data-testid="wait-progress"
-          className="progress-fill h-full bg-primary"
+          className="progress-fill h-full bg-accent"
           style={{ width: STAGE_WIDTH[stage] }}
         />
       </div>
@@ -74,8 +82,8 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
         </div>
       )}
 
-      <div className="w-full max-w-md space-y-6">
-        <p className="text-micro font-medium uppercase tracking-[0.18em] text-fg-subtle text-center">
+      <div className="shell space-y-6 lg:space-y-8">
+        <p className="text-micro font-medium uppercase tracking-[0.18em] text-accent text-center">
           PitchMi
         </p>
 
@@ -94,7 +102,7 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
                 key={step}
                 className={`flex items-center gap-3 rounded-control border transition-colors ${
                   active
-                    ? "border-line-strong bg-raised px-4 py-4 text-lead text-fg"
+                    ? "border-accent bg-accent-soft px-4 py-4 text-lead text-fg lg:py-5"
                     : "border-line bg-surface px-4 py-3 text-meta text-fg-subtle"
                 }`}
               >

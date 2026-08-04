@@ -19,6 +19,7 @@ const twMerge = extendTailwindMerge({
         "line", "line-strong", "track",
         "fg", "fg-muted", "fg-subtle",
         "primary", "primary-fg",
+        "accent", "accent-fg", "accent-soft",
         "danger", "danger-fg",
         "media", "media-fg",
         "good", "good-fg", "good-soft",

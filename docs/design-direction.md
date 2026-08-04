@@ -242,3 +242,304 @@ session state.
 - `FU-RESULTS-SCORE-HISTORY` — the strongest thing the reference score screens do that this one
   cannot is show *movement* between takes. That needs stored takes, which the MVP flow does not
   write.
+
+---
+
+# T-10024 — second pass
+
+T-10022 built the system. Eli looked at the 16 screenshots it produced and the verdict
+was **"UI extremely schematic."** That is accurate, and it is not a failure of the
+system — it is four things the system does not cover. The reference products T-10022
+was benchmarked against (Linear, Grammarly, Teal) are dense with content, so their
+restraint reads as calm. PitchMi's screens are nearly empty, so the same restraint reads
+as unfinished.
+
+This pass does not relitigate the type scale, the two radii, the no-shadow policy or the
+dark-scheme model. It replaces the browser's video chrome, gives the product a desktop,
+adds exactly one accent hue, and makes the composer fill the screen it is on.
+
+## Source
+
+**The Refero MCP (`https://api.refero.design/mcp`) was connected in this session and was
+used.** The fallback to named-from-memory references was not needed. Every citation below
+is a real screen or a real extracted style, and each one says whether it was read as an
+**image** or as **metadata** (Refero's structured layout/function description).
+
+The searches were for the four concrete objects, not for "clean UI" — and "modern, clean,
+minimal" is not a finding, so nothing below reduces to it.
+
+## The references, and the one thing borrowed from each
+
+### The player
+
+11. **Flask.do — collaborative video review** (screen `c7137d8f-a991-4824-8ac4-92d9b566a6fe`,
+    read as an **image**). The decisive one. Its controls are **a row beneath the frame,
+    not chrome floating over the picture**: pause at the left, then `11:31 / 20:09` in
+    tabular figures, then a full-width scrubber whose played portion is the product's
+    accent. Borrowed whole, and it buys two things beyond looking designed — the controls
+    can never sit on top of the speaker's face, and they are unconditionally visible in a
+    screenshot, which is the only reason this player can be reviewed at all (see the
+    fixture note below).
+
+12. **Anam — session recording review** (screen `cf4d4dda-6b59-41ec-87b1-92cd1e747d01`,
+    read as an **image**). Cited as a **don't**: Anam is a review-a-recording screen that
+    ships the browser's own `<video controls>` in the middle of an otherwise carefully
+    designed page, and it looks exactly as unfinished there as it did on `/results`.
+    Seeing the identical mistake in a shipped product is what settled that this was worth
+    a component rather than a restyle.
+
+13. **TwelveLabs — clip result modal** (screen `a007b688-ad2d-40ea-8b74-143cd865ec31`,
+    read as **metadata**: "two-column modal: video player on the left and
+    metadata/feedback controls on the right"). Borrowed: the convention. Where a screen
+    is *a clip plus a judgement of it*, the clip goes left and the judgement right. That
+    is the arrangement `/results` now uses, and it is not a coin flip — it is what the
+    category does.
+
+### The desktop layout
+
+14. **Anam again** (same screen, image). The composition, precisely: the recording and
+    its details rail sit side by side at the top, and the **long-form generated text runs
+    full width underneath** rather than being squeezed into one of the columns. `/results`
+    is that shape — video beside the score panel, coach feedback below — because the coach
+    comments are prose, and prose in a 400px column beside a 540px video reads as a
+    leftover. Also borrowed: the short right-hand panel keeps **its own height** rather
+    than stretching to match the video (`items-start`).
+
+15. **Metaview — conversation summary** (screen `bdd91772-5ba9-4400-9ade-4184eb0afb82`,
+    read as **metadata**: "right side stacks video player, action buttons, and chat box").
+    Borrowed: **the actions belong in the narrow column, stacked under the panel they act
+    on** — not spanning the full width. A 960px-wide "Try again" is a banner, not a
+    button. This is what stopped the desktop layout from becoming a wide ribbon with a
+    wide CTA at the bottom.
+
+16. **Cursor — agents composer** (screen `47f556b0-409d-4078-9e5e-6aa39732afbf`, read as
+    an **image**). Borrowed: a writing surface stays a **bounded column on a 1440 screen**
+    — Cursor's composer is roughly 370px inside an 800px content area and never stretches.
+    That is why `.shell` stops at 40rem while only `/results` gets `.shell-wide` at 60rem.
+    Explicitly **not** borrowed: Cursor's card floats in the upper third and leaves the
+    rest of the viewport empty, which is the exact failure this task exists to fix.
+
+### The composer
+
+17. **Wabi — full-screen text composer** (screen `939ed5e8-a0b0-4670-80dd-c4fe9a7dd5ac`,
+    read as an **image**). The answer to "mostly empty on purpose and still finished". The
+    text area owns everything between the header and a hairline divider; the action sits
+    below that divider, near the bottom. The screen is ~90% blank and reads as complete
+    because the **frame** spans the full height — nothing floats in the middle of an
+    unclaimed page. Borrowed exactly: the script panel grows to consume what the header
+    and the Record button leave. No filler of any kind was added; the space went to the
+    one element the screen is about.
+
+### The accent
+
+18. **Default (`default.com`) — "Revenue-Grade Automation"** (style
+    `8bc1389b-c2a7-41e7-937c-ca8fb53c581d`, read as a **full style reference**). A
+    near-monochrome system carrying exactly one electric violet (`#5757f8`), spent on the
+    primary action and active navigation. Its own don't-list says it outright: *"Do not
+    introduce new vibrant colors outside of the Electric Violet accent."* Borrowed: the
+    rule and the hue family. **Not** the value — see the contrast table.
+
+19. **shadcn/ui** (style `c14c0a94-1037-449e-bf5b-4cb972656ac7`, read as **metadata**:
+    "black used for primary actions and emphasis, light gray for separators, and **only
+    tiny semantic accents for status cues**"). This is the answer to the hardest of the
+    four questions — how a product keeps its accent from reading as a status. It is a
+    **division of labour by size and role**, not by hue: the semantic colours stay confined
+    to small, labelled objects (a 6px bar, a badge), and the accent takes the large
+    interactive ones (the filled button, the focus ring). A user never has to ask which
+    scale a colour belongs to, because the shapes are different.
+
+20. **OpenSea** (style `2465f692-3a79-4576-970c-ee56c1e72375`, read as **metadata**: "a
+    single electric blue accent used sparingly for active states, verified markers, and
+    links"). Borrowed: the accent's job is **state and position**. That is the direct
+    reason the `/wait` progress bar, the active wait stage and the player's scrubber get
+    it, and the score bars do not.
+
+21. **Linear — product site** (style `554b801c-3b31-4086-a7e5-ae613cdd618b`, read as
+    **metadata**: "a single vivid lime accent used sparingly to draw the eye and break up
+    the monochrome scheme"). The companion to T-10022's Linear *changelog* citation, and
+    the correction to it. T-10022 read Cron/Metaview/Pipe as "near-black plus one accent →
+    therefore have no accent". Linear's own product surface makes the actual rule plain:
+    the monochrome discipline exists **so that** one accent can carry weight. Removing the
+    accent does not strengthen the discipline; it removes the thing the discipline was
+    protecting.
+
+## The direction, concretely
+
+### One accent: indigo
+
+| Token | Light | Dark | Role |
+|---|---|---|---|
+| `accent` | `#4f46e5` | `#818cf8` | the filled action, the focus ring, progress and position fills, the wordmark |
+| `accent-fg` | `#ffffff` | `#111113` | text and icons **on** an accent fill |
+| `accent-soft` | `#eef2ff` | `rgb(129 140 248 / .16)` | the tint form — the active wait stage |
+
+Indigo because it is the hue furthest from **all three** score bands at once: ≈244°
+against green 142°, amber 32°, red 0°. Teal was rejected despite being nominally open —
+it is the closest open hue to `good`, and "is that green or is that the brand?" is the
+one question this decision exists to prevent. In dark the accent is a *lighter, less
+saturated* step, for the same reason `warn-fg` is (`#fbbf24`, not a mid-amber): a
+mid-indigo vibrates on near-black.
+
+**Measured, in the context each value is actually used in** — T-10022's lesson was that
+`amber-700` passes on white at 4.99:1 and fails at 4.45:1 in the place it is really used,
+so a bare against-the-canvas number proves nothing.
+
+| Use | Needs | Light | Dark |
+|---|---|---|---|
+| `accent-fg` on an accent fill — the Record it / Try again label | 4.5:1 | **6.29** | **6.32** |
+| `accent` as text on `surface` | 4.5:1 | **6.29** | **6.17** |
+| `accent` as text on `canvas` — the wordmark | 4.5:1 | **5.82** | **6.60** |
+| `accent` fill against `track` — the scrubber, the wait bar | 3:1 | **4.96** | **4.79** |
+| `accent` focus ring against `canvas` | 3:1 | **5.82** | **6.60** |
+| `accent` border against `surface` — the composer's focused frame | 3:1 | **6.29** | **6.17** |
+| `accent` border on `accent-soft` against `canvas` — the active wait stage | 3:1 | **5.82** | **6.60** |
+| `fg` text on `accent-soft` — the active wait stage's label | 4.5:1 | **15.84** | **14.61** |
+
+Nothing is below its threshold. The active wait stage's border started at `accent/30`,
+which measures 1.63:1 (light) / 2.01:1 (dark) — no worse than the existing
+`border-line-strong` at 1.41:1, and the row is identified by its tint, its type size and
+its spinner rather than by its outline, so it would not have been a violation. It was
+taken to full strength anyway because the number was free.
+
+Default's own `#5757f8` was **not** adopted: it measures 4.47:1 against `surface`, which
+clears the bar for a button label but leaves no margin at all for the wordmark on
+`canvas`. `#4f46e5` is one step darker in the same hue.
+
+### Where the accent is allowed — the whole rule
+
+**The accent marks PitchMi acting.** Three categories, and nothing else:
+
+1. **Identity** — the `PitchMi` wordmark eyebrow on `/` and `/wait`.
+2. **The one action** — the single filled `Button` on a screen, and the focus ring that
+   follows the user around every control (including the composer's `focus-within` frame,
+   which is the same statement made by a border).
+3. **Progress and position** — the `/wait` hairline bar and its active stage, and the
+   player's scrubber.
+
+Never on a score bar, a dimension value, a flag badge, the `AdSlot`, or the karaoke Stop
+control (`danger` is scheme-independent by design and stays that way). A
+`grep -oE '\-accent'` over `src/app` and `src/components` returns exactly those call sites
+and no others; that grep is the enforcement.
+
+**Consequence, recorded:** the `Button` `default` variant moved from `bg-primary`
+(near-black) to `bg-accent`. The T-10022 discipline is intact — still at most one filled
+button per screen, still never a score colour — and `results.test.tsx` was **rewritten to
+its intent, not deleted**. See `docs/STATUS.md`.
+
+### The two content widths
+
+Declared once, in `globals.css`, as `.shell` and `.shell-wide`:
+
+| Class | < `lg` | ≥ `lg` | Used by |
+|---|---|---|---|
+| `.shell` | 32rem | **40rem** | `/`, `/wait` — anything that is a single column of reading or writing |
+| `.shell-wide` | 32rem | **60rem** | `/results`, `/videos` — the screens that become a real grid |
+
+32rem below `lg` is the previous `max-w-lg` exactly, so no phone layout moved. They are
+plain CSS classes rather than `@theme` container tokens because tailwind-merge has no
+`maxWidth` theme key to extend, so a custom `max-w-*` token would sit outside `cn()`'s
+conflict resolution — the same class of trap that produced T-10022's invisible-text bug.
+Add a third width there if a screen genuinely needs one; do not scatter `max-w-*` literals
+back across the screens.
+
+### `/results` on a desktop
+
+One grid, `lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]`, and **DOM order is visual
+order** in both layouts:
+
+```
+< lg                    >= lg
+─────────────           ────────────────────────────
+heading                 heading  (spans both)
+video                   video          | score panel
+score panel             coach feedback | actions
+coach feedback
+actions
+```
+
+The mobile stack is the order it always was, so reading order and focus order never
+diverge from the phone. The score panel goes back to a **single** column at `lg`
+(`lg:grid-cols-1`) — from `sm` it puts the number beside the bars, but at `lg` it is no
+longer the full width of the screen, it is the ~400px right-hand column, and the 48px
+number and five bars do not both fit across that.
+
+Proved by `tests-layout/desktop-layout.spec.ts`, not by eye: at 1440×900 the video and
+the score panel must have **overlapping vertical ranges and non-overlapping horizontal
+ranges**, and at 390×844 exactly the opposite. A stack passes the first half of that and
+fails the second, which is the point. 1024×768 — the `lg` breakpoint itself, where the
+second column appears in the same frame the container stops growing — is asserted too, and
+so is zero horizontal overflow at 360px on every screen.
+
+### The composer
+
+`min-h-screen` flex column → the `.shell` wrapper takes `flex-1` → the script section
+takes `flex-1` → the panel takes `flex-1` → the textarea is `absolute inset-0` inside it.
+Top-alignment on a phone is unchanged and still deliberate (a vertically centred
+composition fights the on-screen keyboard); what went is the `sm:justify-center` that used
+to centre it on wider screens, because the screen no longer needs centring — it no longer
+ends early. Measured at ≥ 80% of the viewport height at both 390×844 and 1440×900, with a
+second assertion that more than half of that height went to the **textarea** rather than
+to padding, because "fix the fill with whitespace" is the obvious wrong way to pass.
+
+`absolute inset-0` rather than `h-full`, for two reasons: a percentage height against a
+flex item stays `auto` here so `rows={8}` was winning, and — more importantly — it makes
+the textarea and the over-length mirror **literally the same rectangle** instead of two
+boxes that happen to agree.
+
+That mirror is still the most fragile thing on the screen, and it is now proved by
+`tests-layout/mirror-align.spec.ts` rather than by hand. `TEXT_BOX` is unchanged. The test
+builds a probe layer carrying the **textarea's own computed typography**, fills it with
+the same head/tail split, and asserts the probe's tail box and the mirror's tail box agree
+within a pixel — at 360×640 and 390×844, in English and Hebrew, over a tail wrapping 8+
+lines, plus a direct equality check on all 26 computed properties that can move a glyph.
+It was verified to fail rather than assumed to work: adding `tracking-wide` to one layer
+alone reports `"letterSpacing"` by name.
+
+### The player's RTL decision
+
+The control row is `dir="ltr"` and **stays that way in Hebrew**. The scrubber is a picture
+of *time*, and time in a 30-second take runs left to right for every speaker of every
+language; mirroring it would put "the end of the take" where every other video player on
+the device puts the beginning. There is no language-shaped text on that row — it is a
+clock. Every other new layout uses logical properties (`ps-*`/`pe-*`/`border-s`/`text-end`)
+exactly as the existing code does.
+
+### The fixture blob is a requirement, not an edge case
+
+`/dev/ui/[screen]` seeds a `Blob(["fixture"], { type: "video/webm" })`, which is not a
+decodable video: `loadedmetadata` never fires and `duration` is `NaN` forever. The player
+renders its full control layout in that state and shows `0:00`. **That is what makes the
+screenshot review possible at all** — a control that is invisible in a PNG cannot be
+reviewed, and reviewing PNGs is how this product's UI gets judged. The same code path
+covers the two real states: `duration === Infinity` (a MediaRecorder/WebM quirk our own
+takes hit routinely until seeked) and a scrub attempt before metadata, which is a no-op
+rather than a throw. All three are unit-tested.
+
+## Deliberately not changed
+
+- **`/karaoke`, in full.** Its layout, its `.scheme-dark` pinning, and its Stop control.
+  The accent is **not** applied there: `danger` is scheme-independent by design.
+- **`Prompter.tsx`, `useRecorder.ts`, the karaoke clock, every `lib/` constant.** Zero-line
+  diffs. `prompter-rtl.spec.ts` passes untouched.
+- **The `Button` and `Badge` variant names and size names.** Five screens call them by
+  name. `Badge`'s `default` variant keeps `bg-primary` — a badge is a status object and
+  must never be able to wear the brand colour.
+- **`--color-primary`.** It still exists and still means near-black-on-light. It is now
+  used only by `Badge` `default` and the wait check mark's glyph colour; it was not
+  deleted, because "the near-black fill" is a real role a future non-brand-coloured filled
+  surface will want.
+- **The type scale, the two radii, the no-shadow policy, the dark-scheme model, the
+  typeface pairing.** All T-10022, all still correct.
+- **`AdSlot` behaviour**, and `/admin` and `/dev/prompter-layout` (internal tools).
+- **The `/videos` playback modal's native `controls`.** It plays a *saved* take from a
+  signed URL inside a dark overlay, which is a different object from the take under
+  review; swapping it was not asked for and would have been scope the task ruled out.
+
+## Proposals for follow-up (not implemented here)
+
+- `FU-VIDEOS-PLAYER` — reuse `VideoPlayer` in the `/videos` playback modal, so the product
+  has exactly one player. It needs the component to accept `autoPlay` and to sit on the
+  `.scheme-dark` overlay, both small.
+- `FU-RESULTS-DESKTOP-DENSITY` — at 1440 the second grid row leaves real empty space below
+  the actions column. The honest fix is more content (see `FU-SCORE-CONTEXT` and
+  `FU-RESULTS-SCORE-HISTORY` from T-10022), not a taller button.

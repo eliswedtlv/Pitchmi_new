@@ -24,6 +24,9 @@
   --l-fg-subtle: #676a71;
   --l-primary: #18181b;
   --l-primary-fg: #fafafa;
+  --l-accent: #4f46e5;
+  --l-accent-fg: #ffffff;
+  --l-accent-soft: #eef2ff;
   --l-good: #16a34a;
   --l-good-fg: #15803d;
   --l-good-soft: #dcfce7;
@@ -46,6 +49,9 @@
   --d-fg-subtle: #83868e;
   --d-primary: #f4f4f5;
   --d-primary-fg: #111113;
+  --d-accent: #818cf8;
+  --d-accent-fg: #111113;
+  --d-accent-soft: rgb(129 140 248 / 0.16);
   --d-good: #22c55e;
   --d-good-fg: #4ade80;
   --d-good-soft: rgb(34 197 94 / 0.15);
@@ -74,6 +80,17 @@
   --color-fg-subtle: var(--l-fg-subtle);
   --color-primary: var(--l-primary);
   --color-primary-fg: var(--l-primary-fg);
+
+  /* The one brand accent (T-10024). Indigo, chosen because it is the hue
+     furthest from all three score bands at once (≈244° against green 142°,
+     amber 32°, red 0°) — it can never be misread as a score. Light `#4f46e5`
+     measures 6.29:1 on `surface` and 5.82:1 on `canvas` as text, 6.29:1 with
+     white on it as a fill, and 4.96:1 against `track` as a scrubber fill; dark
+     `#818cf8` measures 6.17 / 6.60 / 6.32 / 4.79 for the same four cases. It is
+     spent on exactly three things — see docs/design-direction.md §T-10024. */
+  --color-accent: var(--l-accent);
+  --color-accent-fg: var(--l-accent-fg);
+  --color-accent-soft: var(--l-accent-soft);
   --color-good: var(--l-good);
   --color-good-fg: var(--l-good-fg);
   --color-good-soft: var(--l-good-soft);
@@ -137,6 +154,9 @@
     --color-fg-subtle: var(--d-fg-subtle);
     --color-primary: var(--d-primary);
     --color-primary-fg: var(--d-primary-fg);
+    --color-accent: var(--d-accent);
+    --color-accent-fg: var(--d-accent-fg);
+    --color-accent-soft: var(--d-accent-soft);
     --color-good: var(--d-good);
     --color-good-fg: var(--d-good-fg);
     --color-good-soft: var(--d-good-soft);
@@ -167,6 +187,9 @@
   --color-fg-subtle: var(--d-fg-subtle);
   --color-primary: var(--d-primary);
   --color-primary-fg: var(--d-primary-fg);
+  --color-accent: var(--d-accent);
+  --color-accent-fg: var(--d-accent-fg);
+  --color-accent-soft: var(--d-accent-soft);
   --color-good: var(--d-good);
   --color-good-fg: var(--d-good-fg);
   --color-good-soft: var(--d-good-soft);
@@ -187,6 +210,40 @@ body {
    the seconds estimate — so digits don't jitter as they change. */
 .nums {
   font-variant-numeric: tabular-nums;
+}
+
+/* The two content widths (T-10024), declared ONCE. Before this every screen
+   carried its own `max-w-lg mx-auto`, so at 1440 the whole product was a 512px
+   phone column with two thirds of the viewport left as bare canvas.
+
+   `.shell` is the reading/writing column — 32rem (the phone width, unchanged)
+   growing to 40rem from `lg`, which is as wide as a line of body copy or a
+   script textarea should ever get. `.shell-wide` is for the ONE screen that
+   becomes a genuine two-column composition on a desktop, `/results`: 32rem
+   below `lg`, 60rem above it.
+
+   Written as plain classes rather than `@theme` container tokens on purpose —
+   tailwind-merge has no `maxWidth` theme key to extend, so a custom `max-w-*`
+   token would sit outside its conflict resolution (see lib/utils.ts). Add a
+   third width here only if a screen genuinely needs one; do not scatter
+   `max-w-*` literals back across the screens. */
+.shell {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 32rem;
+}
+.shell-wide {
+  width: 100%;
+  margin-inline: auto;
+  max-width: 32rem;
+}
+@media (min-width: 64rem) {
+  .shell {
+    max-width: 40rem;
+  }
+  .shell-wide {
+    max-width: 60rem;
+  }
 }
 
 /* Safe-area helpers — keep bottom CTAs clear of the iOS Safari toolbar / home
@@ -223,10 +280,59 @@ body {
   transition: width 700ms ease-out;
 }
 
+/* The take player's scrubber (T-10024). A native `<input type="range">`, so
+   arrow-key seeking, the a11y role and the value announcement all come for
+   free; only the paint is ours. The played portion is the brand accent — one of
+   the three things the accent is spent on — and it is driven by a `--played`
+   custom property set inline from React rather than by a second element, so the
+   track and the fill can never disagree about where the playhead is.
+
+   Both vendor thumb rules are needed verbatim: a single selector list
+   containing an unknown pseudo-element is dropped whole by every engine. */
+.player-scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 0.375rem;
+  border-radius: 9999px;
+  background: linear-gradient(
+    to right,
+    var(--color-accent) 0,
+    var(--color-accent) var(--played, 0%),
+    var(--color-track) var(--played, 0%),
+    var(--color-track) 100%
+  );
+  cursor: pointer;
+}
+.player-scrubber:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.player-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 0.875rem;
+  width: 0.875rem;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-surface);
+}
+.player-scrubber::-moz-range-thumb {
+  height: 0.875rem;
+  width: 0.875rem;
+  border-radius: 9999px;
+  background: var(--color-accent);
+  border: 2px solid var(--color-surface);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ring-pulse { animation: none; }
   .progress-fill { transition: none; }
   /* The wait screen's active-stage spinner. Tailwind's animate-spin does not
      opt out of reduced motion on its own. */
   .animate-spin { animation: none; }
+  /* The take player (T-10024) deliberately has no auto-hide and no motion of
+     its own — the controls are a static row under the frame, so they are
+     readable in a screenshot and there is nothing to fade. What is left are the
+     hover transitions on its two icon buttons; they go too. */
+  .player-controls * { transition: none !important; }
 }
