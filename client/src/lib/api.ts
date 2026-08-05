@@ -56,6 +56,30 @@ export async function getAd(): Promise<AdConfig> {
   return handleResponse(res)
 }
 
+// ── Consent & privacy ─────────────────────────────────────────────────────
+
+export async function recordConsent(version: string): Promise<void> {
+  const headers = await authHeaders()
+  const res = await fetch(`${BASE}/api/consent`, {
+    method: "POST",
+    headers: { ...headers, "Content-Type": "application/json" },
+    body: JSON.stringify({ version }),
+  })
+  await handleResponse(res)
+}
+
+export async function deleteMyData(): Promise<void> {
+  const headers = await authHeaders()
+  const res = await fetch(`${BASE}/api/me`, {
+    method: "DELETE",
+    headers,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "unknown" }))
+    throw Object.assign(new Error(errorMessage(body)), { status: res.status, body })
+  }
+}
+
 // ── Projects ───────────────────────────────────────────────────────────────
 
 export interface Project {
@@ -244,6 +268,18 @@ export async function getTakeUrl(takeId: string): Promise<{ url: string }> {
   const headers = await authHeaders()
   const res = await fetch(`${BASE}/api/takes/${takeId}/url`, { headers })
   return handleResponse(res)
+}
+
+export async function deleteTake(takeId: string): Promise<void> {
+  const headers = await authHeaders()
+  const res = await fetch(`${BASE}/api/takes/${takeId}`, {
+    method: "DELETE",
+    headers,
+  })
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: "unknown" }))
+    throw Object.assign(new Error(errorMessage(body)), { status: res.status, body })
+  }
 }
 
 // ── Admin ──────────────────────────────────────────────────────────────────

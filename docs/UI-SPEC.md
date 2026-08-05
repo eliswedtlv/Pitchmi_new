@@ -157,7 +157,7 @@ Hierarchy:
 2. Editorial promise and concrete explanation.
 3. Script editor with timing state.
 4. Record action.
-5. Quiet proof: 30 seconds, no signup, nothing saved.
+5. Quiet proof: 30 seconds, no login, take video not retained.
 
 Desktop: an asymmetric split. The left side holds product promise and trust; the right side is a tall script deck with a compact utility header and footer. The split should fill the viewport without looking like a marketing landing page.
 
@@ -168,6 +168,7 @@ States:
 - Empty: purposeful prompt and disabled action.
 - Writing: live time estimate.
 - Over length: only the estimated overflow and tail receive warning treatment.
+- Consent required: the editor body yields to a focused inline consent form; it never becomes a generic modal or squeezes the typed script into an overlapping strip.
 - Submitting: action says “Setting up…” and remains in place.
 - Error: inline below the action with a direct explanation.
 
@@ -204,6 +205,16 @@ Composition:
 - If an ad exists, it is secondary and visually separated from product progress.
 
 Error: stop the motion, replace the central message with the failure and one recovery action, and keep the brand/studio context.
+
+### Privacy and consent `/privacy`
+
+User intent: understand the real data flow and exercise control without creating an account.
+
+- The page uses the same editorial hierarchy as the studio, with plain operational language instead of legal-wall styling.
+- It distinguishes the private stored script and metadata from the ephemeral take media.
+- It names the external processing categories/providers.
+- Data erasure is visible, deliberately destructive, and requires a second confirmation.
+- Successful deletion confirms that both server data and the browser’s anonymous session were removed.
 
 ### Results `/results`
 
@@ -262,6 +273,14 @@ Internal and secondary. It should inherit typography, tokens, button treatment, 
 - Textarea and over-length mirror remain pixel-identical in font, padding, line height, width, and scroll position.
 - The utility header names the object (“SCRIPT”) and constraint (“30 SEC MAX”).
 - Footer shows the estimate and privacy note.
+
+### Consent form
+
+- Appears only after the user has written a script and chosen Record.
+- Accepts any non-empty name or initials up to 80 characters.
+- Explains that the typed entry stays on the device.
+- Requires an unchecked-by-default explicit processing/age/permission statement.
+- The filled action records the server receipt before creating a project or requesting camera access.
 
 ### Score summary
 

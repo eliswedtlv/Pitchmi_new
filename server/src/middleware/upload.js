@@ -29,7 +29,13 @@ const ALLOWED_MIME = new Set([
 
 module.exports = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: config.MAX_UPLOAD_MB * 1024 * 1024 },
+  limits: {
+    fileSize: config.MAX_UPLOAD_MB * 1024 * 1024,
+    files: 1,
+    fields: 4,
+    parts: 5,
+    fieldSize: 16 * 1024
+  },
   fileFilter (req, file, cb) {
     const mime = String(file.mimetype || '').split(';')[0].trim().toLowerCase()
     if (ALLOWED_MIME.has(mime)) return cb(null, true)

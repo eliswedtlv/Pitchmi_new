@@ -18,4 +18,15 @@ router.get('/takes/:id/url', auth, async (req, res, next) => {
   }
 })
 
+// DELETE /api/takes/:id — removes both the private object and its DB row.
+router.delete('/takes/:id', auth, async (req, res, next) => {
+  try {
+    const deleted = await db.deleteSavedTake(req.params.id, req.userId)
+    if (!deleted) return res.status(404).json({ error: 'take_not_found' })
+    res.status(204).end()
+  } catch (err) {
+    next(err)
+  }
+})
+
 module.exports = router

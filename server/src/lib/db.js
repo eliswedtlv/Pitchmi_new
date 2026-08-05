@@ -45,6 +45,14 @@ async function logEvent (evt) {
   }
 }
 
+async function recordConsent (userId, action) {
+  const { error } = await sb().from('events').insert({
+    user_id: userId,
+    action
+  })
+  if (error) throw error
+}
+
 async function countEvaluationsToday (userId) {
   const start = new Date()
   start.setUTCHours(0, 0, 0, 0)
@@ -56,6 +64,18 @@ async function countEvaluationsToday (userId) {
     .gte('ts', start.toISOString())
   if (error) throw error
   return count || 0
+}
+
+async function hasEvent (userId, action) {
+  const { data, error } = await sb()
+    .from('events')
+    .select('id')
+    .eq('user_id', userId)
+    .eq('action', action)
+    .limit(1)
+    .maybeSingle()
+  if (error) throw error
+  return !!data
 }
 
 async function queryEvents ({ from, to, action, user, limit = 100, offset = 0 }) {
@@ -138,11 +158,64 @@ async function signVideoUrl (storagePath, expiresSec = 3600) {
   return data.signedUrl
 }
 
+async function deleteSavedTake (id, userId) {
+  const take = await getSavedTake(id, userId)
+  if (!take) return false
+
+  const { error: storageError } = await sb().storage
+    .from(config.STORAGE_BUCKET)
+    .remove([take.storage_path])
+  if (storageError) throw storageError
+
+  const { error } = await sb()
+    .from('saved_takes')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+  if (error) throw error
+  return true
+}
+
+async function deleteUserData (userId) {
+  const paths = []
+  const pageSize = 1000
+  for (let from = 0; ; from += pageSize) {
+    const { data, error } = await sb()
+      .from('saved_takes')
+      .select('storage_path')
+      .eq('user_id', userId)
+      .range(from, from + pageSize - 1)
+    if (error) throw error
+    const rows = data || []
+    paths.push(...rows.map(row => row.storage_path).filter(Boolean))
+    if (rows.length < pageSize) break
+  }
+
+  // Storage remove accepts arrays, but small batches keep the request bounded
+  // for a long-lived anonymous browser.
+  for (let i = 0; i < paths.length; i += 100) {
+    const { error } = await sb().storage
+      .from(config.STORAGE_BUCKET)
+      .remove(paths.slice(i, i + 100))
+    if (error) throw error
+  }
+
+  for (const table of ['saved_takes', 'projects', 'events']) {
+    const { error } = await sb().from(table).delete().eq('user_id', userId)
+    if (error) throw error
+  }
+
+  const { error } = await sb().auth.admin.deleteUser(userId)
+  if (error) throw error
+}
+
 module.exports = {
   getServiceEnabled,
   setServiceEnabled,
   logEvent,
+  recordConsent,
   countEvaluationsToday,
+  hasEvent,
   queryEvents,
   eventsForAggregates,
   createProject,
@@ -151,5 +224,7 @@ module.exports = {
   uploadVideo,
   insertSavedTake,
   getSavedTake,
-  signVideoUrl
+  signVideoUrl,
+  deleteSavedTake,
+  deleteUserData
 }

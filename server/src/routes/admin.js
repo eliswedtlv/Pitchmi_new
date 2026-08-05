@@ -4,6 +4,7 @@ const express = require('express')
 const crypto = require('crypto')
 const config = require('../config')
 const requireAdmin = require('../middleware/admin')
+const trustedOrigin = require('../middleware/trustedOrigin')
 const surge = require('../middleware/surge')
 const rateLimit = require('../middleware/rateLimit')
 const db = require('../lib/db')
@@ -11,6 +12,11 @@ const db = require('../lib/db')
 const router = express.Router()
 
 const COOKIE_MAX_AGE = 12 * 60 * 60 * 1000 // 12h
+
+function requireJson (req, res, next) {
+  if (req.is('application/json')) return next()
+  return res.status(415).json({ error: 'json_required' })
+}
 
 // Constant-time password check (T-10010). `!==` short-circuits on the first
 // differing byte, which is observable over enough requests. Compare SHA-256
@@ -25,7 +31,7 @@ function passwordMatches (candidate) {
 }
 
 // POST /api/admin/login — password -> signed httpOnly cookie.
-router.post('/admin/login', rateLimit.adminLogin, express.json(), (req, res) => {
+router.post('/admin/login', trustedOrigin, requireJson, rateLimit.adminLogin, (req, res) => {
   const { password } = req.body || {}
   const ok = passwordMatches(password)
   // Metadata only (privacy rule): the outcome, never the password or the IP.
@@ -50,8 +56,8 @@ router.post('/admin/login', rateLimit.adminLogin, express.json(), (req, res) => 
 router.get('/admin/logs', requireAdmin, async (req, res, next) => {
   try {
     const { from, to, action, user } = req.query
-    const limit = Math.min(parseInt(req.query.limit, 10) || 100, 500)
-    const offset = parseInt(req.query.offset, 10) || 0
+    const limit = Math.max(1, Math.min(parseInt(req.query.limit, 10) || 100, 500))
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0)
     const rows = await db.queryEvents({ from, to, action, user, limit, offset })
     res.status(200).json({ events: rows, limit, offset })
   } catch (err) {
@@ -62,7 +68,7 @@ router.get('/admin/logs', requireAdmin, async (req, res, next) => {
 // GET /api/admin/aggregates?days=30 — per-day rollup.
 router.get('/admin/aggregates', requireAdmin, async (req, res, next) => {
   try {
-    const days = Math.min(parseInt(req.query.days, 10) || 30, 365)
+    const days = Math.max(1, Math.min(parseInt(req.query.days, 10) || 30, 365))
     const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
     const rows = await db.eventsForAggregates(since)
     res.status(200).json({ days, aggregates: rollup(rows) })
@@ -72,7 +78,7 @@ router.get('/admin/aggregates', requireAdmin, async (req, res, next) => {
 })
 
 // POST /api/admin/service — re-arm / disarm the kill switch.
-router.post('/admin/service', requireAdmin, express.json(), async (req, res, next) => {
+router.post('/admin/service', trustedOrigin, requireJson, requireAdmin, async (req, res, next) => {
   try {
     const enabled = req.body && req.body.enabled === true
     await db.setServiceEnabled(enabled)

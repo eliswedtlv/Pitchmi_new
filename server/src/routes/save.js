@@ -3,15 +3,17 @@
 const express = require('express')
 const { randomUUID } = require('crypto')
 const auth = require('../middleware/auth')
+const consent = require('../middleware/consent')
 const upload = require('../middleware/upload')
 const rateLimit = require('../middleware/rateLimit')
 const db = require('../lib/db')
+const { sniffContainer } = require('../lib/audio')
 
 const router = express.Router()
 
 // POST /api/save — multipart { video, project_id, scores }.
 // The ONLY path that persists a video: upload to Storage, insert saved_takes.
-router.post('/save', rateLimit.save, auth, upload.single('video'), async (req, res, next) => {
+router.post('/save', rateLimit.save, auth, consent, upload.single('video'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'missing_video' })
     const projectId = req.body.project_id
@@ -26,9 +28,13 @@ router.post('/save', rateLimit.save, auth, upload.single('video'), async (req, r
     }
     const durationS = req.body.duration_s ? Number(req.body.duration_s) : null
 
+    const container = sniffContainer(req.file.buffer)
+    if (!container) return res.status(415).json({ error: 'unsupported_media_type' })
+    const contentType = container === 'mp4' ? 'video/mp4' : 'video/webm'
+
     const storageTakeId = randomUUID()
-    const storagePath = `${req.userId}/${storageTakeId}.webm`
-    await db.uploadVideo(storagePath, req.file.buffer, req.file.mimetype || 'video/webm')
+    const storagePath = `${req.userId}/${storageTakeId}.${container}`
+    await db.uploadVideo(storagePath, req.file.buffer, contentType)
 
     const take = await db.insertSavedTake({
       projectId,

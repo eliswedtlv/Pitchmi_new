@@ -2,15 +2,23 @@
 
 Write a script for a short spoken video (≤ 30s), rehearse it on camera against a timed **karaoke teleprompter**, and get sharp coaching on **delivery**—voice, body language, timing, and accuracy, never *what* you say. Every take re-times the next rehearsal to your measured speaking pace. Repeat until it lands, then share or download through the operating system.
 
-No signup. A Supabase **anonymous** identity is created per device on first load.
+No signup. A Supabase **anonymous** identity is created per device when the user
+accepts the recording/AI-processing notice.
 
-> ⚠️ **Privacy first:** take videos are processed in memory / temp files and **discarded** after transcription and evaluation. Nothing is stored in the cloud unless you explicitly hit **Save to cloud**. Operational logs contain metadata and numeric scores only — never your video, transcript, or feedback text.
+> ⚠️ **Privacy first:** the script is stored in a private project tied to the
+> browser’s anonymous identity. Take videos are processed in memory / temp files
+> and **discarded** after transcription and evaluation; normal rehearsal does
+> not write them to cloud storage unless the user explicitly saves a take.
+> Saved takes remain private and can be deleted. Operational logs contain consent/version
+> metadata and numeric diagnostics only — never video, transcript, typed
+> acknowledgement, or feedback text. `/privacy` explains the flow and lets the
+> current browser permanently erase its data and anonymous account.
 
 ## Monorepo layout
 
 ```
 Pitchmi_new/
-  client/   # Next.js 15 (App Router, TS strict, Tailwind v4, shadcn/ui)
+  client/   # Next.js 16 (App Router, TS strict, Tailwind v4, shadcn/ui)
   server/   # Express 4 API (JavaScript, StandardJS style)
   docs/     # STATUS.md, TASKS.md, specs
 ```
@@ -64,8 +72,10 @@ cd server && npx jest          # unit + integration (mocked external APIs)
 cd server && npx standard      # lint
 
 # Frontend
+cd client && npm run typecheck # strict TypeScript check
 cd client && npm run build     # must exit 0
-cd client && npx vitest run    # unit tests
+cd client && npm test          # unit tests
+cd client && npm run test:layout # responsive Playwright checks
 ```
 
 External-API integration (real Scribe / OpenRouter) is not run in CI. When keys are present:
@@ -85,4 +95,5 @@ Two services from this monorepo:
 
 - `docs/cc-goal-pitchmi-v1.md` — the v1 build spec.
 - `docs/pitchmi-v2-spec.md` — v2 product spec (feed, leaderboards, identity).
+- `docs/SECURITY-AUDIT-2026-08-05.md` — production consent/security release review.
 - `docs/STATUS.md` — current state. `docs/TASKS.md` — backlog.

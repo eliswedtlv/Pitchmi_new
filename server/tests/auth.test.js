@@ -38,6 +38,8 @@ async function es256Token (key, { sub = 'user-1', ttl = 3600 } = {}) {
   return new jose.SignJWT({ role: 'authenticated' })
     .setProtectedHeader({ alg: 'ES256', kid: 'test-kid' })
     .setSubject(sub)
+    .setIssuer('https://example.supabase.co/auth/v1')
+    .setAudience('authenticated')
     .setIssuedAt(now - 10)
     .setExpirationTime(now + ttl)
     .sign(key)
@@ -72,6 +74,20 @@ test('ES256 token signed with a wrong key is rejected (401)', async () => {
 
 test('expired ES256 token is rejected (401)', async () => {
   const token = await es256Token(privateKey, { ttl: -3600 })
+  const result = await invoke(token)
+  expect(result.status).toBe(401)
+})
+
+test('ES256 token from the wrong issuer is rejected (401)', async () => {
+  const now = Math.floor(Date.now() / 1000)
+  const token = await new jose.SignJWT({ role: 'authenticated' })
+    .setProtectedHeader({ alg: 'ES256', kid: 'test-kid' })
+    .setSubject('user-1')
+    .setIssuer('https://evil.example/auth/v1')
+    .setAudience('authenticated')
+    .setIssuedAt(now)
+    .setExpirationTime(now + 3600)
+    .sign(privateKey)
   const result = await invoke(token)
   expect(result.status).toBe(401)
 })

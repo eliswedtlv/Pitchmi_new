@@ -5,11 +5,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // server seeds a karaoke path from it, and the first take is recorded straight
 // away — no improvise-first take, no upload-a-video path.
 //
-// T-1170 §B4: with Save-to-cloud removed nothing writes to storage, so the
-// "My saved videos" entry point stays hidden.
+// The dormant saved-takes library is intentionally not linked from the main
+// composition, so "My saved videos" stays hidden here.
 
 const h = vi.hoisted(() => ({
   push: vi.fn(),
+  recordConsent: vi.fn(),
   createProject: vi.fn(),
   saveScript: vi.fn(),
   setProject: vi.fn(),
@@ -20,6 +21,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }))
 vi.mock("@/lib/api", () => ({
+  recordConsent: h.recordConsent,
   createProject: h.createProject,
   saveScript: h.saveScript,
 }))
@@ -46,6 +48,15 @@ const recordButton = () => screen.getByRole("button", { name: /record it/i })
 beforeEach(() => {
   vi.clearAllMocks()
   h.script = ""
+  window.localStorage.setItem(
+    "pitchmi.consent",
+    JSON.stringify({
+      version: "2026-08-05",
+      acknowledgedAs: "Test",
+      acceptedAt: "2026-08-05T00:00:00.000Z",
+    }),
+  )
+  h.recordConsent.mockResolvedValue(undefined)
   h.createProject.mockResolvedValue({ id: "p1" })
   h.saveScript.mockResolvedValue(SEED)
 })
@@ -75,7 +86,7 @@ describe("HomePage — the script screen", () => {
   it("shows the rehearsal-studio promise and the 30-second format", () => {
     render(<HomePage />)
     expect(screen.getByText(/say it like/i)).toBeTruthy()
-    expect(screen.getByText(/30 seconds · no signup/i)).toBeTruthy()
+    expect(screen.getByText(/30 seconds · no login/i)).toBeTruthy()
     expect(screen.queryByText(/perfect your spoken video in minutes/i)).toBeNull()
   })
 
@@ -112,6 +123,27 @@ describe("HomePage — the script screen", () => {
     })
   })
 
+  it("records explicit consent before creating the first project", async () => {
+    window.localStorage.removeItem("pitchmi.consent")
+    render(<HomePage />)
+    fireEvent.change(textarea(), { target: { value: "we are building a tool for founders" } })
+    fireEvent.click(recordButton())
+
+    expect(screen.getByRole("form", { name: /recording and ai processing consent/i })).toBeTruthy()
+    expect(h.createProject).not.toHaveBeenCalled()
+
+    fireEvent.change(screen.getByLabelText(/name or initials/i), { target: { value: "E.W." } })
+    fireEvent.click(screen.getByRole("checkbox"))
+    fireEvent.click(screen.getByRole("button", { name: /agree & continue/i }))
+
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/karaoke"))
+    expect(h.recordConsent).toHaveBeenCalledWith("2026-08-05")
+    expect(h.recordConsent.mock.invocationCallOrder[0]).toBeLessThan(
+      h.createProject.mock.invocationCallOrder[0],
+    )
+    expect(window.localStorage.getItem("pitchmi.consent")).toContain("E.W.")
+  })
+
   it("surfaces a server rejection instead of navigating", async () => {
     h.saveScript.mockRejectedValue(new Error("Write at least a few words before you record."))
 
@@ -120,6 +152,25 @@ describe("HomePage — the script screen", () => {
     fireEvent.click(recordButton())
 
     await waitFor(() => expect(screen.getByText(/at least a few words/i)).toBeTruthy())
+    expect(h.push).not.toHaveBeenCalled()
+  })
+
+  it("asks again when local consent belongs to an expired anonymous identity", async () => {
+    h.createProject.mockRejectedValue(
+      Object.assign(new Error("consent_required"), {
+        status: 403,
+        body: { error: "consent_required" },
+      }),
+    )
+
+    render(<HomePage />)
+    fireEvent.change(textarea(), { target: { value: "we are building a tool for founders" } })
+    fireEvent.click(recordButton())
+
+    await waitFor(() => {
+      expect(screen.getByRole("form", { name: /recording and ai processing consent/i })).toBeTruthy()
+    })
+    expect(window.localStorage.getItem("pitchmi.consent")).toBeNull()
     expect(h.push).not.toHaveBeenCalled()
   })
 

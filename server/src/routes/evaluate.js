@@ -2,6 +2,7 @@
 
 const express = require('express')
 const auth = require('../middleware/auth')
+const consent = require('../middleware/consent')
 const upload = require('../middleware/upload')
 const rateLimit = require('../middleware/rateLimit')
 const db = require('../lib/db')
@@ -29,7 +30,7 @@ const EVAL_MAX_BYTES = 18 * 1024 * 1024
 // POST /api/evaluate — multipart { video, project_id }.
 // Daily cap -> Scribe(new take) -> timing/accuracy scoring -> AI delivery eval
 // -> combined §9 result. Video bytes are discarded after the response.
-router.post('/evaluate', rateLimit.evaluate, auth, upload.single('video'), async (req, res) => {
+router.post('/evaluate', rateLimit.evaluate, auth, consent, upload.single('video'), async (req, res) => {
   const started = Date.now()
   const deadline = started + EVAL_DEADLINE_MS
   const projectId = req.body.project_id
@@ -232,7 +233,7 @@ router.post('/evaluate', rateLimit.evaluate, auth, upload.single('video'), async
     if (isBadMedia) return res.status(415).json({ error: 'unsupported_media_type' })
     // Match the global error handler's 500 shape, but respond here so the row
     // above (with timings) is the single logged event for this request.
-    return res.status(500).json({ error: 'server_error', message: err && err.message })
+    return res.status(500).json({ error: 'server_error' })
   }
 })
 

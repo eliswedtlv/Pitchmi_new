@@ -39,6 +39,8 @@ function make ({ windowMs, max, error, route }) {
 
 module.exports = {
   adminLogin: make({ windowMs: 15 * MINUTE, max: 10, error: 'too_many_attempts', route: '/api/admin/login' }),
+  consent: make({ windowMs: HOUR, max: 20, error: 'rate_limited', route: '/api/consent' }),
+  deleteAccount: make({ windowMs: HOUR, max: 5, error: 'rate_limited', route: '/api/me' }),
   // No `transcribe` limiter: T-10018 deleted /api/transcribe (the typed script
   // seeds its own path, and the re-timing rides on /api/evaluate), so the
   // limiter guarded a route that no longer exists. `/api/evaluate` is now the

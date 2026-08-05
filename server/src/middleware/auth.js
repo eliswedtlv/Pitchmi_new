@@ -37,7 +37,12 @@ module.exports = async function auth (req, res, next) {
   const keySet = getJwks()
   if (alg && alg !== 'HS256' && keySet) {
     try {
-      const { payload } = await jwtVerify(token, keySet)
+      const issuer = `${config.SUPABASE_URL.replace(/\/$/, '')}/auth/v1`
+      const { payload } = await jwtVerify(token, keySet, {
+        algorithms: ['ES256', 'RS256'],
+        issuer,
+        audience: 'authenticated'
+      })
       if (!payload.sub) return res.status(401).json({ error: 'unauthorized' })
       req.userId = payload.sub
       return next()

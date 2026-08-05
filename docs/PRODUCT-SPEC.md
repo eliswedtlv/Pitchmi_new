@@ -44,8 +44,8 @@ Assumptions:
 
 1. The user opens PitchMi and types or pastes a script.
 2. PitchMi shows a rough duration estimate but does not rewrite or block long text.
-3. The user chooses “Record it.”
-4. The system creates an anonymous project, stores the script, and creates a disposable seed teleprompter path.
+3. The user chooses “Record it.” On the first use—or after a material notice change—PitchMi asks for a name/initials and explicit consent to camera, microphone, transcription, and AI delivery analysis.
+4. The typed acknowledgement stays on the device; the server records a content-free receipt for the anonymous identity. The system then creates the project, stores the script, and creates a disposable seed teleprompter path.
 5. After a three-second countdown, the user records against the full-screen camera and karaoke prompter.
 6. PitchMi uploads the in-memory take and shows only honest processing stages.
 7. The server extracts audio, transcribes the take, scores accuracy and timing against the path the user followed, retimes the next path when alignment is trustworthy, and asks the video model to judge voice, body, and delivery.
@@ -62,6 +62,7 @@ MVP product surfaces:
 - `/wait` — evaluation processing and failure recovery.
 - `/results` — take playback, scoring, coaching, and next actions.
 - `/videos` — dormant owner-only saved-take library, intentionally unlinked from the current main flow.
+- `/privacy` — public processing notice, consent explanation, and anonymous data erasure.
 
 Administrative surface:
 
@@ -152,6 +153,8 @@ Integrations:
 
 ## Trust and operations
 
+- Product processing routes require a current versioned server-side consent receipt.
+- The acknowledgement text/name is device-local and is never sent to the API.
 - Uploaded evaluation video is not persisted.
 - Event logs contain no video, transcript, or coach-comment text.
 - The service-role Supabase key remains server-only.
@@ -159,6 +162,7 @@ Integrations:
 - Anonymous auth must not be presented as “no identity”; it is an invisible per-device identity.
 - Keyboard access, visible focus, reduced motion, contrast, RTL, and inline iOS playback are launch requirements.
 - Spend controls include daily user limits, per-IP billable-route limits, media admission control, a surge trip, and an operator kill switch.
+- The current anonymous user can delete private storage objects, projects/scripts, saved takes, metadata events, and the anonymous auth user without creating an account.
 
 ## Measurement
 
@@ -182,6 +186,8 @@ Do not use page views or total anonymous accounts as primary success measures.
 - Results visually distinguish AI delivery judgement from objective timing and accuracy.
 - No UI claims that content, truth, or message quality was evaluated.
 - No private recording is stored without an explicit save action.
+- First use requires explicit consent, and changing the consent version requires consent again.
+- The privacy page truthfully distinguishes stored scripts/metadata from ephemeral take media and exposes working data erasure.
 - All core surfaces work in light and dark OS schemes, except the intentionally dark camera/media contexts.
 - English and Hebrew remain legible and correctly directed.
 - Automated server, client, layout, type, lint, and production-build gates pass.

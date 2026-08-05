@@ -64,7 +64,7 @@ describe('POST /api/evaluate — guaranteed event on every outcome', () => {
 
     const res = await evalRequest(createApp())
     expect(res.status).toBe(500)
-    expect(res.body.error).toBe('server_error')
+    expect(res.body).toEqual({ error: 'server_error' })
 
     const errors = dbMock.__state.events.filter(e => e.action === 'error')
     expect(errors).toHaveLength(1)

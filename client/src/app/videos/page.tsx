@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { VideoPlayer } from "@/components/ui/VideoPlayer"
 import { getSupabaseClient } from "@/lib/supabase"
-import { getTakeUrl } from "@/lib/api"
+import { deleteTake, getTakeUrl } from "@/lib/api"
 
 interface SavedTake {
   id: string
@@ -54,13 +54,11 @@ export default function VideosPage() {
   }
 
   async function handleDelete(takeId: string) {
-    const supabase = getSupabaseClient()
-    if (!supabase) return
-    const { error: err } = await supabase.from("saved_takes").delete().eq("id", takeId)
-    if (err) {
-      setError(err.message)
-    } else {
+    try {
+      await deleteTake(takeId)
       setTakes((prev) => prev.filter((t) => t.id !== takeId))
+    } catch (cause) {
+      setError((cause as Error).message)
     }
   }
 

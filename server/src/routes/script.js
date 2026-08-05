@@ -2,6 +2,7 @@
 
 const express = require('express')
 const auth = require('../middleware/auth')
+const consent = require('../middleware/consent')
 const db = require('../lib/db')
 const config = require('../config')
 const { buildSeedPath } = require('../lib/scriptPath')
@@ -15,7 +16,7 @@ const router = express.Router()
 // The returned path is a SEED — a throwaway estimate at a fixed rate, good
 // enough to rehearse against once. /api/evaluate replaces it with the user's
 // real, measured timings after every take.
-router.post('/script', auth, async (req, res, next) => {
+router.post('/script', auth, consent, async (req, res, next) => {
   try {
     const { project_id: projectId, text } = req.body || {}
     if (!projectId) return res.status(400).json({ error: 'missing_project_id' })

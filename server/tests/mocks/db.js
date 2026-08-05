@@ -9,7 +9,9 @@ const state = {
   projects: new Map(),
   savedTakes: new Map(),
   uploads: [],
-  evalCountToday: 0
+  evalCountToday: 0,
+  consentGranted: true,
+  deletedUsers: []
 }
 
 let takeSeq = 0
@@ -23,6 +25,8 @@ module.exports = {
     state.savedTakes = new Map()
     state.uploads = []
     state.evalCountToday = 0
+    state.consentGranted = true
+    state.deletedUsers = []
     takeSeq = 0
   },
   __seedProject (id, userId, overrides = {}) {
@@ -34,7 +38,11 @@ module.exports = {
   async getServiceEnabled () { return state.serviceEnabled },
   async setServiceEnabled (v) { state.serviceEnabled = v },
   async logEvent (e) { state.events.push(e) },
+  async recordConsent (userId, action) { state.events.push({ user_id: userId, action }) },
   async countEvaluationsToday () { return state.evalCountToday },
+  async hasEvent (userId, action) {
+    return state.consentGranted || state.events.some(e => e.user_id === userId && e.action === action)
+  },
   async queryEvents () { return state.events },
   async eventsForAggregates () { return state.events },
 
@@ -77,5 +85,21 @@ module.exports = {
   },
   async signVideoUrl (storagePath) {
     return `https://signed.example/${storagePath}?token=abc`
+  },
+  async deleteSavedTake (id, userId) {
+    const take = state.savedTakes.get(id)
+    if (!take || take.user_id !== userId) return false
+    state.savedTakes.delete(id)
+    return true
+  },
+  async deleteUserData (userId) {
+    for (const [id, project] of state.projects) {
+      if (project.user_id === userId) state.projects.delete(id)
+    }
+    for (const [id, take] of state.savedTakes) {
+      if (take.user_id === userId) state.savedTakes.delete(id)
+    }
+    state.events = state.events.filter(event => event.user_id !== userId)
+    state.deletedUsers.push(userId)
   }
 }

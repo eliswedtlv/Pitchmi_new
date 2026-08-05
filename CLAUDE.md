@@ -15,7 +15,7 @@ Pitchmi_new/
 
 ## Stack (pinned — do not substitute libraries; use nearest compatible version on conflict and record the deviation in docs/STATUS.md)
 
-- **Frontend** (`client/`): Next.js 15 (App Router) + React 19 + TypeScript 5.x **strict** + Tailwind CSS v4 + shadcn/ui.
+- **Frontend** (`client/`): Next.js 16 (App Router) + React 19 + TypeScript 5.x **strict** + Tailwind CSS v4 + shadcn/ui. Next 16 is the recorded T-10029 security deviation from the original Next 15 pin.
 - **Backend** (`server/`): Node 22 (dev on 24 is fine) + Express 4.x, **JavaScript ES6, StandardJS style (no semicolons)**.
 - **BE tests**: Jest + Supertest. **FE tests**: Vitest + Testing Library; `next build` must pass.
 - **DB / Auth / Storage**: Supabase — Postgres, anonymous sign-in, private Storage bucket `videos`.
@@ -32,6 +32,7 @@ Pitchmi_new/
 ## Privacy rules (enforce in code)
 
 - Take videos are processed in memory / temp files and **discarded** after transcribe/evaluate — never written to Storage unless the user hits **Save to cloud**.
+- A current versioned consent receipt is required before project/script/media processing. The typed name/initials stays in the browser; the server records only anonymous user id, consent action/version, and timestamp.
 - The `events` table carries **metadata only**: no video bytes, no transcript text, no comments text. Numeric scores only.
 - Admin UI can see logs/aggregates, **never content**.
 - Service-role Supabase key lives **only** on the server. The client reads its own `projects`/`saved_takes` via supabase-js + RLS; all writes and anything touching API keys go through the Express server.
