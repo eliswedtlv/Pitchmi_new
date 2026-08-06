@@ -43,8 +43,8 @@ export default function PrivacyPage() {
               <ul className="mt-3 list-disc space-y-2 ps-5 text-body leading-relaxed text-fg-muted">
                 <li>Your script is stored in a private project tied to this browser&apos;s anonymous identity.</li>
                 <li>
-                  Your recording is sent securely for speech transcription and AI delivery
-                  analysis. PitchMi currently uses ElevenLabs and either OpenRouter or Google Gemini.
+                  Your recording is sent securely to U.S.-based service providers for speech
+                  transcription and AI delivery analysis.
                 </li>
                 <li>
                   PitchMi keeps numeric scores, timing/cost diagnostics and a versioned consent
