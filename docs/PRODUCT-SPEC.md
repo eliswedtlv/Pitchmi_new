@@ -31,7 +31,8 @@ Non-goals for v1:
 - Writing or rewriting the user’s message.
 - Editing footage, adding visual effects, or generating a presenter.
 - Public publishing, profiles, feeds, leaderboards, comments, or likes.
-- Cross-device identity and history.
+- Required signup or account creation before the core loop.
+- Social features or a public profile attached to an optional identity.
 - Persistent project navigation in the main loop.
 
 Assumptions:
@@ -63,6 +64,8 @@ MVP product surfaces:
 - `/results` — take playback, scoring, coaching, and next actions.
 - `/videos` — dormant owner-only saved-take library, intentionally unlinked from the current main flow.
 - `/privacy` — public processing notice, consent explanation, and anonymous data erasure.
+- `/account` — optional Google connection that upgrades the current anonymous identity without moving its projects.
+- `/auth/complete` — no-index OAuth completion and conflict recovery surface.
 
 Administrative surface:
 
@@ -87,6 +90,16 @@ Future v2 surfaces in `docs/pitchmi-v2-spec.md` are not part of this contract.
 - Submitting creates a project, saves the script, seeds the path, and moves to rehearsal.
 - API failure stays on the page and explains the failure near the action.
 - Returning through “Edit text” preserves the existing script.
+
+### Optional account connection
+
+- PitchMi remains fully usable without login; the account entry point is quiet and secondary.
+- “Save with Google” links an OAuth identity to the current anonymous user so the user ID, projects, saved takes, and consent receipt remain attached.
+- Only authentication scopes (`openid`, email, profile) are requested; PitchMi does not request Drive, contacts, or offline access.
+- If the chosen Google identity already belongs to a PitchMi user, the link is rejected and the user is directed to a separate sign-in path.
+- Signing in to an existing account requires a warning that the current temporary identity remains separate; there is no implicit data merge.
+- Redirect destinations are restricted to same-origin paths, callback failures expose no provider payload, and sign-out affects only the current device.
+- The complete surface remains build-gated by `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` until provider configuration and end-to-end identity preservation are verified.
 
 ### Camera rehearsal
 

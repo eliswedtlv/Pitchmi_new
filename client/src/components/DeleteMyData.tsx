@@ -34,7 +34,7 @@ export function DeleteMyData() {
       <div className="rounded-panel border border-good/30 bg-good-soft p-5">
         <p className="font-semibold text-good-fg">Your PitchMi data was deleted.</p>
         <p className="mt-1 text-meta text-fg-muted">
-          This browser has also been signed out of its anonymous session.
+          This browser has also been signed out of its PitchMi session.
         </p>
         <Link href="/" className="mt-4 inline-flex text-meta font-semibold text-accent">
           Return home
@@ -48,7 +48,7 @@ export function DeleteMyData() {
       <h2 className="text-lead font-semibold text-fg">Delete my data</h2>
       <p className="mt-2 text-meta leading-relaxed text-fg-muted">
         This permanently removes this browser&apos;s scripts, projects, saved takes,
-        metadata and anonymous account.
+        metadata and PitchMi account.
       </p>
 
       {confirming ? (

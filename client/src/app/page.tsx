@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { LockKeyhole, Video } from "lucide-react"
 import { Brand } from "@/components/Brand"
 import { ConsentForm } from "@/components/ConsentForm"
+import { GoogleAuthLink } from "@/components/GoogleAuthLink"
 import { Button } from "@/components/ui/button"
 import { createProject, saveScript } from "@/lib/api"
 import { clearConsent, readConsent } from "@/lib/consent"
@@ -92,14 +93,17 @@ export default function HomePage() {
       <div className="studio-shell flex min-h-[calc(100svh-1rem)] flex-col">
         <header className="flex h-16 shrink-0 items-center justify-between border-b border-line">
           <Brand />
-          <Link
-            href="/privacy"
-            className="flex items-center gap-2 text-micro font-medium uppercase tracking-[0.12em] text-fg-muted transition-colors hover:text-fg"
-          >
-            <LockKeyhole className="h-3.5 w-3.5 text-accent" />
-            <span className="hidden sm:inline">Private by default</span>
-            <span className="sm:hidden">Private</span>
-          </Link>
+          <div className="flex items-center gap-4 sm:gap-5">
+            <GoogleAuthLink />
+            <Link
+              href="/privacy"
+              className="flex items-center gap-2 text-micro font-medium uppercase tracking-[0.12em] text-fg-muted transition-colors hover:text-fg"
+            >
+              <LockKeyhole className="h-3.5 w-3.5 text-accent" aria-hidden />
+              <span className="hidden sm:inline">Private by default</span>
+              <span className="sm:hidden">Private</span>
+            </Link>
+          </div>
         </header>
 
         <div className="grid min-h-0 flex-1 gap-5 py-5 lg:grid-cols-[minmax(18rem,0.78fr)_minmax(34rem,1.22fr)] lg:gap-14 lg:py-10">

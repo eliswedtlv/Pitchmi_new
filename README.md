@@ -2,8 +2,9 @@
 
 Write a script for a short spoken video (≤ 30s), rehearse it on camera against a timed **karaoke teleprompter**, and get sharp coaching on **delivery**—voice, body language, timing, and accuracy, never *what* you say. Every take re-times the next rehearsal to your measured speaking pace. Repeat until it lands, then share or download through the operating system.
 
-No signup. A Supabase **anonymous** identity is created per device when the user
-accepts the recording/AI-processing notice.
+No signup is required. A Supabase **anonymous** identity is created per device
+when the user accepts the recording/AI-processing notice. An optional Google
+connection can later make that same identity available on another device.
 
 > ⚠️ **Privacy first:** the script is stored in a private project tied to the
 > browser’s anonymous identity. Take videos are processed in memory / temp files
@@ -12,7 +13,7 @@ accepts the recording/AI-processing notice.
 > Saved takes remain private and can be deleted. Operational logs contain consent/version
 > metadata and numeric diagnostics only — never video, transcript, typed
 > acknowledgement, or feedback text. `/privacy` explains the flow and lets the
-> current browser permanently erase its data and anonymous account.
+> current user permanently erase their PitchMi data and identity.
 
 ## Monorepo layout
 
@@ -47,7 +48,9 @@ Run the DB migrations against your Supabase project (SQL Editor or `psql`):
 # apply everything in server/db/migrations/ in filename order
 ```
 
-Create a **private** Storage bucket named `videos` in Supabase.
+Create a **private** Storage bucket named `videos` in Supabase. Optional Google
+identity linking stays disabled until the checklist in
+`docs/GOOGLE-AUTH-SETUP.md` is complete.
 
 ### 2. Client
 
@@ -96,4 +99,5 @@ Two services from this monorepo:
 - `docs/cc-goal-pitchmi-v1.md` — the v1 build spec.
 - `docs/pitchmi-v2-spec.md` — v2 product spec (feed, leaderboards, identity).
 - `docs/SECURITY-AUDIT-2026-08-05.md` — production consent/security release review.
+- `docs/GOOGLE-AUTH-SETUP.md` — gated Google identity rollout and verification.
 - `docs/STATUS.md` — current state. `docs/TASKS.md` — backlog.

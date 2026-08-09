@@ -3,10 +3,11 @@ import Link from "next/link"
 import { ArrowLeft, LockKeyhole } from "lucide-react"
 import { Brand } from "@/components/Brand"
 import { DeleteMyData } from "@/components/DeleteMyData"
+import { GOOGLE_AUTH_ENABLED } from "@/lib/featureFlags"
 
 export const metadata: Metadata = {
   title: "Privacy & consent — PitchMi",
-  description: "How PitchMi processes scripts, recordings and anonymous session data.",
+  description: "How PitchMi processes scripts, recordings and private session data.",
 }
 
 export default function PrivacyPage() {
@@ -33,7 +34,7 @@ export default function PrivacyPage() {
             Your take is yours.
           </h1>
           <p className="mt-5 max-w-2xl text-lead leading-relaxed text-fg-muted">
-            PitchMi has no public profile and no conventional login. A private,
+            PitchMi has no public profile and no required login. A private,
             anonymous identity in this browser keeps your rehearsal working.
           </p>
 
@@ -77,6 +78,18 @@ export default function PrivacyPage() {
                 A material change to this notice requires consent again.
               </p>
             </section>
+
+            {GOOGLE_AUTH_ENABLED ? (
+              <section>
+                <h2 className="text-lead font-semibold text-fg">Optional account connection</h2>
+                <p className="mt-3 text-body leading-relaxed text-fg-muted">
+                  You can connect Google to reopen the same private PitchMi identity on another
+                  device. PitchMi receives basic account information such as your name and email
+                  for authentication. It never receives your Google password and does not request
+                  access to Drive, contacts or other Google services.
+                </p>
+              </section>
+            ) : null}
 
             <DeleteMyData />
           </div>

@@ -216,6 +216,18 @@ User intent: understand the real data flow and exercise control without creating
 - Data erasure is visible, deliberately destructive, and requires a second confirmation.
 - Successful deletion confirms that both server data and the browser’s anonymous session were removed.
 
+### Optional account `/account`
+
+User intent: make the existing private studio recoverable on another device without turning the first-run experience into signup.
+
+- The home header uses a quiet “Save across devices” text link only when the feature flag is enabled.
+- The account page keeps the editorial split-screen language of the studio: privacy promise and scope facts on the left, one focused account action on the right.
+- “Save with Google” is the only filled action. It preserves the current PitchMi user ID and attached work.
+- Existing-account sign-in is secondary and reveals an inline warning before it can replace the temporary browser session.
+- Connected state names the current identity and offers local sign-out; callback success, conflict, loading, and generic failure each have a dedicated state.
+- Mobile collapses to a single column with the promise before the action; no modal, provider-logo collage, gradient, glass, or OAuth jargon.
+- Account and privacy copy explicitly state that the connection requests no Drive or contacts access.
+
 ### Results `/results`
 
 User intent: understand this take and decide what to change next.
