@@ -7,8 +7,8 @@ import { Brand } from "@/components/Brand"
 import { GOOGLE_AUTH_ENABLED } from "@/lib/featureFlags"
 
 export const metadata: Metadata = {
-  title: "Account — PitchMi",
-  description: "Optionally save your PitchMi identity across devices.",
+  title: "Account",
+  description: "Optionally save your KillerPitch identity across devices.",
 }
 
 export default function AccountPage() {
@@ -38,7 +38,7 @@ export default function AccountPage() {
               Start private. Stay connected.
             </h1>
             <p className="mt-5 max-w-lg text-lead leading-relaxed text-fg-muted">
-              PitchMi works without a login. Connect Google only if you want the same private
+              KillerPitch works without a login. Connect Google only if you want the same private
               identity and projects on another device.
             </p>
             <div className="mt-8 grid grid-cols-2 border-y border-line py-4 text-meta">
@@ -61,7 +61,7 @@ export default function AccountPage() {
           <Link href="/privacy" className="font-medium text-fg hover:text-accent">
             privacy notice
           </Link>{" "}
-          or keep using PitchMi anonymously.
+          or keep using KillerPitch anonymously.
         </footer>
       </div>
     </main>

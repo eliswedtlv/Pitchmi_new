@@ -32,7 +32,7 @@ describe("AccountPanel", () => {
     render(<AccountPanel />)
 
     const upgrade = await screen.findByRole("button", { name: "Save with Google" })
-    expect(screen.getByText(/same PitchMi identity/i)).toBeTruthy()
+    expect(screen.getByText(/same KillerPitch identity/i)).toBeTruthy()
     fireEvent.click(upgrade)
 
     await waitFor(() => expect(h.startGoogleUpgrade).toHaveBeenCalledWith("/account"))

@@ -31,8 +31,8 @@ function gen (outPath, durationS) {
   console.log(`wrote ${outPath} (${kb} KB)`)
 }
 
-// Branded ~15s self-promo placeholder: dark diagonal gradient, "PitchMi"
-// wordmark + "Nail your minute." tagline, subtle breathing motion. The text
+// Branded ~15s self-promo placeholder: flat studio-black field, "KillerPitch"
+// wordmark + "Own the next take." tagline, subtle breathing motion. The text
 // alpha/position use sin(2*PI*t/DUR) so frame 0 == last frame — seamless loop.
 // The AdSlot overlays the "Ad" label + Skip button; nothing is baked in.
 function genAd (outPath, durationS) {
@@ -47,16 +47,15 @@ function genAd (outPath, durationS) {
   ])
   const period = `2*PI*t/${durationS}`
   const vf = [
-    `drawtext=fontfile=${wordFont}:text='PitchMi':fontcolor=white:fontsize=140` +
+    `drawtext=fontfile=${wordFont}:text='KillerPitch':fontcolor=white:fontsize=126` +
       `:x=(w-text_w)/2:y=(h/2)-130+10*sin(${period}):alpha='0.90+0.10*sin(${period})'` +
       ':shadowcolor=black@0.45:shadowx=0:shadowy=5',
-    `drawtext=fontfile=${tagFont}:text='Nail your minute.':fontcolor=0xc7d2fe:fontsize=52` +
+    `drawtext=fontfile=${tagFont}:text='Own the next take.':fontcolor=0x6f8cff:fontsize=52` +
       `:x=(w-text_w)/2:y=(h/2)+40:alpha='0.80+0.20*sin(${period})'`
   ].join(',')
-  const gradient = 'gradients=s=1280x720:c0=0x0a0a1a:c1=0x2a1e63:c2=0x0a0a1a:nb_colors=3' +
-    `:x0=0:y0=0:x1=1280:y1=720:speed=0.00001:duration=${durationS}:rate=30`
+  const background = `color=c=0x08090b:s=1280x720:d=${durationS}:r=30`
   const args = [
-    '-f', 'lavfi', '-i', gradient,
+    '-f', 'lavfi', '-i', background,
     '-vf', vf,
     '-c:v', 'libx264', '-pix_fmt', 'yuv420p', '-profile:v', 'high',
     '-crf', '26', '-movflags', '+faststart', '-an', '-t', String(durationS),

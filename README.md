@@ -1,4 +1,4 @@
-# PitchMi
+# KillerPitch
 
 Write a script for a short spoken video (≤ 30s), rehearse it on camera against a timed **karaoke teleprompter**, and get sharp coaching on **delivery**—voice, body language, timing, and accuracy, never *what* you say. Every take re-times the next rehearsal to your measured speaking pace. Repeat until it lands, then share or download through the operating system.
 
@@ -13,7 +13,7 @@ connection can later make that same identity available on another device.
 > Saved takes remain private and can be deleted. Operational logs contain consent/version
 > metadata and numeric diagnostics only — never video, transcript, typed
 > acknowledgement, or feedback text. `/privacy` explains the flow and lets the
-> current user permanently erase their PitchMi data and identity.
+> current user permanently erase their KillerPitch data and identity.
 
 ## Monorepo layout
 

@@ -86,7 +86,7 @@ export default function VideosPage() {
             </h1>
           </div>
           <p className="hidden max-w-sm text-end text-meta text-fg-muted sm:block">
-            Only takes you explicitly save appear here. PitchMi never stores a
+            Only takes you explicitly save appear here. KillerPitch never stores a
             rehearsal automatically.
           </p>
         </div>

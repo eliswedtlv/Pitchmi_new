@@ -28,7 +28,7 @@ export function AccountPanel() {
       })
       .catch(() => {
         if (active) {
-          setAccount({ kind: "error", message: "Your PitchMi session could not be read." })
+          setAccount({ kind: "error", message: "Your KillerPitch session could not be read." })
         }
       })
     return () => {
@@ -108,7 +108,7 @@ export function AccountPanel() {
           </h2>
           <p className="mt-2 text-meta leading-relaxed text-fg-muted">
             Connected as <span className="font-semibold text-fg">{identity}</span>. Sign in with
-            the same account on another device to reopen your PitchMi data.
+            the same account on another device to reopen your KillerPitch data.
           </p>
         </div>
         <div className="border-t border-line bg-raised/45 p-3">
@@ -143,7 +143,7 @@ export function AccountPanel() {
         </h2>
         <p className="mt-2 text-meta leading-relaxed text-fg-muted">
           Connect Google to turn this temporary identity into one you can return to. Your current
-          projects and consent stay attached to the same PitchMi identity.
+          projects and consent stay attached to the same KillerPitch identity.
         </p>
       </div>
 

@@ -1,4 +1,4 @@
-# PitchMi UI Contract — Studio 2026
+# KillerPitch UI Contract — Studio 2026
 
 Status: implementation contract for the launch-ready visual redesign.
 
@@ -10,39 +10,51 @@ Borrow: the economy of a compact app symbol paired with a quiet wordmark. The ma
 
 Do not copy: Betas’ letterform, exact geometry, color, or app-icon treatment.
 
-Fit: PitchMi needs to look like a real tool before it needs a campaign identity. A small mark that can sit on a camera screen, report, and mobile header gives it that continuity.
+Fit: KillerPitch needs to look like a real tool before it needs a campaign identity. A small mark that can sit on a camera screen, report, and mobile header gives it that continuity.
 
-### Granola — calm private AI
+### Shuttle — primary visual system
 
-Borrow: AI is embedded in a familiar work surface and stays subordinate to the user’s own material. Generated content is visually distinguishable without making the whole interface shout “AI.”
+Refero style: `6285d741-d05c-4a28-aa86-6ca900dde2f8` ([source](https://shuttle.zip/about)).
 
-Do not copy: notebook metaphors, beige palette, editor chrome, or meeting-specific hierarchy.
+Borrow: crisp utility density, compact negative tracking, a monochrome workspace, hairline separation, and one blue reserved for brand and primary action.
 
-Fit: PitchMi also augments the user’s work rather than generating an identity for them. Privacy should feel structural, not like a compliance banner.
+Do not copy: pure-white canvas, large marketing section gaps, oversized card shadows, or unrelated accent colors.
 
-### Wispr Flow — immediate core action
+Fit: the existing warm studio canvas and signal blue already express this system in a more human, rehearsal-specific way.
 
-Borrow: one unmistakable interaction that demonstrates the product immediately, with confident plain-language instruction and little setup.
+### Perplexity — supporting AI posture
 
-Do not copy: keyboard affordances, dictation metrics, yellow selection states, or onboarding sequence.
+Refero style: `5c7acdfb-996b-4c6f-b361-264a3f580f7d` ([source](https://www.perplexity.ai)).
 
-Fit: the product lives or dies on starting a take. The script surface and record action must feel like one instrument.
+Borrow: warm parchment, quiet authority, and AI embedded inside a familiar work surface instead of presented as spectacle.
 
-### Captions — video as a working object
+Do not copy: assistant sidebar, teal accent, prompt chips, glow, or generic chat composition.
 
-Borrow: video belongs inside a purposeful studio frame with controls and analysis attached to it, not as a browser element dropped into a dashboard.
+Fit: KillerPitch augments the user’s own words and performance. Privacy and analysis should feel structural, not promotional.
 
-Do not copy: mobile editor timeline, transcript editing, purple styling, or generation features PitchMi does not have.
+### Cron Calendar — supporting identity discipline
 
-Fit: results are a take review, and the take should carry more visual weight than surrounding metadata.
+Refero style: `0528b40d-d5ef-4783-9206-d42fa97ad1d2` ([source](https://cron.com)).
+
+Borrow: a compact symbol/wordmark, sharp single-typeface confidence, flat high-contrast surfaces, and one chromatic signal.
+
+Do not copy: orange, full dark-mode marketing canvas, giant type, or cockpit metaphor.
+
+Fit: KillerPitch should feel decisive without borrowing violent, sports, or gaming imagery from its name.
+
+### Product-screen grounding
+
+- Descript recording screen `1d466d4f-1100-4a51-a149-88b02b73a72a`: keep script and recording as one coherent instrument; reject its dense editor chrome and modal framing.
+- Gemini ready composer `8d78c7fe-2c6e-4c25-8327-61a500bb1cf3`: keep one obvious starting object and generous hierarchy; reject its assistant glow, suggestion carousel, and generic chat controls.
+- Vimeo editing screen `69842337-04ed-4830-9a40-398738ad815e`: keep video as the dominant working object with controls attached; reject the timeline, editing toolbars, and stock video-editor complexity.
 
 ### Visual thesis
 
-PitchMi is a precision rehearsal studio: editorial in hierarchy, instrument-like in controls, and confident enough to let the user’s script and face remain the hero.
+KillerPitch is a precision rehearsal studio: editorial in hierarchy, instrument-like in controls, and confident enough to let the user’s script and face remain the hero.
 
 ### Design anchors
 
-1. A compact three-bar “rising voice” mark and lowercase `pitchmi` wordmark.
+1. A compact cut-through `K` mark and lowercase `killerpitch` wordmark.
 2. Warm paper and near-black foundations with one signal-blue product accent.
 3. Large editorial statements paired with compact instrument labels.
 4. Media and scoring composed as a studio deck, not a grid of equal cards.
@@ -57,10 +69,22 @@ PitchMi is a precision rehearsal studio: editorial in hierarchy, instrument-like
 - Fake analytics, invented social proof, and decorative AI labels.
 - Huge radius values, pill-shaped primary buttons, and shadow-heavy elevation.
 - Stock browser video chrome.
+- Skulls, targets, crosshairs, blades, mascots, or gamer/esports styling.
 
 ### Originality
 
-The references contribute separate principles: Betas to identity economy, Granola to AI posture, Flow to interaction clarity, and Captions to media framing. PitchMi’s rising-voice mark, editorial split composer, rehearsal rail, scoring language, and script-specific states come from its own product mechanics.
+The references contribute separate principles: Betas to identity economy, Shuttle to utility density, Perplexity to calm AI posture, Cron to accent discipline, Descript to script/recording unity, and Vimeo to media framing. KillerPitch’s separated-stroke `K`, editorial split composer, rehearsal rail, scoring language, and script-specific states come from its own product mechanics.
+
+### Rebrand preservation matrix
+
+| Surface or capability | Decision |
+| --- | --- |
+| Script → consent → camera → evaluation → results | Preserve exactly |
+| Anonymous identity, stored consent, privacy, and erasure | Preserve; legacy browser storage keys remain compatible |
+| Optional account connection | Preserve behind the existing feature flag |
+| Hebrew/RTL, responsive layouts, and accessibility | Preserve and re-verify |
+| Brand mark, wordmark, metadata, favicon, share name, and demo asset | Replace with KillerPitch |
+| Layout, semantic score colors, and signal-blue interaction role | Preserve |
 
 ## Foundations
 
@@ -131,7 +155,7 @@ Contrast expectations:
 
 - Lucide icons remain for actions.
 - Icons never decorate headings.
-- The logo mark is three ascending vertical bars inside a compact square, representing voice, pace, and improvement.
+- The logo mark is a separated-stroke `K` inside a compact signal-blue square. Its open joint forms a forward cue without using a literal play button.
 - The mark appears with the wordmark in normal chrome and alone over live media.
 - The wordmark is lowercase and tightly set; no “AI” badge is attached.
 
@@ -222,7 +246,7 @@ User intent: make the existing private studio recoverable on another device with
 
 - The home header uses a quiet “Save across devices” text link only when the feature flag is enabled.
 - The account page keeps the editorial split-screen language of the studio: privacy promise and scope facts on the left, one focused account action on the right.
-- “Save with Google” is the only filled action. It preserves the current PitchMi user ID and attached work.
+- “Save with Google” is the only filled action. It preserves the current KillerPitch user ID and attached work.
 - Existing-account sign-in is secondary and reveals an inline warning before it can replace the temporary browser session.
 - Connected state names the current identity and offers local sign-out; callback success, conflict, loading, and generic failure each have a dedicated state.
 - Mobile collapses to a single column with the promise before the action; no modal, provider-logo collage, gradient, glass, or OAuth jargon.

@@ -45,7 +45,7 @@ export async function getCurrentAccount(
 export function safeNextPath(value: string | null | undefined): string {
   if (!value) return "/account"
   try {
-    const base = new URL("https://pitchmi.local")
+    const base = new URL("https://killerpitch.local")
     const resolved = new URL(value, base)
     if (resolved.origin !== base.origin) return "/account"
     return `${resolved.pathname}${resolved.search}${resolved.hash}`
@@ -91,7 +91,7 @@ export async function startGoogleUpgrade(nextPath = "/account") {
   const token = await ensureAuth()
   const client = getSupabaseClient()
   if (!token || !client) {
-    throw new Error("A private PitchMi session could not be started. Try again.")
+    throw new Error("A private KillerPitch session could not be started. Try again.")
   }
 
   const { data, error } = await client.auth.linkIdentity({

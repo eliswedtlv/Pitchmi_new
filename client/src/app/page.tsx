@@ -121,7 +121,7 @@ export default function HomePage() {
                   <span className="block text-accent">you mean it.</span>
                 </h1>
                 <p className="max-w-md text-body text-fg-muted lg:text-lead">
-                  Paste your script. PitchMi cues the take, measures the timing,
+                  Paste your script. KillerPitch cues the take, measures the timing,
                   and coaches the delivery—not the message.
                 </p>
               </div>

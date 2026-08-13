@@ -32,9 +32,9 @@ export function DeleteMyData() {
   if (deleted) {
     return (
       <div className="rounded-panel border border-good/30 bg-good-soft p-5">
-        <p className="font-semibold text-good-fg">Your PitchMi data was deleted.</p>
+        <p className="font-semibold text-good-fg">Your KillerPitch data was deleted.</p>
         <p className="mt-1 text-meta text-fg-muted">
-          This browser has also been signed out of its PitchMi session.
+          This browser has also been signed out of its KillerPitch session.
         </p>
         <Link href="/" className="mt-4 inline-flex text-meta font-semibold text-accent">
           Return home
@@ -48,7 +48,7 @@ export function DeleteMyData() {
       <h2 className="text-lead font-semibold text-fg">Delete my data</h2>
       <p className="mt-2 text-meta leading-relaxed text-fg-muted">
         This permanently removes this browser&apos;s scripts, projects, saved takes,
-        metadata and PitchMi account.
+        metadata and KillerPitch account.
       </p>
 
       {confirming ? (
@@ -75,7 +75,7 @@ export function DeleteMyData() {
       ) : (
         <Button variant="outline" className="mt-4 gap-2" onClick={() => setConfirming(true)}>
           <Trash2 className="h-4 w-4" aria-hidden />
-          Delete my PitchMi data
+          Delete my KillerPitch data
         </Button>
       )}
     </div>

@@ -130,7 +130,7 @@ describe("ResultsPage actions", () => {
     await waitFor(() => expect(share).toHaveBeenCalledTimes(1))
     const arg = share.mock.calls[0][0]
     expect(arg.files).toHaveLength(1)
-    expect(arg.files[0].name).toBe("pitchmi-take.webm")
+    expect(arg.files[0].name).toBe("killerpitch-take.webm")
   })
 
   it("Share falls back to a direct download when files can't be shared", async () => {
@@ -143,7 +143,7 @@ describe("ResultsPage actions", () => {
     await waitFor(() => expect(click).toHaveBeenCalledTimes(1))
     expect(share).not.toHaveBeenCalled()
     const a = click.mock.contexts[0] as HTMLAnchorElement
-    expect(a.download).toBe("pitchmi-take.webm")
+    expect(a.download).toBe("killerpitch-take.webm")
     click.mockRestore()
   })
 })

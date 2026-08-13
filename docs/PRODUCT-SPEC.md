@@ -1,12 +1,12 @@
-# PitchMi Product Contract
+# KillerPitch Product Contract
 
 Status: launch-ready v1 product contract. This document describes the product that exists now and the surface the redesign must support. It supersedes stale one-minute language in older top-level documentation; the shipped format is 30 seconds.
 
 ## Product definition
 
-PitchMi is a private rehearsal studio for people who need to deliver a short scripted video with conviction. A user brings the words; PitchMi helps them perform those words better.
+KillerPitch is a private rehearsal studio for people who need to deliver a short scripted video with conviction. A user brings the words; KillerPitch helps them perform those words better.
 
-The product deserves to exist because most video tools help people edit footage after a weak take. PitchMi intervenes one step earlier: it makes the next performance better by combining a teleprompter, objective timing and accuracy measurement, and delivery coaching.
+The product deserves to exist because most video tools help people edit footage after a weak take. KillerPitch intervenes one step earlier: it makes the next performance better by combining a teleprompter, objective timing and accuracy measurement, and delivery coaching.
 
 Primary users are founders, creators, salespeople, and job seekers preparing a short camera-facing message. They are comfortable using modern software but are not video-production specialists. Secondary users are anyone rehearsing a concise spoken introduction in English or Hebrew.
 
@@ -43,12 +43,12 @@ Assumptions:
 
 ## Core journey
 
-1. The user opens PitchMi and types or pastes a script.
-2. PitchMi shows a rough duration estimate but does not rewrite or block long text.
-3. The user chooses “Record it.” On the first use—or after a material notice change—PitchMi asks for a name/initials and explicit consent to camera, microphone, transcription, and AI delivery analysis.
+1. The user opens KillerPitch and types or pastes a script.
+2. KillerPitch shows a rough duration estimate but does not rewrite or block long text.
+3. The user chooses “Record it.” On the first use—or after a material notice change—KillerPitch asks for a name/initials and explicit consent to camera, microphone, transcription, and AI delivery analysis.
 4. The typed acknowledgement stays on the device; the server records a content-free receipt for the anonymous identity. The system then creates the project, stores the script, and creates a disposable seed teleprompter path.
 5. After a three-second countdown, the user records against the full-screen camera and karaoke prompter.
-6. PitchMi uploads the in-memory take and shows only honest processing stages.
+6. KillerPitch uploads the in-memory take and shows only honest processing stages.
 7. The server extracts audio, transcribes the take, scores accuracy and timing against the path the user followed, retimes the next path when alignment is trustworthy, and asks the video model to judge voice, body, and delivery.
 8. The results screen shows the take, overall score, five dimensions, three coach comments, and objective flags.
 9. The user’s moment of value is seeing a specific delivery diagnosis and then choosing “Try again” against a path shaped by their own pace.
@@ -93,10 +93,10 @@ Future v2 surfaces in `docs/pitchmi-v2-spec.md` are not part of this contract.
 
 ### Optional account connection
 
-- PitchMi remains fully usable without login; the account entry point is quiet and secondary.
+- KillerPitch remains fully usable without login; the account entry point is quiet and secondary.
 - “Save with Google” links an OAuth identity to the current anonymous user so the user ID, projects, saved takes, and consent receipt remain attached.
-- Only authentication scopes (`openid`, email, profile) are requested; PitchMi does not request Drive, contacts, or offline access.
-- If the chosen Google identity already belongs to a PitchMi user, the link is rejected and the user is directed to a separate sign-in path.
+- Only authentication scopes (`openid`, email, profile) are requested; KillerPitch does not request Drive, contacts, or offline access.
+- If the chosen Google identity already belongs to a KillerPitch user, the link is rejected and the user is directed to a separate sign-in path.
 - Signing in to an existing account requires a warning that the current temporary identity remains separate; there is no implicit data merge.
 - Redirect destinations are restricted to same-origin paths, callback failures expose no provider payload, and sign-out affects only the current device.
 - The complete surface remains build-gated by `NEXT_PUBLIC_GOOGLE_AUTH_ENABLED` until provider configuration and end-to-end identity preservation are verified.

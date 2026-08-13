@@ -6,10 +6,10 @@ import type { KaraokeWord } from "@/lib/clock"
 // A Hebrew line with a mixed Latin/number token — the §6 path output shape.
 const words: KaraokeWord[] = [
   { w: "שלום", t_start: 0, t_end: 0.5, line: 0 },
-  { w: "PitchMi", t_start: 0.5, t_end: 1, line: 0 },
+  { w: "KillerPitch", t_start: 0.5, t_end: 1, line: 0 },
   { w: "2026", t_start: 1, t_end: 1.5, line: 0 },
 ]
-const lines = [{ index: 0, text: "שלום PitchMi 2026" }]
+const lines = [{ index: 0, text: "שלום KillerPitch 2026" }]
 
 // A three-line script for window / scroll behaviour.
 const multiWords: KaraokeWord[] = [
@@ -41,7 +41,7 @@ describe("Prompter RTL rendering", () => {
   it("renders each word as an inline element in one continuous text run (no layout boxes)", () => {
     const { container } = render(<Prompter words={words} lines={lines} activeIdx={1} dir="rtl" />)
     const wordEls = Array.from(container.querySelectorAll("[data-widx]"))
-    expect(wordEls.map((el) => el.textContent)).toEqual(["שלום", "PitchMi", "2026"])
+    expect(wordEls.map((el) => el.textContent)).toEqual(["שלום", "KillerPitch", "2026"])
     // Nothing that would make a word its own layout box and pin it in DOM order.
     for (const el of wordEls) {
       expect(el.className).not.toMatch(/inline-block|flex|grid|absolute|float/)
@@ -52,7 +52,7 @@ describe("Prompter RTL rendering", () => {
     const { container } = render(<Prompter words={words} lines={lines} activeIdx={1} dir="rtl" />)
     // The Hebrew word and the pure-number token stay plain <span>s; only the
     // Latin brand name is wrapped in a <bdi> isolate.
-    expect(Array.from(container.querySelectorAll("bdi")).map((b) => b.textContent)).toEqual(["PitchMi"])
+    expect(Array.from(container.querySelectorAll("bdi")).map((b) => b.textContent)).toEqual(["KillerPitch"])
     expect(container.querySelector("[data-widx='0']")?.tagName.toLowerCase()).toBe("span")
     expect(container.querySelector("[data-widx='2']")?.tagName.toLowerCase()).toBe("span")
   })

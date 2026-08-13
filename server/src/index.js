@@ -35,5 +35,5 @@ if (process.env.NODE_ENV !== 'test') {
 
 const app = createApp()
 app.listen(config.PORT, () => {
-  console.log(`PitchMi API listening on :${config.PORT}`)
+  console.log(`KillerPitch API listening on :${config.PORT}`)
 })

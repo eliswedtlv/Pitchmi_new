@@ -9,8 +9,8 @@ import { Prompter } from "@/components/Prompter"
 import type { KaraokeWord } from "@/lib/clock"
 
 const FIXTURES: Record<string, { text: string; dir: "ltr" | "rtl"; lang: string }> = {
-  he: { text: "היי אני רוצה להציג לכם את PitchMi היום", dir: "rtl", lang: "he" },
-  en: { text: "hi I want to present PitchMi to you today", dir: "ltr", lang: "en" },
+  he: { text: "היי אני רוצה להציג לכם את KillerPitch היום", dir: "rtl", lang: "he" },
+  en: { text: "hi I want to present KillerPitch to you today", dir: "ltr", lang: "en" },
 }
 
 export default function PrompterLayoutFixture() {

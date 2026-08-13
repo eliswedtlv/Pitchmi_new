@@ -23,7 +23,7 @@ describe("dirForText — content sniffing", () => {
     expect(dirForText("مرحبا بالعالم")).toBe("rtl")
   })
   it("treats English/Latin as ltr", () => {
-    expect(dirForText("hi I want to present PitchMi")).toBe("ltr")
+    expect(dirForText("hi I want to present KillerPitch")).toBe("ltr")
   })
   it("mixed text with any strong RTL char reads rtl", () => {
     expect(dirForText("Hello עולם")).toBe("rtl")

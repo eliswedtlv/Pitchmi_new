@@ -7,14 +7,14 @@ interface BrandProps {
 }
 
 /**
- * PitchMi's rising-voice mark: three bars for voice, pace and improvement.
- * It stays deliberately simple so the same object works in app chrome, over a
- * camera feed and at favicon scale without a second "compact" identity.
+ * KillerPitch's cut-through K. The separated strokes keep the mark crisp at
+ * favicon size while the forward diagonals suggest a cue moving into delivery.
+ * The same object works in app chrome and over a live camera feed.
  */
 export function Brand({ markOnly = false, className, inverse = false }: BrandProps) {
   return (
     <span
-      aria-label={markOnly ? "PitchMi" : undefined}
+      aria-label={markOnly ? "KillerPitch" : undefined}
       className={cn("inline-flex items-center gap-2.5", className)}
     >
       <span
@@ -26,10 +26,11 @@ export function Brand({ markOnly = false, className, inverse = false }: BrandPro
       >
         <svg viewBox="0 0 24 24" className="h-[18px] w-[18px]" fill="none">
           <path
-            d="M6.5 16.5v-4M12 16.5v-8M17.5 16.5V5.5"
+            d="M7.25 5.5v13M18.25 5.75 9.8 12M12.2 10.35 18.7 18.4"
             stroke="currentColor"
-            strokeWidth="2.5"
+            strokeWidth="2.6"
             strokeLinecap="round"
+            strokeLinejoin="round"
           />
         </svg>
       </span>
@@ -40,7 +41,7 @@ export function Brand({ markOnly = false, className, inverse = false }: BrandPro
             inverse && "text-media-fg",
           )}
         >
-          pitchmi
+          killerpitch
         </span>
       )}
     </span>

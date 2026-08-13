@@ -6,8 +6,8 @@ import { DeleteMyData } from "@/components/DeleteMyData"
 import { GOOGLE_AUTH_ENABLED } from "@/lib/featureFlags"
 
 export const metadata: Metadata = {
-  title: "Privacy & consent — PitchMi",
-  description: "How PitchMi processes scripts, recordings and private session data.",
+  title: "Privacy & consent",
+  description: "How KillerPitch processes scripts, recordings and private session data.",
 }
 
 export default function PrivacyPage() {
@@ -34,7 +34,7 @@ export default function PrivacyPage() {
             Your take is yours.
           </h1>
           <p className="mt-5 max-w-2xl text-lead leading-relaxed text-fg-muted">
-            PitchMi has no public profile and no required login. A private,
+            KillerPitch has no public profile and no required login. A private,
             anonymous identity in this browser keeps your rehearsal working.
           </p>
 
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
                   transcription and AI delivery analysis.
                 </li>
                 <li>
-                  PitchMi keeps numeric scores, timing/cost diagnostics and a versioned consent
+                  KillerPitch keeps numeric scores, timing/cost diagnostics and a versioned consent
                   receipt. The receipt contains no typed name, script, transcript, video or audio.
                 </li>
                 <li>
@@ -61,7 +61,7 @@ export default function PrivacyPage() {
             <section>
               <h2 className="text-lead font-semibold text-fg">What we do not keep</h2>
               <p className="mt-3 text-body leading-relaxed text-fg-muted">
-                In the normal rehearsal flow, PitchMi does not write your raw take to cloud
+                In the normal rehearsal flow, KillerPitch does not write your raw take to cloud
                 storage unless you explicitly save it. Otherwise, video and temporary audio
                 files are discarded after the request. Third-party processing is also governed
                 by each provider&apos;s terms and the retention settings configured for those
@@ -83,8 +83,8 @@ export default function PrivacyPage() {
               <section>
                 <h2 className="text-lead font-semibold text-fg">Optional account connection</h2>
                 <p className="mt-3 text-body leading-relaxed text-fg-muted">
-                  You can connect Google to reopen the same private PitchMi identity on another
-                  device. PitchMi receives basic account information such as your name and email
+                  You can connect Google to reopen the same private KillerPitch identity on another
+                  device. KillerPitch receives basic account information such as your name and email
                   for authentication. It never receives your Google password and does not request
                   access to Drive, contacts or other Google services.
                 </p>

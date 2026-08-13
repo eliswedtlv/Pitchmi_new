@@ -65,9 +65,9 @@ export default function ResultsPage() {
 
   async function handleShare() {
     if (!takeBlob) return
-    const file = new File([takeBlob], "pitchmi-take.webm", { type: takeBlob.type })
+    const file = new File([takeBlob], "killerpitch-take.webm", { type: takeBlob.type })
     if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-      await navigator.share({ title: "My PitchMi take", files: [file] }).catch(() => {})
+      await navigator.share({ title: "My KillerPitch take", files: [file] }).catch(() => {})
       return
     }
     handleDownload()
@@ -77,7 +77,7 @@ export default function ResultsPage() {
     if (!takeBlobUrl) return
     const a = document.createElement("a")
     a.href = takeBlobUrl
-    a.download = "pitchmi-take.webm"
+    a.download = "killerpitch-take.webm"
     a.click()
   }
 

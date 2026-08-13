@@ -74,13 +74,13 @@ export function AuthComplete() {
                   Your studio is saved.
                 </h1>
                 <p className="mt-2 text-meta leading-relaxed text-fg-muted">
-                  Use the same Google account to reopen this PitchMi identity on another device.
+                  Use the same Google account to reopen this KillerPitch identity on another device.
                 </p>
                 <Button
                   className="mt-6 w-full"
                   onClick={() => window.location.assign(state.next)}
                 >
-                  Continue to PitchMi
+                  Continue to KillerPitch
                 </Button>
               </>
             ) : null}
@@ -111,7 +111,7 @@ export function AuthComplete() {
                   Google could not be connected.
                 </h1>
                 <p className="mt-2 text-meta leading-relaxed text-fg-muted">
-                  No PitchMi data was changed. Return to Account and try again.
+                  No KillerPitch data was changed. Return to Account and try again.
                 </p>
                 <Link href="/account" className="mt-6 inline-flex text-meta font-semibold text-accent">
                   Return to Account

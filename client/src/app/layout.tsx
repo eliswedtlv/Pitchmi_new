@@ -18,9 +18,28 @@ const heebo = Heebo({
 })
 
 export const metadata: Metadata = {
-  title: "PitchMi — Say it like you mean it",
+  metadataBase: new URL("https://killerpitch.app"),
+  applicationName: "KillerPitch",
+  title: {
+    default: "KillerPitch — Say it like you mean it",
+    template: "%s · KillerPitch",
+  },
   description:
     "A private rehearsal studio for 30-second videos. Follow your own script, improve your delivery, and try the next take at your pace.",
+  alternates: { canonical: "/" },
+  openGraph: {
+    type: "website",
+    url: "/",
+    siteName: "KillerPitch",
+    title: "KillerPitch — Say it like you mean it",
+    description:
+      "A private rehearsal studio for 30-second videos. Bring your script, sharpen the delivery, and take it again.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "KillerPitch — Say it like you mean it",
+    description: "A private rehearsal studio for sharper 30-second videos.",
+  },
 }
 
 // viewport-fit=cover lets content extend under the iOS home indicator so we can

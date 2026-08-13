@@ -48,7 +48,7 @@ test("Hebrew: words lay out right-to-left with the Latin token in logical positi
   }
 
   // (b) The Latin token sits between its Hebrew neighbours per logical order.
-  const pitch = words.find((w) => w.text === "PitchMi")!
+  const pitch = words.find((w) => w.text === "KillerPitch")!
   const before = words.find((w) => w.idx === pitch.idx - 1)! // logically previous
   const after = words.find((w) => w.idx === pitch.idx + 1)! // logically next
   expect(Math.abs(before.top - pitch.top)).toBeLessThanOrEqual(4)

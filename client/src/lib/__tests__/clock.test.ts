@@ -6,7 +6,7 @@ const WORDS: KaraokeWord[] = [
   { w: "world", t_start: 0.6, t_end: 1.1, line: 0 },
   { w: "this", t_start: 1.3, t_end: 1.6, line: 1 },
   { w: "is", t_start: 1.7, t_end: 1.9, line: 1 },
-  { w: "PitchMi", t_start: 2.0, t_end: 2.8, line: 1 },
+  { w: "KillerPitch", t_start: 2.0, t_end: 2.8, line: 1 },
 ]
 
 describe("activeWordIndex (pure function)", () => {
@@ -161,7 +161,7 @@ describe("useKaraokeClock hook (fake timers)", () => {
     act(() => { mockNow = 1700; flushRaf() })
     expect(result.current).toBe(3)
 
-    // t=2000ms → word 4 (PitchMi)
+    // t=2000ms → word 4 (KillerPitch)
     act(() => { mockNow = 2000; flushRaf() })
     expect(result.current).toBe(4)
   })

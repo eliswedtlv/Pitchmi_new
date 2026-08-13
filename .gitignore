@@ -13,6 +13,7 @@ node_modules/
 client/.next/
 client/out/
 client/next-env.d.ts
+*.tsbuildinfo
 
 # Build output
 dist/

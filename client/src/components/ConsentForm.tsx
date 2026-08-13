@@ -78,7 +78,7 @@ export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
         />
         <p className="flex items-center gap-1.5 text-micro text-fg-subtle">
           <LockKeyhole className="h-3 w-3" aria-hidden />
-          This entry stays on this device and is never sent to PitchMi.
+          This entry stays on this device and is never sent to KillerPitch.
         </p>
       </div>
 

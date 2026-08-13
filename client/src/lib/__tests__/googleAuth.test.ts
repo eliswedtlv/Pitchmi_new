@@ -19,7 +19,7 @@ function user(overrides: Partial<User>): User {
 }
 
 describe("Google auth helpers", () => {
-  it("keeps OAuth return paths on the PitchMi origin", () => {
+  it("keeps OAuth return paths on the KillerPitch origin", () => {
     expect(safeNextPath("/account?linked=1")).toBe("/account?linked=1")
     expect(safeNextPath("https://evil.example/steal")).toBe("/account")
     expect(safeNextPath("//evil.example/steal")).toBe("/account")
@@ -54,10 +54,10 @@ describe("Google auth helpers", () => {
   })
 
   it("reads provider callback errors from query or hash parameters", () => {
-    expect(callbackErrorCode("https://pitchmi.test/auth/complete?error_code=identity_already_exists"))
+    expect(callbackErrorCode("https://killerpitch.test/auth/complete?error_code=identity_already_exists"))
       .toBe("identity_already_exists")
-    expect(callbackErrorCode("https://pitchmi.test/auth/complete#error=access_denied"))
+    expect(callbackErrorCode("https://killerpitch.test/auth/complete#error=access_denied"))
       .toBe("access_denied")
-    expect(callbackErrorCode("https://pitchmi.test/auth/complete")).toBeNull()
+    expect(callbackErrorCode("https://killerpitch.test/auth/complete")).toBeNull()
   })
 })
