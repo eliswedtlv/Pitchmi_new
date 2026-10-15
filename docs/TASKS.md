@@ -5,13 +5,15 @@ Product name is now **KillerPitch** (rebrand 2026-08-13, domain `killerpitch.app
 ## Agreed product (killerpitch.md changes 1–5) — shipped 2026-10-15
 KP-A server rhythm-only + 5-min cap, KP-B client flow, KP-C burned-in share — deployed, desktop + phone-size checks pass in Chromium with a spoken fake mic. Specs: `docs/specs/KP-*.md`.
 Follow-ups:
-- **KP-FU-1** Real iPhone Safari check (Eli): record, rhythm, karaoke, Share video.
+- **KP-FU-1** Real iPhone Safari check (Eli): real camera + mic, Share sheet with the exported video. Everything else verified in Chromium at desktop and phone size, EN + HE.
 - **KP-FU-2** DESIGN (Eli, 2026-10-15): take 1 on phones advances by tap/swipe; voice-following is desktop-only (phone speech recognition can steal the mic from the recording).
 - ~~KP-FU-3~~ Karaoke keeps the typed punctuation (fixed 2026-10-15).
 - ~~KP-FU-4~~ All "30-second" copy (metadata, OG card, manifest, README) now says up to 5 minutes (2026-10-15). Slogan line proposed to Eli via Tech Lead.
 - ~~KP-FU-5~~ Export prefers H.264/AAC MP4 (2026-10-15).
 - ~~KP-FU-6~~ Burned-in mark and highlight use the live blue accent (2026-10-15).
-- **KP-D** Hebrew UI end to end (T-5540) — spec `docs/specs/KP-D-hebrew-ui.md`.
+- ~~KP-D~~ Hebrew UI end to end (T-5540) shipped 2026-10-15: EN/עב toggle, browser-language default, RTL, privacy translated.
+- Tagline approved (Eli, 2026-10-15): "Your words. Your rhythm. Up to 5 minutes." / "המילים שלכם. הקצב שלכם. עד 5 דקות." — home, metadata, OG card, manifest.
+- Privacy/consent rewritten for the rhythm-only product (no AI video analysis, no scores); consent version 2026-10-15, so everyone re-consents once.
 
 ## Open work — priority order (from CCW handoff, 2026-10-15)
 
