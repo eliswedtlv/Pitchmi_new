@@ -168,7 +168,7 @@ export function VideoPlayer({ src, className, autoPlay = false, mirrored = false
       </div>
 
       {/* Controls. `dir="ltr"` is deliberate and stays that way in Hebrew: the
-          scrubber is a picture of TIME, and time in a 30-second take runs left
+          scrubber is a picture of TIME, and time in a take runs left
           to right for every speaker of every language. Mirroring it in RTL would
           put "the end of the take" where every video player on the device puts
           the beginning. Only the text on this row is language-shaped, and there

@@ -24,7 +24,7 @@ describe('line chunker (§B)', () => {
 
   test('prefers a comma boundary over filling the line', () => {
     const lines = linesOf(['Hello', 'there,', 'my', 'friends', 'and', 'welcome']).map(l => l.text)
-    expect(lines[0]).toBe('Hello there')
+    expect(lines[0]).toBe('Hello there,')
   })
 
   test('breaks before a conjunction so the phrase opens the next line', () => {
@@ -34,7 +34,7 @@ describe('line chunker (§B)', () => {
 
   test('Hebrew breaks at the comma (char-based cap, RTL-safe)', () => {
     const lines = linesOf(['שלום', 'עולם,', 'מה', 'שלומך']).map(l => l.text)
-    expect(lines).toEqual(['שלום עולם', 'מה שלומך'])
+    expect(lines).toEqual(['שלום עולם,', 'מה שלומך'])
   })
 
   test('never leaves a one-word orphan line', () => {

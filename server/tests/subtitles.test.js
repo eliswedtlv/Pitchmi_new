@@ -37,12 +37,12 @@ describe('buildSubtitles (T-1169)', () => {
     expect(out[1].t_start - out[0].t_end).toBeCloseTo(0.3, 5)
   })
 
-  test('trailing punctuation is stripped from the displayed word', () => {
+  test('trailing punctuation stays on the displayed word (typed script)', () => {
     const { words: out } = buildSubtitles([
       { w: 'Hello,', start: 0, end: 0.4 },
       { w: 'world.', start: 0.5, end: 1.0 }
     ])
-    expect(out.map(w => w.w)).toEqual(['Hello', 'world'])
+    expect(out.map(w => w.w)).toEqual(['Hello,', 'world.'])
   })
 
   test('empty / unusable input -> empty structure, no crash', () => {

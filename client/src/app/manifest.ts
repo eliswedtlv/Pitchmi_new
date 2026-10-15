@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "KillerPitch",
     short_name: "KillerPitch",
-    description: "A private rehearsal studio for sharper 30-second videos.",
+    description: "Rehearse any speech or pitch up to 5 minutes, on your own rhythm.",
     start_url: "/",
     display: "standalone",
     background_color: "#f2f0e9",

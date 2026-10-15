@@ -6,11 +6,12 @@ Product name is now **KillerPitch** (rebrand 2026-08-13, domain `killerpitch.app
 KP-A server rhythm-only + 5-min cap, KP-B client flow, KP-C burned-in share — deployed, desktop + phone-size checks pass in Chromium with a spoken fake mic. Specs: `docs/specs/KP-*.md`.
 Follow-ups:
 - **KP-FU-1** Real iPhone Safari check (Eli): record, rhythm, karaoke, Share video.
-- **KP-FU-2** Take 1 on phones advances by tap/swipe only — speech-following is desktop-only (phone speech recognition can steal the mic from the recording).
-- **KP-FU-3** Karaoke lines drop punctuation ("Hi I am Dana") — the aligned path uses bare tokens.
-- **KP-FU-4** Metadata/OG/manifest still say "30-second videos" (change 6, name/slogan, held for Eli).
-- **KP-FU-5** Desktop Chrome exports VP9-in-MP4; QuickTime/older players may not open it.
-- **KP-FU-6** Burned-in mark uses fuchsia #a21caf; the live app accent renders blue — align.
+- **KP-FU-2** DESIGN (Eli, 2026-10-15): take 1 on phones advances by tap/swipe; voice-following is desktop-only (phone speech recognition can steal the mic from the recording).
+- ~~KP-FU-3~~ Karaoke keeps the typed punctuation (fixed 2026-10-15).
+- ~~KP-FU-4~~ All "30-second" copy (metadata, OG card, manifest, README) now says up to 5 minutes (2026-10-15). Slogan line proposed to Eli via Tech Lead.
+- ~~KP-FU-5~~ Export prefers H.264/AAC MP4 (2026-10-15).
+- ~~KP-FU-6~~ Burned-in mark and highlight use the live blue accent (2026-10-15).
+- **KP-D** Hebrew UI end to end (T-5540) — spec `docs/specs/KP-D-hebrew-ui.md`.
 
 ## Open work — priority order (from CCW handoff, 2026-10-15)
 

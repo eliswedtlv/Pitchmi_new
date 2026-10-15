@@ -1,6 +1,6 @@
 # KillerPitch
 
-Write a script for a short spoken video (≤ 30s), rehearse it on camera against a timed **karaoke teleprompter**, and get sharp coaching on **delivery**—voice, body language, timing, and accuracy, never *what* you say. Every take re-times the next rehearsal to your measured speaking pace. Repeat until it lands, then share or download through the operating system.
+Rehearse any speech or pitch up to 5 minutes. Take 1 is a teleprompter you read your way; it sets your rhythm. From take 2 the words light up karaoke-style on that rhythm, and you can lock a take you like as the rhythm to follow. No score: the camera is a mirror, and you can share the take with the karaoke words and the KillerPitch mark burned in.
 
 No signup is required. A Supabase **anonymous** identity is created per device
 when the user accepts the recording/AI-processing notice. An optional Google

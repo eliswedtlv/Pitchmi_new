@@ -62,7 +62,7 @@ export default function OpenGraphImage() {
             <span style={{ color: "#1746ff" }}>you mean it.</span>
           </div>
           <div style={{ display: "flex", fontSize: 25, color: "#535761", letterSpacing: -0.5 }}>
-            30-second rehearsal studio · private by default
+            Rehearse up to 5 minutes · on your own rhythm
           </div>
         </div>
       </div>

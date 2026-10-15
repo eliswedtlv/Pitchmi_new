@@ -148,6 +148,7 @@ function enforceMonotonic (starts, ends) {
 }
 
 function punctuation (t) {
+  if (t.trail) return t.trail
   if (t.sentenceEnd) return '.'
   if (t.clauseBreak) return ','
   return ''

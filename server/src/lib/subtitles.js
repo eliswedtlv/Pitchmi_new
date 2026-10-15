@@ -143,9 +143,10 @@ function buildSubtitles (words) {
 
   const tokens = clean.map(w => {
     const trail = (w.raw.match(TRAILING_PUNCT) || [''])[0]
-    const surface = w.raw.replace(TRAILING_PUNCT, '').trim() || w.raw.trim()
+    // The surface keeps its punctuation: words come from the user's typed
+    // script (KP), so "Hi, I am Dana." reads the way they wrote it.
     return {
-      w: surface,
+      w: w.raw.trim(),
       clauseBreak: CLAUSE_PUNCT.test(trail),
       sentenceEnd: SENTENCE_PUNCT.test(trail),
       t_start: w.t_start,
@@ -177,6 +178,7 @@ function scriptTokens (text) {
       const raw = String(t.w)
       return {
         w: raw.replace(TRAILING_PUNCT, '').trim() || raw.trim(),
+        trail: (raw.trim().match(TRAILING_PUNCT) || [''])[0],
         clauseBreak: !!t.clauseBreak,
         sentenceEnd: !!t.sentenceEnd
       }

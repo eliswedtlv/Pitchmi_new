@@ -161,7 +161,7 @@ describe("recording pipeline", () => {
     expect(env.close).toHaveBeenCalled()
     expect(env.disconnect).toHaveBeenCalled()
     expect(env.revoke).toHaveBeenCalledWith("blob:local")
-    expect(env.requests).toEqual(["video/mp4"])
+    expect(env.requests).toEqual(["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1", "video/mp4"])
   })
 
   it("still draws the mark for a null path and rejects playback failures with cleanup", async () => {

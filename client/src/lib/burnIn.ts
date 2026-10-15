@@ -63,7 +63,7 @@ function drawOverlay(
   const { width: w, height: h } = ctx.canvas
   const { x, y, size } = markRect(w, h, dir)
   ctx.save()
-  ctx.fillStyle = "#a21caf"
+  ctx.fillStyle = "#1746ff"
   ctx.beginPath()
   ctx.roundRect(x, y, size, size, size * 0.28)
   ctx.fill()
@@ -108,7 +108,7 @@ function drawOverlay(
     rows.forEach((row, index) => {
       let cursor = (w + (dir === "rtl" ? widths[index] : -widths[index])) / 2
       for (const word of row) {
-        ctx.fillStyle = word.spoken ? "#e879f9" : "#ffffff"
+        ctx.fillStyle = word.spoken ? "#6f8cff" : "#ffffff"
         ctx.fillText(word.w, cursor, top + padding + rowHeight * (index + 0.5))
         cursor += (dir === "rtl" ? -1 : 1) * (ctx.measureText(word.w).width + gap)
       }
@@ -206,7 +206,8 @@ export async function burnInKaraoke(
       audioTracks = captured.getAudioTracks()
     }
     for (const track of audioTracks) canvasStream.addTrack(track)
-    const mimeType = ["video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus"]
+    // H.264/AAC first: VP9-in-MP4 (Chrome's plain "video/mp4") won't open in QuickTime or older players.
+    const mimeType = ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4;codecs=avc1", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus"]
       .find(type => MediaRecorder.isTypeSupported(type))
     if (!mimeType) throw new Error("No supported video recording format")
     recorder = new MediaRecorder(canvasStream, { mimeType })
