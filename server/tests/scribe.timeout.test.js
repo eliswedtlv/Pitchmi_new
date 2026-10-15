@@ -36,7 +36,7 @@ test('headers then a body that never settles rejects on the timer, it does not h
   // Let the fetch mock resolve and the body read start before the clock jumps.
   await Promise.resolve()
   await Promise.resolve()
-  jest.advanceTimersByTime(60000)
+  jest.advanceTimersByTime(120000)
 
   await settled
   expect(aborted).toBe(true)

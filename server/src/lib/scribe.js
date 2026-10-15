@@ -7,9 +7,9 @@ const config = require('../config')
 
 const SCRIBE_URL = 'https://api.elevenlabs.io/v1/speech-to-text'
 
-// Hard timeout on the Scribe HTTP call so a stalled upstream can never hang the
+// Hard timeout (120s, sized for 5-min takes) on the Scribe HTTP call so a stalled upstream can never hang the
 // rhythm handler (T-1165). The timer is always cleared.
-const SCRIBE_TIMEOUT_MS = 60000
+const SCRIBE_TIMEOUT_MS = 120000
 
 // transcribe(audioBuffer, mime) ->
 //   { text, language, words: [{ w, start, end }], duration_s }
