@@ -53,14 +53,14 @@ async function recordConsent (userId, action) {
   if (error) throw error
 }
 
-async function countEvaluationsToday (userId) {
+async function countRhythmsToday (userId) {
   const start = new Date()
   start.setUTCHours(0, 0, 0, 0)
   const { count, error } = await sb()
     .from('events')
     .select('id', { count: 'exact', head: true })
     .eq('user_id', userId)
-    .eq('action', 'evaluate')
+    .eq('action', 'rhythm')
     .gte('ts', start.toISOString())
   if (error) throw error
   return count || 0
@@ -214,7 +214,7 @@ module.exports = {
   setServiceEnabled,
   logEvent,
   recordConsent,
-  countEvaluationsToday,
+  countRhythmsToday,
   hasEvent,
   queryEvents,
   eventsForAggregates,

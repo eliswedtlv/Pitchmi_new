@@ -1,9 +1,8 @@
 'use strict'
 
 // Single source of truth for disfluency / filler tokens (T-1162 §C).
-// Used by BOTH the transcribe route (strip fillers from the editable script)
-// and score.js (fillers never count as a transcript match — they are always
-// insertions). Keep this list — nothing else — as the canonical filler set.
+// Used by script alignment. Fillers never count as a transcript match and are
+// treated as insertions. Keep this list as the canonical filler set.
 //
 // Deliberately excludes real words like "like" / "you know": those are only
 // treated as fillers when the STT provider explicitly tags them as

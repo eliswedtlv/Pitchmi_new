@@ -1,6 +1,6 @@
 'use strict'
 
-// Language-aware text utilities shared by the path and score algorithms.
+// Language-aware text utilities shared by the path alignment algorithm.
 // Everything here is pure and dependency-free so it is trivial to unit test.
 // The filler list lives in ./fillers.js (single source of truth) — importing it
 // here would be circular (fillers.js needs normalize), so consumers pull

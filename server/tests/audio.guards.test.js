@@ -24,7 +24,7 @@ jest.mock('fs/promises', () => ({
   rm: jest.fn(async () => {})
 }))
 
-const { extractAudio, transcodeForEval, sniffContainer } = require('../src/lib/audio')
+const { extractAudio, sniffContainer } = require('../src/lib/audio')
 
 // Minimal buffers that carry a real container signature.
 const WEBM = Buffer.concat([Buffer.from([0x1a, 0x45, 0xdf, 0xa3]), Buffer.from('webm-payload-bytes')])
@@ -66,8 +66,8 @@ describe('ffmpeg input guards', () => {
     expect(opts).toEqual({ stdio: ['ignore', 'pipe', 'pipe'] })
   })
 
-  test('transcodeForEval pins them too, with the mp4 demuxer for an mp4 input', async () => {
-    const p = transcodeForEval(MP4)
+  test('extractAudio pins the mp4 demuxer too, with the mp4 demuxer for an mp4 input', async () => {
+    const p = extractAudio(MP4)
     closeSoon(0)
     await p
 
@@ -78,7 +78,6 @@ describe('ffmpeg input guards', () => {
   test('a playlist declared as a video never reaches ffmpeg', async () => {
     const evil = Buffer.from('#EXTM3U\n#EXT-X-TARGETDURATION:1\nfile:///etc/passwd')
     await expect(extractAudio(evil)).rejects.toMatchObject({ code: 'UNSUPPORTED_MEDIA_TYPE' })
-    await expect(transcodeForEval(evil)).rejects.toMatchObject({ code: 'UNSUPPORTED_MEDIA_TYPE' })
     expect(mockSpawn).not.toHaveBeenCalled()
   })
 })

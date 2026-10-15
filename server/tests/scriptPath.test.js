@@ -8,9 +8,7 @@
 // hardest because a violation is completely silent in production — the karaoke
 // clock just stops highlighting.
 
-const { buildSeedPath, buildPathFromScript } = require('../src/lib/scriptPath')
-const { scoreTake } = require('../src/lib/score')
-const config = require('../src/config')
+const { buildPathFromScript } = require('../src/lib/scriptPath')
 
 // Reading a script back at a steady pace, optionally substituting or dropping
 // words. `mutate(word, index)` returns the spoken surface, or null to skip it.
@@ -271,91 +269,6 @@ describe('buildPathFromScript — path shape (the highest-value regression check
     }
     expect(typeof path.total_s).toBe('number')
   })
-
-  test('scoreTake runs against it and scores a re-read of the same script highly', () => {
-    const res = scoreTake(spoken, path)
-    expect(res.path_word_count).toBe(path.words.length)
-    expect(res.accuracy).toBe(100)
-    expect(res.timing).toBe(100)
-    expect(res.flags).toEqual([])
-  })
-})
-
-describe('buildSeedPath — the disposable take-0 estimate', () => {
-  const script = 'We are building a tool for founders, who hate rehearsing alone. It works well.'
-
-  test('emits the same shape as any other path, monotonic and non-negative', () => {
-    const path = buildSeedPath(script)
-
-    expect(path.words.length).toBe(14)
-    expect(isMonotonic(path)).toBe(true)
-    for (const w of path.words) {
-      expect(Object.keys(w).sort()).toEqual(['line', 't_end', 't_start', 'w'])
-      expect(w.t_start).toBeGreaterThanOrEqual(0)
-      expect(w.t_end).toBeGreaterThan(w.t_start)
-    }
-    for (const l of path.lines) {
-      expect(Object.keys(l).sort()).toEqual(['index', 't_end', 't_start', 'text'])
-    }
-    expect(path.total_s).toBeGreaterThan(0)
-  })
-
-  test('word duration is character length at SEED_CHARS_PER_SECOND', () => {
-    // "a" (1 char) vs "extraordinary" (13) in a plain, punctuation-free script.
-    const path = buildSeedPath('a extraordinary ok')
-    const [a, extra] = path.words
-    const cps = config.SEED_CHARS_PER_SECOND
-
-    expect(a.t_end - a.t_start).toBeCloseTo(1 / cps, 3)
-    expect(extra.t_end - extra.t_start).toBeCloseTo(13 / cps, 3)
-  })
-
-  test('honours the punctuation pauses: 80ms plain, 150ms clause, 350ms sentence', () => {
-    const path = buildSeedPath('alpha beta, gamma. delta')
-    const gapAfter = i => round(path.words[i + 1].t_start - path.words[i].t_end)
-
-    expect(gapAfter(0)).toBeCloseTo(0.08, 3) // alpha -> beta
-    expect(gapAfter(1)).toBeCloseTo(0.15, 3) // beta, -> gamma
-    expect(gapAfter(2)).toBeCloseTo(0.35, 3) // gamma. -> delta
-  })
-
-  test('punctuation is stripped from the rendered surface, as it is for a take', () => {
-    expect(buildSeedPath('alpha beta, gamma.').words.map(w => w.w)).toEqual(['alpha', 'beta', 'gamma'])
-  })
-
-  test('an empty or whitespace-only script yields an empty path, no crash', () => {
-    expect(buildSeedPath('')).toEqual({ words: [], lines: [], total_s: 0 })
-    expect(buildSeedPath('   \n ')).toEqual({ words: [], lines: [], total_s: 0 })
-  })
-
-  test('a 3-word script is a single usable line', () => {
-    const path = buildSeedPath('ship it now')
-    expect(path.words).toHaveLength(3)
-    expect(path.lines).toHaveLength(1)
-  })
-
-  test('Hebrew seeds at the same character rate', () => {
-    const path = buildSeedPath('שלום קוראים לי אלי ואני בונה מוצר')
-    expect(path.words).toHaveLength(7)
-    expect(isMonotonic(path)).toBe(true)
-    expect(path.total_s).toBeGreaterThan(0)
-  })
-})
-
-describe('the prompter text never reflows between the seed and the re-timed path', () => {
-  test.each([
-    'We are building a tool for founders who hate rehearsing alone, and it works.',
-    'Hi. I want to present PitchMi today, because rehearsing in front of a mirror is useless.',
-    'שלום קוראים לי אלי ואני בונה מוצר חדש לדוברים',
-    'ship it now'
-  ])('same words and same line grouping for %s', (script) => {
-    const seed = buildSeedPath(script)
-    const { path } = buildPathFromScript(script, read(script))
-
-    expect(path.words.map(w => w.w)).toEqual(seed.words.map(w => w.w))
-    expect(path.words.map(w => w.line)).toEqual(seed.words.map(w => w.line))
-    expect(path.lines.map(l => l.text)).toEqual(seed.lines.map(l => l.text))
-  })
 })
 
 describe('Hebrew end-to-end', () => {
@@ -368,7 +281,6 @@ describe('Hebrew end-to-end', () => {
     expect(isMonotonic(path)).toBe(true)
     expect(path.lines.length).toBeGreaterThan(0)
     expect(path.lines.every(l => l.text.trim().length > 0)).toBe(true)
-    expect(buildSeedPath(script).lines.map(l => l.text)).toEqual(path.lines.map(l => l.text))
   })
 
   test('Hebrew punctuation in the typed script does not block anchoring', () => {

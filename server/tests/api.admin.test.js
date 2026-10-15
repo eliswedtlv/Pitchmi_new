@@ -85,6 +85,32 @@ describe('admin auth (#7)', () => {
     expect(day.total_eval_usd).toBe(0)
   })
 
+  test('rhythm events aggregate counts and STT spend without score dimensions', async () => {
+    const app = createApp()
+    const { cookie } = await login(app)
+    dbMock.__state.events = [{
+      ts: '2026-10-15T09:00:00Z',
+      user_id: 'u1',
+      action: 'rhythm',
+      cost_usd: 0.02,
+      latency_ms: 1000,
+      scores: { coverage: 0.9, retimed: 1, cost: { stt_usd: 0.02 } }
+    }, {
+      ts: '2026-10-15T10:00:00Z', user_id: 'u2', action: 'rhythm', cost_usd: 0.01
+    }]
+    const res = await request(app).get('/api/admin/aggregates').set('Cookie', cookie)
+    expect(res.status).toBe(200)
+    expect(res.body.aggregates[0]).toMatchObject({
+      evals: 2,
+      unique_users: 2,
+      avg_score: 0,
+      total_cost_usd: 0.03,
+      total_stt_usd: 0.02,
+      total_eval_usd: 0,
+      avg_latency_ms: 1000
+    })
+  })
+
   test('service toggle re-arms kill switch', async () => {
     const app = createApp()
     const { cookie } = await login(app)

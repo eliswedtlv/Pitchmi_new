@@ -15,17 +15,13 @@ let release = null
 const mockAudio = {
   extractAudio: jest.fn(() => new Promise(resolve => {
     release = () => resolve({ buffer: Buffer.from('audio'), mime: 'audio/mp4', duration_s: 5 })
-  })),
-  transcodeForEval: jest.fn(async () => ({ buffer: Buffer.from('eval-proxy'), mime: 'video/mp4' }))
+  }))
 }
 jest.mock('../src/lib/audio', () => mockAudio)
 jest.mock('../src/lib/scribe', () => ({
   transcribe: async () => ({
     text: 'hello', language: 'en', words: [{ w: 'hello', start: 0, end: 0.5 }], duration_s: 0.5
   })
-}))
-jest.mock('../src/lib/evaluate', () => ({
-  evaluateVideo: async () => ({ voice: 80, body: 80, delivery: 80, comments: ['a', 'b', 'c'], attempts: 1 })
 }))
 
 const request = require('supertest')
@@ -42,7 +38,7 @@ beforeEach(() => {
 
 function post (app) {
   return request(app)
-    .post('/api/evaluate')
+    .post('/api/rhythm')
     .set('Authorization', `Bearer ${userToken('user-1')}`)
     .field('project_id', 'proj-1')
     .attach('video', Buffer.from('fake-video-bytes'), { filename: 'take.webm', contentType: 'video/webm' })

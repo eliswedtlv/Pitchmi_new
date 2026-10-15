@@ -41,11 +41,7 @@ module.exports = {
   adminLogin: make({ windowMs: 15 * MINUTE, max: 10, error: 'too_many_attempts', route: '/api/admin/login' }),
   consent: make({ windowMs: HOUR, max: 20, error: 'rate_limited', route: '/api/consent' }),
   deleteAccount: make({ windowMs: HOUR, max: 5, error: 'rate_limited', route: '/api/me' }),
-  // No `transcribe` limiter: T-10018 deleted /api/transcribe (the typed script
-  // seeds its own path, and the re-timing rides on /api/evaluate), so the
-  // limiter guarded a route that no longer exists. `/api/evaluate` is now the
-  // only billable route and keeps its own unchanged 30/hour ceiling.
-  evaluate: make({ windowMs: HOUR, max: config.RATE_LIMIT_EVAL_PER_HOUR, error: 'rate_limited', route: '/api/evaluate' }),
+  rhythm: make({ windowMs: HOUR, max: config.RATE_LIMIT_EVAL_PER_HOUR, error: 'rate_limited', route: '/api/rhythm' }),
   save: make({ windowMs: HOUR, max: config.RATE_LIMIT_SAVE_PER_HOUR, error: 'rate_limited', route: '/api/save' }),
   __resetAll () { for (const s of stores) s.resetAll() }
 }

@@ -2,10 +2,9 @@
 
 // In-process admission control for media (ffmpeg) work — T-10010.
 //
-// /api/evaluate spawns two ffmpeg processes per request, one of them an libx264
-// encode, and holds a 60MB upload in memory the whole time. A handful of
+// /api/rhythm decodes audio and holds up to a 200MB upload in memory. Several
 // simultaneous uploads OOM-kills a small Railway container, so the ffmpeg-
-// touching section of transcribe/evaluate runs behind a semaphore: at most
+// touching section of rhythm runs behind a semaphore: at most
 // MEDIA_CONCURRENCY at a time, at most MEDIA_QUEUE_MAX more waiting. Anything
 // past that is refused immediately with `busy` rather than piling up — a queue
 // that never drains is just a slower crash.

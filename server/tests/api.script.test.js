@@ -1,9 +1,6 @@
 'use strict'
 
-// T-10018 — POST /api/script is the text-first entry point. It stores the typed
-// script, seeds a throwaway karaoke path from it, and hands both back so the
-// client can go straight to the prompter. No media, so no rate limiter and no
-// media semaphore.
+// Script submissions store text and clear any previous measured rhythm.
 
 require('./helpers')
 jest.mock('../src/lib/db', () => require('./mocks/db'))
@@ -26,38 +23,19 @@ function post (body, user = 'user-1') {
 const SCRIPT = 'We are building a tool for founders who hate rehearsing alone.'
 
 describe('POST /api/script', () => {
-  test('happy path: 200 with a seed path, script + path written to the project', async () => {
+  test('happy path: 200 with word_count, script written and path cleared', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
 
     const res = await post({ project_id: 'proj-1', text: SCRIPT })
 
     expect(res.status).toBe(200)
-    expect(res.body.word_count).toBe(11)
-    expect(res.body.est_duration_s).toBeGreaterThan(0)
-    expect(res.body.est_duration_s).toBe(res.body.path.total_s)
-    // A real, renderable path — same shape the client already draws.
-    expect(res.body.path.words).toHaveLength(11)
-    expect(res.body.path.words[0]).toEqual({
-      w: 'We',
-      t_start: 0,
-      t_end: expect.any(Number),
-      line: 0
-    })
-    expect(res.body.path.lines.length).toBeGreaterThan(0)
-
+    expect(res.body).toEqual({ word_count: 11 })
     const project = dbMock.__state.projects.get('proj-1')
     expect(project.script).toBe(SCRIPT)
-    expect(project.path.words).toHaveLength(11)
+    expect(project.path).toBeNull()
   })
 
-  test('the seed path is monotonic', async () => {
-    dbMock.__seedProject('proj-1', 'user-1')
-    const res = await post({ project_id: 'proj-1', text: SCRIPT })
-    const starts = res.body.path.words.map(w => w.t_start)
-    expect(starts.every((s, i) => i === 0 || s >= starts[i - 1])).toBe(true)
-  })
-
-  test('re-posting a script resets to a FRESH seed — edited text never keeps stale timings', async () => {
+  test('re-posting a script clears the previous rhythm — edited text never keeps stale timings', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
     await post({ project_id: 'proj-1', text: SCRIPT })
 
@@ -70,9 +48,7 @@ describe('POST /api/script', () => {
     expect(res.status).toBe(200)
     const project = dbMock.__state.projects.get('proj-1')
     expect(project.script).toBe('A completely different pitch about something else.')
-    expect(project.path).not.toEqual(measured)
-    expect(project.path.words.map(w => w.w)).toEqual(res.body.path.words.map(w => w.w))
-    expect(project.path.words[0].t_start).toBe(0)
+    expect(project.path).toBeNull()
   })
 
   test('missing project_id -> 400', async () => {
@@ -101,23 +77,37 @@ describe('POST /api/script', () => {
     expect(dbMock.__state.projects.get('proj-1').script).toBeUndefined()
   })
 
-  test('a 1300-character script -> 400 script_too_long with a localized message', async () => {
+  test.each(['!!!', 'ship, it!', 'שלום, עולם!'])('tokenizer rejects fewer than 3 words: %s', async (text) => {
+    dbMock.__seedProject('proj-1', 'user-1')
+    const res = await post({ project_id: 'proj-1', text })
+    expect(res.status).toBe(400)
+    expect(res.body.error).toBe('script_too_short')
+  })
+
+  test('exactly 3 tokens are accepted', async () => {
+    dbMock.__seedProject('proj-1', 'user-1')
+    const res = await post({ project_id: 'proj-1', text: 'ship, it now!' })
+    expect(res.status).toBe(200)
+    expect(res.body).toEqual({ word_count: 3 })
+  })
+
+  test('a 6001-character script -> 400 script_too_long with a localized message', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
 
-    const res = await post({ project_id: 'proj-1', text: 'word '.repeat(260) })
+    const res = await post({ project_id: 'proj-1', text: 'x'.repeat(config.MAX_SCRIPT_CHARS + 1) })
 
     expect(res.status).toBe(400)
     expect(res.body.error).toBe('script_too_long')
     expect(res.body.limit_chars).toBe(config.MAX_SCRIPT_CHARS)
-    expect(res.body.message.en).toMatch(/1200/)
+    expect(res.body.message.en).toMatch(/6000/)
     expect(typeof res.body.message.he).toBe('string')
     expect(dbMock.__state.projects.get('proj-1').script).toBeUndefined()
   })
 
   test('a script exactly at the limit is accepted', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
-    const text = 'word '.repeat(239) + 'end'.padEnd(config.MAX_SCRIPT_CHARS - 1195, 'x')
-    expect(text.length).toBeLessThanOrEqual(config.MAX_SCRIPT_CHARS)
+    const text = 'word '.repeat(1199) + 'abcde'
+    expect(text.length).toBe(config.MAX_SCRIPT_CHARS)
 
     expect((await post({ project_id: 'proj-1', text })).status).toBe(200)
   })
@@ -134,7 +124,7 @@ describe('POST /api/script', () => {
     expect(res.status).toBe(401)
   })
 
-  test('Hebrew script round-trips and seeds a path', async () => {
+  test('Hebrew script round-trips and clears the rhythm', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
     const he = 'שלום, קוראים לי אלי ואני בונה מוצר חדש לדוברים.'
 
@@ -143,6 +133,5 @@ describe('POST /api/script', () => {
     expect(res.status).toBe(200)
     expect(res.body.word_count).toBe(9)
     expect(dbMock.__state.projects.get('proj-1').script).toBe(he)
-    expect(res.body.path.lines.every(l => l.text.trim().length > 0)).toBe(true)
   })
 })

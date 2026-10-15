@@ -1,34 +1,11 @@
 'use strict'
 
-// Karaoke timings for a TYPED script (T-10018). Two functions, used in order:
-//
-//   buildSeedPath(scriptText)                  -> path            (take 0)
-//   buildPathFromScript(scriptText, spoken)    -> { path, coverage, matched, total }
-//
-// The problem: karaoke needs a timestamp per word and typed text has none. Two
-// earlier attempts to synthesize a whole pacing MODEL (T-1167, T-1168) were
-// rejected as "too fast" / "not my rhythm", and T-1169 deleted that engine
-// rather than tune it a third time. So the design here is deliberately not an
-// engine — it is one throwaway estimate followed by measurement:
-//
-//   1. `buildSeedPath` gives the very first take something to follow: fixed
-//      chars-per-second plus fixed punctuation pauses. No anchoring, no
-//      stretching, no smoothing, no rate model. It survives exactly one take.
-//   2. After every take, `buildPathFromScript` aligns what was actually said
-//      against the typed script, and each typed word inherits the REAL moment
-//      it was spoken. Words with no anchor (mis-heard, skipped, fumbled) are
-//      interpolated between two real neighbours in proportion to their
-//      character length — never laid out at a synthesized rate.
-//
-// So the pace the user rehearses against is their own from take 2 onward, and
-// it is measured, never invented. Both functions emit exactly the shape
-// buildSubtitles produces for a spoken take, so scoring and the client render
-// them unchanged. Pure, no I/O.
+// Build a karaoke path from the typed script and measured speech timestamps.
+// Alignment anchors matching words and interpolates the remaining timings.
 
 const { normalize, charLen } = require('./text')
 const { isFiller } = require('./fillers')
-const { align } = require('./score')
-const config = require('../config')
+const { align } = require('./align')
 const { buildSubtitles, scriptTokens } = require('./subtitles')
 
 // Seconds per character, used ONLY to extrapolate a leading/trailing run when
@@ -36,41 +13,12 @@ const { buildSubtitles, scriptTokens } = require('./subtitles')
 // other path through this module measures the rate from the real reading.
 const FALLBACK_RATE_S_PER_CHAR = 0.06
 
-// Inter-word silences for the seed path, carried over verbatim from T-1168 —
-// they are the one part of that work that measured well. Fixed, never scaled.
-const WORD_GAP_S = 0.08
-const CLAUSE_GAP_S = 0.15
-const SENTENCE_PAUSE_S = 0.35
-
-// A first, disposable guess at the timings for a script nobody has spoken yet.
-// Rate is in CHARACTERS per second, not words per minute: word length varies
-// hugely between English and Hebrew, so a WPM figure calibrated on one is
-// wrong on the other. This is not a pacing engine and must not become one —
-// the very first take replaces it with measured timings.
-function buildSeedPath (scriptText) {
-  const tokens = scriptTokens(scriptText)
-  if (!tokens.length) return emptyPath()
-
-  const cps = config.SEED_CHARS_PER_SECOND > 0 ? config.SEED_CHARS_PER_SECOND : 13
-  let t = 0
-  const words = tokens.map(token => {
-    const start = t
-    t += Math.max(1, charLen(token.w)) / cps
-    const end = t
-    t += token.sentenceEnd ? SENTENCE_PAUSE_S : token.clauseBreak ? CLAUSE_GAP_S : WORD_GAP_S
-    return { w: token.w + punctuation(token), start, end }
-  })
-
-  return buildSubtitles(words)
-}
-
 function buildPathFromScript (scriptText, spokenWords) {
   const tokens = scriptTokens(scriptText)
   const total = tokens.length
   if (!total) return result(emptyPath(), 0, 0)
 
-  // `end` matters here, so build our own spoken array — scoreTake's (score.js
-  // :26-30) drops it. `align` itself never reads start/end.
+  // Keep both timestamps for interpolation. Alignment only reads tokens.
   const spoken = (spokenWords || [])
     .map(s => ({
       norm: normalize(s && s.w),
@@ -80,8 +28,7 @@ function buildPathFromScript (scriptText, spokenWords) {
     }))
     .filter(s => Number.isFinite(s.start) && Number.isFinite(s.end))
 
-  // Silence: no anchors and no span to interpolate over. The caller turns an
-  // empty path into 422 no_speech.
+  // Silence has no anchors. The caller keeps the previous rhythm.
   if (!spoken.length) return result(emptyPath(), 0, total)
 
   const pathNorm = tokens.map(t => normalize(t.w))
@@ -101,8 +48,7 @@ function buildPathFromScript (scriptText, spokenWords) {
   if (!matched) {
     // Nothing anchored — the user read something else entirely. Spreading the
     // script over the reading's real span keeps the path well-formed so the
-    // caller can answer with the honest `low_coverage` error rather than
-    // pretending the take was silent. Coverage is 0, so it never ships.
+    // caller can return null for the rhythm with coverage 0.
     fillRun(tokens, starts, ends, 0, total - 1, spoken[0].start, audioEnd)
   } else {
     const first = matches[0].pi
@@ -215,4 +161,4 @@ function result (path, matched, total) {
   return { path, coverage: total ? matched / total : 0, matched, total }
 }
 
-module.exports = { buildSeedPath, buildPathFromScript }
+module.exports = { buildPathFromScript }

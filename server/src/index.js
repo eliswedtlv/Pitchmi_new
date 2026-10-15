@@ -17,13 +17,9 @@ if (process.env.NODE_ENV !== 'test') {
     'SUPABASE_SERVICE_ROLE_KEY',
     'ELEVENLABS_API_KEY'
   ]
-  required.push(config.EVAL_PROVIDER === 'gemini' ? 'GEMINI_API_KEY' : 'OPENROUTER_API_KEY')
   const missing = required.filter(k => !config[k])
   if (missing.length) {
     throw new Error(`Refusing to start: ${missing.join(' and ')} must be set (see server/.env.example).`)
-  }
-  if (!['openrouter', 'gemini'].includes(config.EVAL_PROVIDER)) {
-    throw new Error('Refusing to start: EVAL_PROVIDER must be openrouter or gemini.')
   }
   if (config.ADMIN_COOKIE_SECRET.length < 32) {
     console.warn('WARNING: ADMIN_COOKIE_SECRET should be at least 32 characters.')

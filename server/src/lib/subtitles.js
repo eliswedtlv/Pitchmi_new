@@ -169,7 +169,7 @@ function buildSubtitles (words) {
 // (T-10018): surface with trailing punctuation stripped, plus the clause /
 // sentence flags the line grouper reads. `segmentWords` already reports those
 // flags for typed text, so this only has to match buildSubtitles' surface
-// handling — that is what keeps the seed path and the re-timed path grouped
+// handling, which keeps scripts and measured paths grouped
 // and worded identically, so the prompter text never reflows between takes.
 function scriptTokens (text) {
   return segmentWords(text)

@@ -98,7 +98,7 @@ function rollup (rows) {
     }
     const d = byDay.get(day)
     if (r.user_id) d.users.add(r.user_id)
-    if (r.action === 'evaluate') {
+    if (r.action === 'evaluate' || r.action === 'rhythm') {
       d.evals++
       if (r.scores && typeof r.scores.overall === 'number') d.scoreSum += r.scores.overall
     }
