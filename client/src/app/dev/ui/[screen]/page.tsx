@@ -15,17 +15,10 @@ import ResultsPage from "@/app/results/page"
 import { WaitView } from "@/components/WaitView"
 import { useSession } from "@/store/session"
 
-const EVAL = {
-  overall: 74,
-  dimensions: { voice: 81, body: 66, delivery: 78, timing: 92, accuracy: 54 },
-  comments: [
-    "Your opening line is buried — lead with it.",
-    "You rushed the middle third. Let the numbers land.",
-    "Hands stayed low the whole take. Use them.",
-  ],
-  flags: [{ type: "rushed_line", line: 2 }, { type: "long_pause" }],
-  language: "en",
-  evals_left_today: 21,
+const PATH = {
+  words: [{ w: "fixture", t_start: 0, t_end: 0.5, line: 0 }],
+  lines: [{ index: 0, text: "fixture", t_start: 0, t_end: 0.5 }],
+  total_s: 0.5,
 }
 
 function ResultsFixture() {
@@ -47,7 +40,8 @@ function ResultsFixture() {
         created_at: "2026-01-01T00:00:00.000Z",
         updated_at: "2026-01-01T00:00:00.000Z",
       },
-      evalResult: EVAL,
+      pathResult: { path: PATH, fits: true, est_duration_s: 0.5 },
+      takeRhythm: "new",
     })
     setReady(true)
   }, [])
@@ -64,13 +58,13 @@ export default function UiFixture() {
       return <ResultsFixture />
     case "wait":
       return (
-        <WaitView stage="analyzing" error={null} ad={null} onSkipAd={() => {}} onHome={() => {}} />
+        <WaitView stage="learning" error={null} ad={null} onSkipAd={() => {}} onHome={() => {}} />
       )
     case "wait-error":
       return (
         <WaitView
           stage="error"
-          error="The AI took too long — try again."
+          error="Network error"
           ad={null}
           onSkipAd={() => {}}
           onHome={() => {}}

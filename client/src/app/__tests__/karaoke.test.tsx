@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from "@testing-library/react"
+import { render, screen, cleanup, fireEvent } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // T-10010: the karaoke screen used to read only { state, countdown, videoRef,
@@ -18,12 +18,18 @@ const h = vi.hoisted(() => ({
     error: null as string | null,
     stopReason: null,
   },
+  recorderOpts: null as null | { maxDurationS?: number; onStop?: (blob: Blob) => void },
 }))
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }))
 vi.mock("@/hooks/useWakeLock", () => ({ useWakeLock: () => {} }))
 vi.mock("@/hooks/useKaraokeClock", () => ({ useKaraokeClock: () => 0 }))
-vi.mock("@/hooks/useRecorder", () => ({ useRecorder: () => h.recorder }))
+vi.mock("@/hooks/useRecorder", () => ({
+  useRecorder: (opts: typeof h.recorderOpts) => {
+    h.recorderOpts = opts
+    return h.recorder
+  },
+}))
 
 import KaraokePage from "../karaoke/page"
 import { useSession } from "@/store/session"
@@ -71,5 +77,74 @@ describe("KaraokePage — recorder error state (T-10010)", () => {
 
     expect(screen.queryByRole("button", { name: /go back/i })).toBeNull()
     expect(screen.getByRole("button", { name: /stop recording/i })).toBeTruthy()
+  })
+})
+
+describe("KaraokePage — take 1 is a teleprompter (KP-B)", () => {
+  const SCRIPT = "We build tools. Founders pitch better with them every day"
+
+  beforeEach(() => {
+    useSession.getState().setPathResult(null)
+    useSession.getState().setScript(SCRIPT)
+    h.recorder.state = "recording"
+  })
+
+  it("shows the script in the prompter with no rhythm, capped at 5 minutes", () => {
+    render(<KaraokePage />)
+    expect(screen.getByTestId("prompter-advance")).toBeTruthy()
+    expect(screen.getByTestId("active-line").textContent).toBe("We build tools.")
+    expect(h.recorderOpts?.maxDurationS).toBe(300)
+  })
+
+  it("manual advance (tap, keys) moves the active line", () => {
+    render(<KaraokePage />)
+    fireEvent.click(screen.getByTestId("prompter-advance"))
+    expect(screen.getByTestId("active-line").textContent).toMatch(/^Founders pitch/)
+
+    fireEvent.keyDown(window, { key: "ArrowUp" })
+    expect(screen.getByTestId("active-line").textContent).toBe("We build tools.")
+
+    fireEvent.keyDown(window, { key: " " })
+    expect(screen.getByTestId("active-line").textContent).toMatch(/^Founders pitch/)
+  })
+
+  it("mirrors the live preview", () => {
+    render(<KaraokePage />)
+    expect(document.querySelector("video")?.className).toMatch(/scale-x-\[-1\]/)
+  })
+
+  it("an unlocked take goes to /wait to learn its rhythm", () => {
+    render(<KaraokePage />)
+    h.recorderOpts?.onStop?.(new Blob(["t"]))
+    expect(h.push).toHaveBeenCalledWith("/wait")
+  })
+})
+
+describe("KaraokePage — karaoke from take 2 and the rhythm lock (KP-B)", () => {
+  beforeEach(() => {
+    h.recorder.state = "recording"
+  })
+
+  it("follows the rhythm and caps the take at its length plus grace", () => {
+    render(<KaraokePage />)
+    expect(screen.getByText("Recording")).toBeTruthy()
+    expect(screen.queryByTestId("prompter-advance")).toBeNull()
+    expect(h.recorderOpts?.maxDurationS).toBeCloseTo(3.4)
+  })
+
+  it("never lets a long rhythm exceed the 5-minute cap", () => {
+    useSession.getState().setPathResult({ path: { ...PATH, total_s: 299 }, fits: true, est_duration_s: 299 })
+    render(<KaraokePage />)
+    expect(h.recorderOpts?.maxDurationS).toBe(300)
+  })
+
+  it("a locked rhythm skips the upload and goes straight to results", () => {
+    useSession.getState().setRhythmLocked(true)
+    render(<KaraokePage />)
+    h.recorderOpts?.onStop?.(new Blob(["t"]))
+    expect(h.push).toHaveBeenCalledWith("/results")
+    expect(h.push).not.toHaveBeenCalledWith("/wait")
+    expect(useSession.getState().takeRhythm).toBe("locked")
+    expect(useSession.getState().pathResult?.path).toBe(PATH)
   })
 })

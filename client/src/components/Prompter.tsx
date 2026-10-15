@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react"
 import type { KaraokeWord } from "@/lib/clock"
-import { prompterHint } from "@/lib/strings"
+import { prompterHint, teleprompterHint } from "@/lib/strings"
 
 interface PrompterLine {
   index: number
@@ -16,6 +16,8 @@ interface PrompterProps {
   dir: "ltr" | "rtl"
   lang?: string | null
   phase?: "countdown" | "recording"
+  /** "teleprompter" = take 1 (KP-B): follows the reader, with its own hint. */
+  mode?: "karaoke" | "teleprompter"
 }
 
 // Uniform layout height per line (rem). The active line is enlarged *visually*
@@ -36,16 +38,16 @@ function opposesLine(text: string, dir: "ltr" | "rtl"): boolean {
   return dir === "rtl" ? LTR_STRONG.test(text) : RTL_STRONG.test(text)
 }
 
-function hintSeen(): boolean {
+function hintSeen(key: string): boolean {
   try {
-    return typeof window !== "undefined" && window.localStorage.getItem(HINT_KEY) === "1"
+    return typeof window !== "undefined" && window.localStorage.getItem(key) === "1"
   } catch {
     return false
   }
 }
-function markHintSeen() {
+function markHintSeen(key: string) {
   try {
-    window.localStorage.setItem(HINT_KEY, "1")
+    window.localStorage.setItem(key, "1")
   } catch {
     /* private mode — ignore */
   }
@@ -70,14 +72,25 @@ function markHintSeen() {
  * tokens whose script opposes the line (Latin brand names inside Hebrew) get a
  * `<bdi>` isolate — nothing else.
  */
-export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdown" }: PrompterProps) {
+export function Prompter({
+  words,
+  lines,
+  activeIdx,
+  dir,
+  lang,
+  phase = "countdown",
+  mode = "karaoke",
+}: PrompterProps) {
   const activeLine = activeIdx >= 0 && words[activeIdx] ? words[activeIdx].line : 0
 
   // One-time first-use hint, dismissed once recording begins.
-  const [seenAtMount] = useState(hintSeen)
+  // Each mode has its own hint, seen once: take 1 would otherwise use up the
+  // karaoke hint before take 2 ever shows it.
+  const hintKey = mode === "teleprompter" ? `${HINT_KEY}:teleprompter` : HINT_KEY
+  const [seenAtMount] = useState(() => hintSeen(hintKey))
   useEffect(() => {
-    if (phase !== "countdown") markHintSeen()
-  }, [phase])
+    if (phase !== "countdown") markHintSeen(hintKey)
+  }, [phase, hintKey])
   const showHint = !seenAtMount && phase === "countdown"
 
   // Keep the active row at a fixed reading line (one row down from the top of
@@ -172,7 +185,7 @@ export function Prompter({ words, lines, activeIdx, dir, lang, phase = "countdow
           data-testid="prompter-hint"
           className="pointer-events-none mx-auto mt-2 max-w-[90%] text-center text-sm font-medium text-white/90 [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]"
         >
-          {prompterHint(lang)}
+          {mode === "teleprompter" ? teleprompterHint(lang) : prompterHint(lang)}
         </div>
       )}
     </div>

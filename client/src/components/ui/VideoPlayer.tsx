@@ -20,7 +20,7 @@ import { cn } from "@/lib/utils"
  * unconditionally visible in a screenshot, so a reviewer can actually review
  * them.
  *
- * Deliberately no fullscreen and no playback-rate control. A ≤30 second
+ * Deliberately no fullscreen and no playback-rate control. A short
  * self-review take needs neither, and both are failure surface — fullscreen in
  * particular is the thing `playsInline` exists to prevent on iOS.
  *
@@ -32,6 +32,8 @@ interface VideoPlayerProps {
   src: string
   className?: string
   autoPlay?: boolean
+  /** Flip the picture horizontally, so people see themselves as in a mirror. */
+  mirrored?: boolean
 }
 
 /** `m:ss`, and `0:00` for every flavour of "we don't know yet". */
@@ -57,7 +59,7 @@ function usableDuration(raw: number | undefined): number | null {
   return typeof raw === "number" && Number.isFinite(raw) && raw > 0 ? raw : null
 }
 
-export function VideoPlayer({ src, className, autoPlay = false }: VideoPlayerProps) {
+export function VideoPlayer({ src, className, autoPlay = false, mirrored = false }: VideoPlayerProps) {
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -150,7 +152,10 @@ export function VideoPlayer({ src, className, autoPlay = false }: VideoPlayerPro
           src={src}
           autoPlay={autoPlay}
           playsInline
-          className="max-h-[60vh] w-auto max-w-full object-contain lg:max-h-[26rem]"
+          className={cn(
+            "max-h-[60vh] w-auto max-w-full object-contain lg:max-h-[26rem]",
+            mirrored && "scale-x-[-1]",
+          )}
         />
         {/* Click anywhere on the picture to toggle. This is also the frame's tab
             stop, so the player is keyboard reachable before the control row. */}

@@ -30,7 +30,7 @@ const VIEWPORTS = [
 
 const SCREENS = [
   { name: "home", url: "/", ready: "text=Say it like" },
-  { name: "results", url: "/dev/ui/results", ready: "text=Overall score" },
+  { name: "results", url: "/dev/ui/results", ready: "text=Try again" },
   { name: "wait", url: "/dev/ui/wait", ready: "text=Analyzing your take" },
   { name: "wait-error", url: "/dev/ui/wait-error", ready: "text=took too long" },
   // Restyled in T-10024 (shared shell width + a two-up grid at `lg`), so it is

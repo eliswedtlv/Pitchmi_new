@@ -4,21 +4,23 @@ import { Check, Loader2, LockKeyhole } from "lucide-react"
 import { Brand } from "@/components/Brand"
 import { AdSlot } from "@/components/AdSlot"
 import { Button } from "@/components/ui/button"
-import { STAGE_LABEL, type EvalStage } from "@/lib/evalStages"
+import { type WaitStage } from "@/lib/waitStages"
+import { waitStageLabel } from "@/lib/strings"
 import type { AdConfig } from "@/lib/api"
 
-const STAGE_WIDTH: Record<EvalStage, string> = {
+const STAGE_WIDTH: Record<WaitStage, string> = {
   uploading: "26%",
-  analyzing: "72%",
+  learning: "72%",
   done: "100%",
   error: "100%",
 }
 
-const STEPS: EvalStage[] = ["uploading", "analyzing"]
+const STEPS: WaitStage[] = ["uploading", "learning"]
 
 interface WaitViewProps {
-  stage: EvalStage
+  stage: WaitStage
   error: string | null
+  lang?: string | null
   ad: AdConfig | null
   onSkipAd: () => void
   onHome: () => void
@@ -40,7 +42,7 @@ function VoiceSignal({ paused = false }: { paused?: boolean }) {
   )
 }
 
-export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) {
+export function WaitView({ stage, error, lang, ad, onSkipAd, onHome }: WaitViewProps) {
   if (error) {
     return (
       <main className="scheme-dark min-h-screen bg-canvas px-[18px] text-fg safe-b-8 sm:px-8">
@@ -48,14 +50,14 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
           <header className="flex h-16 shrink-0 items-center justify-between border-b border-line">
             <Brand inverse />
             <span className="text-micro font-semibold uppercase tracking-[0.16em] text-fg-subtle">
-              Evaluation stopped
+              Upload stopped
             </span>
           </header>
           <div className="flex flex-1 items-center justify-center py-12">
             <section className="w-full max-w-lg text-center">
               <VoiceSignal paused />
               <p className="mt-8 text-micro font-semibold uppercase tracking-[0.16em] text-bad-fg">
-                Take not scored
+                Rhythm not updated
               </p>
               <h1 className="mt-3 text-[clamp(2rem,7vw,3.5rem)] font-semibold leading-[0.98] tracking-[-0.055em] text-fg">
                 The booth went quiet.
@@ -101,7 +103,7 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
             <div className="flex items-center gap-3 text-micro font-semibold uppercase tracking-[0.16em] text-fg-subtle">
               <span className="nums text-accent">02</span>
               <span className="h-px w-8 bg-line-strong" />
-              <span>Analyze the take</span>
+              <span>Learn the rhythm</span>
             </div>
 
             <VoiceSignal />
@@ -112,8 +114,8 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
                 <span className="block text-accent">in the booth.</span>
               </h1>
               <p className="mx-auto mt-5 max-w-lg text-body text-fg-muted">
-                We’re matching your words, measuring the rhythm, and watching the
-                delivery. This can take up to two minutes.
+                We’re matching your words to the script to learn your rhythm.
+                Your next take follows it.
               </p>
             </div>
 
@@ -132,7 +134,7 @@ export function WaitView({ stage, error, ad, onSkipAd, onHome }: WaitViewProps) 
                       0{index + 1}
                     </span>
                     <span className={`text-body ${active ? "font-medium" : ""}`}>
-                      {STAGE_LABEL[step]}
+                      {waitStageLabel(step, lang)}
                     </span>
                     <span
                       className={`flex h-6 w-6 items-center justify-center rounded-full ${

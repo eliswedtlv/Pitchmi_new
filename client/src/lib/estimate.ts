@@ -1,7 +1,7 @@
 /**
  * Reading-length estimate for the script screen (T-10018).
  *
- * This is a HINT, nothing more. The real gate is the 30-second cap the server
+ * This is a HINT, nothing more. The real gate is the 5-minute cap the server
  * enforces on the take that actually gets recorded — a fixed words-per-minute
  * figure cannot know how fast this particular person talks, and it is wrong by
  * construction for a language whose words are a different length. The screen

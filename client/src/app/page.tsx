@@ -24,7 +24,7 @@ const TEXT_BOX =
 
 export default function HomePage() {
   const router = useRouter()
-  const { script, setProject, setScript, setPathResult } = useSession()
+  const { script, setProject, setScript, setPathResult, setRhythmLocked } = useSession()
 
   // Pre-filled when the user came back via "Edit text" on the results screen.
   const [text, setText] = useState(script)
@@ -47,16 +47,12 @@ export default function HomePage() {
     try {
       const project = await createProject()
       setProject(project)
-      // The server stores the script and hands back a seed path — a first,
-      // disposable guess at the pace. The first take replaces it with the
-      // user's real timings (T-10018).
-      const result = await saveScript(project.id, text)
+      // New words, no rhythm yet (KP-B): take 1 is a teleprompter take, and
+      // the first take that matches the script sets the rhythm.
+      await saveScript(project.id, text)
       setScript(text)
-      setPathResult({
-        path: result.path,
-        fits: true,
-        est_duration_s: result.est_duration_s,
-      })
+      setPathResult(null)
+      setRhythmLocked(false)
       router.push("/karaoke")
     } catch (e) {
       const apiError = e as Error & { body?: { error?: string } }
@@ -129,7 +125,7 @@ export default function HomePage() {
 
             <div className="hidden grid-cols-3 border-y border-line py-4 lg:grid">
               {[
-                ["30 sec", "one sharp take"],
+                ["5 min", "per take"],
                 ["No login", "anonymous session"],
                 ["Take privacy", "video not retained"],
               ].map(([value, label]) => (
@@ -232,7 +228,7 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center justify-between border-t border-line py-3 text-micro text-fg-subtle lg:hidden">
-          <span>30 seconds · no login</span>
+          <span>Up to 5 minutes · no login</span>
           <Link href="/privacy" className="font-medium hover:text-fg">Privacy & consent</Link>
         </div>
       </div>

@@ -253,30 +253,25 @@ body {
   }
 }
 
-/* Results uses named areas so mobile can lead with the score while desktop
-   retains the category convention: take on the left, judgement on the right. */
+/* Results uses named areas: take first, next-take actions after it on
+   mobile; side by side on desktop. */
 .results-grid {
   display: grid;
   grid-template-areas:
     "header"
-    "score"
     "video"
-    "coach"
     "actions";
   gap: 1.25rem;
 }
 .results-header { grid-area: header; }
 .results-video { grid-area: video; }
-.results-score { grid-area: score; }
-.results-coach { grid-area: coach; }
 .results-actions { grid-area: actions; }
 @media (min-width: 64rem) {
   .results-grid {
     grid-template-columns: minmax(0, 1.45fr) minmax(20rem, 0.85fr);
     grid-template-areas:
       "header header"
-      "video score"
-      "coach actions";
+      "video actions";
     gap: 1.5rem;
     align-items: start;
   }

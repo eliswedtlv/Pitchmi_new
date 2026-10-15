@@ -1,9 +1,9 @@
 import { render, screen, cleanup, fireEvent, waitFor } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
-// T-10018: the entry point is TEXT. The user types or pastes a script, the
-// server seeds a karaoke path from it, and the first take is recorded straight
-// away — no improvise-first take, no upload-a-video path.
+// T-10018: the entry point is TEXT. The user types or pastes a script and the
+// first take is recorded straight away — no upload-a-video path. KP-B: there is
+// no seed path anymore; take 1 is a teleprompter take.
 //
 // The dormant saved-takes library is intentionally not linked from the main
 // composition, so "My saved videos" stays hidden here.
@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   setProject: vi.fn(),
   setScript: vi.fn(),
   setPathResult: vi.fn(),
+  setRhythmLocked: vi.fn(),
   script: "",
 }))
 
@@ -31,16 +32,13 @@ vi.mock("@/store/session", () => ({
     setProject: h.setProject,
     setScript: h.setScript,
     setPathResult: h.setPathResult,
+    setRhythmLocked: h.setRhythmLocked,
   }),
 }))
 
 import HomePage from "../page"
 
-const SEED = {
-  path: { words: [{ w: "hi", t_start: 0, t_end: 0.4, line: 0 }], lines: [], total_s: 6.2 },
-  word_count: 12,
-  est_duration_s: 6.2,
-}
+const SCRIPT_RESULT = { word_count: 12 }
 
 const textarea = () => screen.getByLabelText("Your script") as HTMLTextAreaElement
 const recordButton = () => screen.getByRole("button", { name: /record it/i })
@@ -58,7 +56,7 @@ beforeEach(() => {
   )
   h.recordConsent.mockResolvedValue(undefined)
   h.createProject.mockResolvedValue({ id: "p1" })
-  h.saveScript.mockResolvedValue(SEED)
+  h.saveScript.mockResolvedValue(SCRIPT_RESULT)
 })
 
 afterEach(cleanup)
@@ -83,10 +81,10 @@ describe("HomePage — the script screen", () => {
     expect(screen.queryByPlaceholderText(/describe your video/i)).toBeNull()
   })
 
-  it("shows the rehearsal-studio promise and the 30-second format", () => {
+  it("shows the rehearsal-studio promise and the 5-minute format", () => {
     render(<HomePage />)
     expect(screen.getByText(/say it like/i)).toBeTruthy()
-    expect(screen.getByText(/30 seconds · no login/i)).toBeTruthy()
+    expect(screen.getByText(/up to 5 minutes · no login/i)).toBeTruthy()
     expect(screen.queryByText(/perfect your spoken video in minutes/i)).toBeNull()
   })
 
@@ -107,7 +105,7 @@ describe("HomePage — the script screen", () => {
     expect(recordButton()).toHaveProperty("disabled", false)
   })
 
-  it("creates the project, saves the script, stores the seed path and goes to karaoke", async () => {
+  it("creates the project, saves the script, clears the rhythm and goes to the teleprompter", async () => {
     render(<HomePage />)
     fireEvent.change(textarea(), { target: { value: "we are building a tool for founders" } })
     fireEvent.click(recordButton())
@@ -116,11 +114,8 @@ describe("HomePage — the script screen", () => {
     expect(h.createProject).toHaveBeenCalledWith()
     expect(h.saveScript).toHaveBeenCalledWith("p1", "we are building a tool for founders")
     expect(h.setScript).toHaveBeenCalledWith("we are building a tool for founders")
-    expect(h.setPathResult).toHaveBeenCalledWith({
-      path: SEED.path,
-      fits: true,
-      est_duration_s: 6.2,
-    })
+    expect(h.setPathResult).toHaveBeenCalledWith(null)
+    expect(h.setRhythmLocked).toHaveBeenCalledWith(false)
   })
 
   it("records explicit consent before creating the first project", async () => {
@@ -204,19 +199,19 @@ describe("HomePage — length estimate and over-length flag", () => {
 
   it("flags an over-length script in amber, dims the tail, and still allows recording", () => {
     render(<HomePage />)
-    // 120 words at 150 wpm = 48s, i.e. 18s over the 30s cap.
-    fireEvent.change(textarea(), { target: { value: words(120) } })
+    // 900 words at 150 wpm = 360s, i.e. 60s over the 5-minute cap.
+    fireEvent.change(textarea(), { target: { value: words(900) } })
 
     // T-10022: was `/amber/`, i.e. a raw Tailwind palette step — the exact thing
     // the token pass removes. Same behaviour, asserted on the semantic token.
-    const flag = screen.getByText(/18 seconds over/i)
+    const flag = screen.getByText(/60 seconds over/i)
     expect(flag.className).toMatch(/text-warn-fg/)
 
-    // The tail past the 30-second point is marked, and it is exactly the words
-    // after the 75th (30s x 150wpm / 60).
+    // The tail past the 5-minute point is marked, and it is exactly the words
+    // after the 750th (300s x 150wpm / 60).
     const tail = screen.getByTestId("over-length-tail")
-    expect(tail.textContent?.trim().startsWith("word75")).toBe(true)
-    expect(tail.textContent?.trim().split(/\s+/)).toHaveLength(45)
+    expect(tail.textContent?.trim().startsWith("word750")).toBe(true)
+    expect(tail.textContent?.trim().split(/\s+/)).toHaveLength(150)
 
     // Eli's ruling: flag it, the user cuts. Never block, never rewrite.
     expect(recordButton()).toHaveProperty("disabled", false)

@@ -5,23 +5,29 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 // Share. Download and Save-to-cloud are gone; Share uses the OS share sheet and
 // falls back to a direct download when files can't be shared (most desktop
 // browsers). T-10018 adds Edit text alongside them, without changing the
-// hierarchy — Try again is still the primary.
+// hierarchy — Try again is still the primary. KP-B removes the score entirely
+// and adds "Keep this rhythm".
+
+const PATH = {
+  words: [{ w: "hi", t_start: 0, t_end: 0.4, line: 0 }],
+  lines: [{ index: 0, text: "hi", t_start: 0, t_end: 0.4 }],
+  total_s: 0.4,
+}
+
+const baseSession = () => ({
+  project: { id: "p1", language: "en" },
+  takeBlob: new Blob(["take"], { type: "video/webm" }),
+  takeBlobUrl: "blob:take",
+  pathResult: { path: PATH, fits: true, est_duration_s: 0.4 } as unknown,
+  rhythmLocked: false,
+  takeRhythm: "new" as string | null,
+  setRhythmLocked: vi.fn(),
+  reset: vi.fn(),
+})
 
 const h = vi.hoisted(() => ({
   push: vi.fn(),
-  session: {
-    project: { id: "p1", language: "en" },
-    takeBlob: new Blob(["take"], { type: "video/webm" }),
-    takeBlobUrl: "blob:take",
-    evalResult: {
-      overall: 88,
-      dimensions: {},
-      comments: [],
-      flags: [],
-      evals_left_today: 5,
-    },
-    reset: vi.fn(),
-  },
+  session: {} as ReturnType<typeof baseSession>,
 }))
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }))
@@ -42,6 +48,7 @@ function stubShare(canShare: boolean, share = vi.fn().mockResolvedValue(undefine
 
 beforeEach(() => {
   vi.clearAllMocks()
+  h.session = baseSession()
 })
 
 afterEach(() => {
@@ -71,7 +78,7 @@ describe("ResultsPage actions", () => {
     expect(h.push).toHaveBeenCalledWith("/karaoke")
   })
 
-  it("renders only Try again / Edit text / New video / Share", () => {
+  it("renders only Keep this rhythm / Try again / Edit text / New video / Share", () => {
     render(<ResultsPage />)
     const names = screen
       .getAllByRole("button")
@@ -81,7 +88,7 @@ describe("ResultsPage actions", () => {
       // in the document.
       .filter((b) => (b.textContent ?? "").trim().length > 0)
       .map((b) => b.textContent?.trim())
-    expect(names).toEqual(["Try again", "Edit text", "New video", "Share"])
+    expect(names).toEqual(["Keep this rhythm", "Try again", "Edit text", "New video", "Share"])
     expect(screen.queryByRole("button", { name: /download/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /save to cloud/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /my videos/i })).toBeNull()
@@ -145,5 +152,54 @@ describe("ResultsPage actions", () => {
     const a = click.mock.contexts[0] as HTMLAnchorElement
     expect(a.download).toBe("killerpitch-take.webm")
     click.mockRestore()
+  })
+})
+
+describe("ResultsPage — no score, rhythm status (KP-B)", () => {
+  it("shows no score, dimensions, coach notes or evaluations left", () => {
+    render(<ResultsPage />)
+    for (const text of [/overall score/i, /coach notes/i, /evaluations left/i, /voice/i, /accuracy/i]) {
+      expect(screen.queryByText(text)).toBeNull()
+    }
+  })
+
+  it("mirrors the take playback", () => {
+    render(<ResultsPage />)
+    expect(document.querySelector("video")?.className).toMatch(/scale-x-\[-1\]/)
+  })
+
+  it("Keep this rhythm locks the rhythm for the next takes", () => {
+    render(<ResultsPage />)
+    expect(screen.getByTestId("rhythm-note").textContent).toMatch(/this take’s rhythm/)
+    fireEvent.click(screen.getByRole("button", { name: /keep this rhythm/i }))
+    expect(h.session.setRhythmLocked).toHaveBeenCalledWith(true)
+  })
+
+  it("while locked: says so, and Unlock releases it", () => {
+    h.session.rhythmLocked = true
+    h.session.takeRhythm = "locked"
+    render(<ResultsPage />)
+    expect(screen.getByText("Rhythm locked")).toBeTruthy()
+    expect(screen.getByTestId("rhythm-note").textContent).toMatch(/locked rhythm/)
+    expect(screen.queryByRole("button", { name: /keep this rhythm/i })).toBeNull()
+    fireEvent.click(screen.getByRole("button", { name: /unlock/i }))
+    expect(h.session.setRhythmLocked).toHaveBeenCalledWith(false)
+  })
+
+  it("a take that didn't match keeps the old rhythm and says so quietly", () => {
+    h.session.takeRhythm = "unchanged"
+    render(<ResultsPage />)
+    expect(screen.getByTestId("rhythm-kept-note").textContent).toBe(
+      "This take didn’t match your script closely, so your rhythm stayed the same.",
+    )
+    expect(screen.getByTestId("rhythm-note").textContent).toMatch(/earlier rhythm/)
+  })
+
+  it("with no rhythm yet, the next take is a teleprompter take and there is nothing to lock", () => {
+    h.session.takeRhythm = "unchanged"
+    h.session.pathResult = null
+    render(<ResultsPage />)
+    expect(screen.getByTestId("rhythm-note").textContent).toMatch(/teleprompter/)
+    expect(screen.queryByRole("button", { name: /keep/i })).toBeNull()
   })
 })
