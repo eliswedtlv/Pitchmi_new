@@ -1,5 +1,36 @@
 # PitchMi — TASKS
 
+Product name is now **KillerPitch** (rebrand 2026-08-13, domain `killerpitch.app`); this repo and several docs still say PitchMi. Full Cowork context: `docs/CCW-HANDOFF.md`.
+
+## Open work — priority order (from CCW handoff, 2026-10-15)
+
+**P0 — blocks the next deploy**
+- **T-10017** Production env + deploy verification (Eli, manual): one server replica on Railway; `ADMIN_COOKIE_SECRET` ≥32 random chars; `ADMIN_PASSWORD` ≥12 unique chars; exact `CLIENT_ORIGIN`; ElevenLabs/OpenRouter/Google retention and training settings. Missing `ADMIN_COOKIE_SECRET` crashed the server on 2026-08-01.
+- **T-10032** Manual QA checklist in `docs/STATUS.md` (~50 boxes, T-1160..T-10029) never reported back. Launch-gating: T-10029 consent/privacy/headers/admin-origin checks, and a full iPhone Safari + desktop Chrome round trip with real provider keys.
+
+**P1**
+- **T-5540** Hebrew end to end (decided 2026-10-01): verify and complete RTL across the UI, take-1 teleprompter, karaoke and the shared video overlay. Required for every TLVG app. No spec yet. Context: `/Users/eliswed/Dropbox/Code/tlvg-launch-plan/03-marketing-plan-v2.md`.
+- **T-10031** Un-gate the Google identity upgrade: Google provider setup in Supabase, flip the flag, verify `linkIdentity` keeps the anonymous identity.
+- **T-10033** T-10027 accent judgement calls, open for Eli: does fuchsia still read "AI-built"; does the disabled Record button read as disabled; score colours vs fuchsia Try again on a 50–60 `/results`; 12px wordmark on a real phone. See `docs/ui/*.png`.
+
+**P2**
+- **T-10023** Ads flag: release ships without ads (ads only at ~100K impressions/month). Not implemented — `AdSlot` still renders on `/wait` whenever `GET /api/ad` returns a config. Add server `ADS_ENABLED` (default off) or remove the slot.
+- **T-10019** Tune `MIN_ALIGN_COVERAGE = 0.5` after a week of real `scores.coverage` rows.
+- **T-10020** `evaluate.js` persists the re-timed path before the AI eval call, so a failed eval still moves the prompter (deliberate; revisit if it bites).
+- **T-10011** Rate limiter + media semaphore are per container.
+- **T-10012** Private `videos` bucket not reproducible from migrations.
+
+**P3**
+- **T-1156** Admin "surge trip < 24h" banner + service-state read.
+- **T-1152** Real ad network (after T-10023 and real traffic).
+- **T-1200** v2 milestone (feed, leaderboards, moderation) — `docs/pitchmi-v2-spec.md`.
+
+**Housekeeping**
+- **T-10034** Finish the rebrand sweep (root `CLAUDE.md`, `docs/STATUS.md`, this file, `docs/design-direction.md`) — waiting on Eli: rename to KillerPitch or keep PitchMi internally. Add the 2026-08-13 rebrand to STATUS. Do not touch the old prototype at `/Users/eliswed/Dropbox/Code/killerpitch`.
+- CCW PM central files are history only; this file is the backlog.
+
+## Backlog table
+
 Backlog and follow-ups. Active v1 build is T-1150 (see `docs/cc-goal-pitchmi-v1.md`).
 
 | ID | Task | Status | Notes |
