@@ -87,7 +87,7 @@ describe('buildPathFromScript — anchoring (T-10018)', () => {
 
   test('a mis-heard word is interpolated and counted as a miss', () => {
     const script = 'we shipped it today'
-    const spoken = read(script, (w, i) => (i === 1 ? 'shopped' : w))
+    const spoken = read(script, (w, i) => (i === 1 ? 'sold' : w))
 
     const { path, matched, total } = buildPathFromScript(script, spoken)
 
@@ -353,5 +353,24 @@ describe('KP-E — leading silence is trimmed to a short lead-in', () => {
     const { path } = buildPathFromScript(script, spoken)
     expect(starts(path)).toEqual(spoken.map(s => s.start))
     expect(path.words.map(w => w.t_end)).toEqual(spoken.map(s => s.end))
+  })
+})
+
+// Tester 2026-10-15: real Hebrew readings scored 0.11–0.47 coverage, so no
+// rhythm was stored and the karaoke never appeared.
+describe('Hebrew transcription variants still anchor', () => {
+  test('final letters, a dropped prefix letter and a one-letter spelling slip all match', () => {
+    const script = 'שלום אני אריאלה ואני מלמדת טאטינג בסדנאות של חמש בנות בתל אביב'
+    const heard = ['שלום', 'אני', 'אריאלה', 'אני', 'מלמדת', 'טטינג', 'בסדנאות', 'של', 'חמש', 'בנות', 'תל', 'אביב']
+    const spoken = heard.map((w, i) => ({ w, start: i * 0.5, end: i * 0.5 + 0.4 }))
+    const { coverage } = buildPathFromScript(script, spoken)
+    expect(coverage).toBe(1)
+  })
+
+  test('a different word is still a miss', () => {
+    const { matched } = buildPathFromScript('אני אוהבת קפה', [
+      { w: 'אני', start: 0, end: 0.3 }, { w: 'שונאת', start: 0.4, end: 0.8 }, { w: 'קפה', start: 0.9, end: 1.2 }
+    ])
+    expect(matched).toBe(2)
   })
 })

@@ -58,6 +58,11 @@ const config = {
   // rather than re-timing against garbage. 0.5 is a first guess with no data
   // behind it — tune from the coverage logged on every rhythm event.
   MIN_ALIGN_COVERAGE: num(process.env.MIN_ALIGN_COVERAGE, 0.5),
+  // The FIRST rhythm of a script needs less: take 1 is a teleprompter reading
+  // of this exact script, so a low score there is speech-to-text spelling, not
+  // improvisation — and without a first rhythm there is no karaoke at all
+  // (tester, 2026-10-15). Replacing an existing rhythm still needs the full bar.
+  MIN_FIRST_RHYTHM_COVERAGE: num(process.env.MIN_FIRST_RHYTHM_COVERAGE, 0.2),
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || '',
 
   STORAGE_BUCKET: 'videos'

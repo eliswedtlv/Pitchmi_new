@@ -64,7 +64,8 @@ router.post('/rhythm', rateLimit.rhythm, auth, consent, upload.single('video'), 
     if (project.script) {
       const aligned = buildPathFromScript(project.script, take.words)
       coverage = aligned.coverage
-      if (aligned.path.words.length && coverage >= config.MIN_ALIGN_COVERAGE) {
+      const minCoverage = project.path ? config.MIN_ALIGN_COVERAGE : config.MIN_FIRST_RHYTHM_COVERAGE
+      if (aligned.path.words.length && coverage >= minCoverage) {
         retimed = aligned.path
         await db.updateProject(projectId, req.userId, { path: retimed })
       }

@@ -18,7 +18,7 @@ const FILLERS = new Set([
   'אה', 'אהה', 'אמ', 'אמם', 'אממ', 'אהם', 'עמ', 'המ',
   // Spanish / others
   'este', 'pues', 'eee', 'euh'
-])
+].map(normalize)) // same folding as the tokens compared against it
 
 function isFiller (token) {
   return FILLERS.has(normalize(token))

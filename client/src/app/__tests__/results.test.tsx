@@ -220,7 +220,7 @@ describe("ResultsPage — clear next step (KP-G)", () => {
   it("says there is no score, and Try again comes right after it with Share next to it", () => {
     render(<ResultsPage />)
     const note = screen.getByTestId("no-score-note")
-    expect(note.textContent).toMatch(/^No score here/)
+    expect(note.textContent).toMatch(/^Watch yourself like in a mirror/)
     const tryAgain = screen.getByRole("button", { name: "Try again" })
     const share = screen.getByRole("button", { name: "Share" })
     // Same row, directly under the no-score line.
@@ -248,7 +248,7 @@ describe("ResultsPage — clear next step (KP-G)", () => {
   it("Hebrew: no-score line, primary Try again and lock helper are translated", () => {
     act(() => setUiLang("he"))
     render(<ResultsPage />)
-    expect(screen.getByTestId("no-score-note").textContent).toMatch(/^אין כאן ציון/)
+    expect(screen.getByTestId("no-score-note").textContent).toMatch(/^צפו בעצמכם כמו במראה/)
     expect(screen.getByRole("button", { name: "עוד טייק" }).className).toMatch(/bg-accent/)
     expect(screen.getByTestId("keep-rhythm-help").textContent).toBe(
       "הטייקים הבאים ילכו לפי הקצב של הטייק הזה, במקום להתעדכן בכל פעם.",

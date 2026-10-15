@@ -1,5 +1,7 @@
 'use strict'
 
+const { similarWords } = require('./text')
+
 // Levenshtein alignment (DP) over normalized tokens. Substitution / insertion /
 // deletion all cost 1. A spoken filler can never match a path word. Returns the
 // matched { pi, si } pairs (0-cost diagonal steps).
@@ -9,7 +11,14 @@ function align (pathNorm, spoken) {
   const dp = Array.from({ length: n + 1 }, () => new Array(m + 1).fill(0))
   for (let i = 1; i <= n; i++) dp[i][0] = i
   for (let j = 1; j <= m; j++) dp[0][j] = j
-  const eq = (i, j) => !spoken[j].filler && spoken[j].norm !== '' && pathNorm[i] === spoken[j].norm
+  // Word similarity is computed once per cell (it is not free for fuzzy matches).
+  const same = new Uint8Array(n * m)
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < m; j++) {
+      same[i * m + j] = !spoken[j].filler && spoken[j].norm !== '' && similarWords(pathNorm[i], spoken[j].norm) ? 1 : 0
+    }
+  }
+  const eq = (i, j) => same[i * m + j] === 1
   for (let i = 1; i <= n; i++) {
     for (let j = 1; j <= m; j++) {
       const subCost = eq(i - 1, j - 1) ? 0 : 1

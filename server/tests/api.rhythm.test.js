@@ -149,3 +149,17 @@ test('Hebrew take 2 re-times an existing Hebrew rhythm', async () => {
   expect(take2.body.path.words[1].t_start).toBeCloseTo(1.8)
   expect(db.__state.projects.get('proj-1').path).toEqual(take2.body.path)
 })
+
+test('the FIRST rhythm is stored from a low-coverage reading; an existing rhythm is not replaced by one', async () => {
+  db.__state.projects.get('proj-1').script = 'hello brave new world of ours'
+  mockScribe.transcribe.mockResolvedValue({ words: [{ w: 'hello', start: 0, end: 0.5 }, { w: 'world', start: 2, end: 2.5 }], language: 'en', duration_s: 3 })
+  const first = await post()
+  expect(first.status).toBe(200)
+  expect(first.body.coverage).toBeCloseTo(2 / 6)
+  expect(first.body.path).not.toBeNull()
+
+  const second = await post()
+  expect(second.status).toBe(200)
+  expect(second.body.path).toBeNull()
+  expect(db.__state.projects.get('proj-1').path).toEqual(first.body.path)
+})

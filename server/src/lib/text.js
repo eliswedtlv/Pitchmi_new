@@ -8,9 +8,49 @@
 
 // Normalize a token for comparison: NFKC, lowercase, strip everything that is
 // not a letter or number (punctuation, spaces). Returns '' for punctuation.
+// Hebrew final letters fold to their regular form, so a speech-to-text
+// spelling and the typed script compare equal (ך→כ, ם→מ, ן→נ, ף→פ, ץ→צ).
+const HEBREW_FINALS = { ך: 'כ', ם: 'מ', ן: 'נ', ף: 'פ', ץ: 'צ' }
+
 function normalize (token) {
   if (!token) return ''
-  return token.normalize('NFKC').toLowerCase().replace(/[^\p{L}\p{N}]/gu, '')
+  return token.normalize('NFKC').toLowerCase()
+    .replace(/[^\p{L}\p{N}]/gu, '')
+    .replace(/[ךםןףץ]/g, c => HEBREW_FINALS[c])
+}
+
+// Hebrew one-letter prefixes (and, the, in, to, from, that, as) that a
+// transcript often attaches or drops differently from the typed script.
+const HEBREW_PREFIX = /^[והבלמשכ]/
+
+// Levenshtein distance with an early exit once it exceeds `max`.
+function editDistance (a, b, max) {
+  if (Math.abs(a.length - b.length) > max) return max + 1
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j)
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i]
+    let rowMin = i
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+      if (cur[j] < rowMin) rowMin = cur[j]
+    }
+    if (rowMin > max) return max + 1
+    prev = cur
+  }
+  return prev[b.length]
+}
+
+// Two normalized tokens count as the same spoken word when they are equal, or
+// close enough that the difference is spelling, not a different word: one edit
+// for words of 4+ letters (two for 8+), or a single Hebrew prefix letter.
+function similarWords (a, b) {
+  if (!a || !b) return false
+  if (a === b) return true
+  const len = Math.min(a.length, b.length)
+  if (len >= 2 && HEBREW_PREFIX.test(a) && a.slice(1) === b) return true
+  if (len >= 2 && HEBREW_PREFIX.test(b) && b.slice(1) === a) return true
+  if (len < 4) return false
+  return editDistance(a, b, len >= 8 ? 2 : 1) <= (len >= 8 ? 2 : 1)
 }
 
 // Number of Unicode code points (robust char count across scripts/emoji).
@@ -64,4 +104,4 @@ function segmentWords (text) {
   return out
 }
 
-module.exports = { normalize, charLen, tokenize, segmentWords, hasCjk }
+module.exports = { normalize, similarWords, charLen, tokenize, segmentWords, hasCjk }
