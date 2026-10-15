@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useRef, useState } from "react"
-import { recorderConstraints, isPortraitViewport } from "@/lib/recorderConstraints"
+import { recorderConstraints, isPortraitViewport, streamOrientation } from "@/lib/recorderConstraints"
 import { MAX_TAKE_S } from "@/lib/limits"
 
 export type RecorderState =
@@ -33,6 +33,64 @@ interface UseRecorderReturn {
 }
 
 const COUNTDOWN_FROM = 3
+// KP-F: how long a portrait phone may deliver landscape frames before the
+// stream is re-requested once.
+export const ORIENTATION_SETTLE_MS = 1500
+const ORIENTATION_POLL_MS = 100
+
+/**
+ * Resolves true once the stream delivers portrait frames, false if it is still
+ * landscape after timeoutMs. Unknown dimensions (no frames, no settings) are not
+ * proof of a bad stream, so they resolve true at the deadline. Re-checks on the
+ * preview's loadedmetadata/resize, on each decoded frame where supported, and
+ * on a short poll.
+ */
+function waitForPortrait(
+  video: HTMLVideoElement | null,
+  stream: MediaStream,
+  timeoutMs: number,
+  isCancelled: () => boolean,
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    let done = false
+    let pollTimer: ReturnType<typeof setTimeout> | null = null
+    const deadline = setTimeout(() => {
+      finish(streamOrientation(video, stream) !== "landscape")
+    }, timeoutMs)
+
+    function finish(ok: boolean) {
+      if (done) return
+      done = true
+      clearTimeout(deadline)
+      if (pollTimer) clearTimeout(pollTimer)
+      video?.removeEventListener("loadedmetadata", check)
+      video?.removeEventListener("resize", check)
+      resolve(ok)
+    }
+
+    function check() {
+      if (done) return
+      if (isCancelled()) return finish(true)
+      if (streamOrientation(video, stream) === "portrait") finish(true)
+    }
+
+    function poll() {
+      check()
+      if (!done) pollTimer = setTimeout(poll, ORIENTATION_POLL_MS)
+    }
+
+    video?.addEventListener("loadedmetadata", check)
+    video?.addEventListener("resize", check)
+    if (video && typeof video.requestVideoFrameCallback === "function") {
+      const onFrame = () => {
+        check()
+        if (!done) video.requestVideoFrameCallback(onFrame)
+      }
+      video.requestVideoFrameCallback(onFrame)
+    }
+    poll()
+  })
+}
 
 function getMimeType(): string {
   const types = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"]
@@ -67,8 +125,12 @@ export function useRecorder({
   // fires long before a setState would land — the ref is the source of truth
   // and the state is only its mirror for consumers.
   const stopReasonRef = useRef<StopReason | null>(null)
+  // Bumped by start() and cleanup() so an in-flight orientation check or
+  // re-request from an abandoned session never touches the current one.
+  const sessionRef = useRef(0)
 
   const cleanup = useCallback(() => {
+    sessionRef.current += 1
     if (rafRef.current) cancelAnimationFrame(rafRef.current)
     if (autoStopTimerRef.current) clearTimeout(autoStopTimerRef.current)
     if (countdownTimerRef.current) {
@@ -102,25 +164,60 @@ export function useRecorder({
     setStopReason(null)
     chunksRef.current = []
     setState("requesting")
+    const session = ++sessionRef.current
+    const portrait = isPortraitViewport()
+    const constraints = { video: recorderConstraints(portrait), audio: true }
 
     let stream: MediaStream
     try {
-      stream = await navigator.mediaDevices.getUserMedia({
-        video: recorderConstraints(isPortraitViewport()),
-        audio: true,
-      })
+      stream = await navigator.mediaDevices.getUserMedia(constraints)
     } catch (e) {
       setError("Camera access denied. Please allow camera and microphone access.")
       setState("error")
       return
     }
 
-    streamRef.current = stream
-    if (videoRef.current) {
-      videoRef.current.srcObject = stream
-      videoRef.current.muted = true
-      videoRef.current.play().catch(() => {})
+    const attach = (s: MediaStream) => {
+      streamRef.current = s
+      if (videoRef.current) {
+        videoRef.current.srcObject = s
+        videoRef.current.muted = true
+        videoRef.current.play().catch(() => {})
+      }
     }
+    attach(stream)
+
+    // KP-F: right after the permission prompt iOS Safari can hand a portrait
+    // phone a landscape track that settles a moment later; recording it bakes
+    // a sideways first take. Check during the countdown (no added delay when
+    // the stream is already right), give it time to settle, re-request once,
+    // then record regardless. Landscape viewports never wait.
+    const isCancelled = () => sessionRef.current !== session
+    const ready: Promise<MediaStream | null> = !portrait
+      ? Promise.resolve(stream)
+      : (async () => {
+          const ok = await waitForPortrait(videoRef.current, stream, ORIENTATION_SETTLE_MS, isCancelled)
+          if (ok || isCancelled()) return stream
+          stream.getTracks().forEach((t) => t.stop())
+          let retry: MediaStream
+          try {
+            retry = await navigator.mediaDevices.getUserMedia(constraints)
+          } catch {
+            if (!isCancelled()) {
+              setError("Camera access denied. Please allow camera and microphone access.")
+              setState("error")
+              cleanup()
+            }
+            return null
+          }
+          if (isCancelled()) {
+            retry.getTracks().forEach((t) => t.stop())
+            return null
+          }
+          attach(retry)
+          await waitForPortrait(videoRef.current, retry, ORIENTATION_SETTLE_MS, isCancelled)
+          return retry
+        })()
 
     setState("countdown")
     setCountdown(COUNTDOWN_FROM)
@@ -133,7 +230,9 @@ export function useRecorder({
         countdownTimerRef.current = setTimeout(tick, 1000)
       } else {
         countdownTimerRef.current = null
-        beginRecording(stream)
+        ready.then((s) => {
+          if (s && !isCancelled()) beginRecording(s)
+        })
       }
     }
     countdownTimerRef.current = setTimeout(tick, 1000)
