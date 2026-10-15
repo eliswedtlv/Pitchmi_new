@@ -7,8 +7,11 @@ import { Button } from "@/components/ui/button"
 import { deleteMyData } from "@/lib/api"
 import { clearConsent } from "@/lib/consent"
 import { getSupabaseClient } from "@/lib/supabase"
+import { errorText } from "@/lib/i18n"
+import { useUiLang } from "@/hooks/useUiLang"
 
 export function DeleteMyData() {
+  const { lang, t } = useUiLang()
   const [confirming, setConfirming] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
@@ -23,7 +26,7 @@ export function DeleteMyData() {
       await getSupabaseClient()?.auth.signOut({ scope: "local" })
       setDeleted(true)
     } catch (cause) {
-      setError((cause as Error).message || "Your data could not be deleted. Try again.")
+      setError(errorText(cause, lang, t.deleteFailed))
     } finally {
       setDeleting(false)
     }
@@ -32,12 +35,12 @@ export function DeleteMyData() {
   if (deleted) {
     return (
       <div className="rounded-panel border border-good/30 bg-good-soft p-5">
-        <p className="font-semibold text-good-fg">Your KillerPitch data was deleted.</p>
+        <p className="font-semibold text-good-fg">{t.deletedTitle}</p>
         <p className="mt-1 text-meta text-fg-muted">
-          This browser has also been signed out of its KillerPitch session.
+          {t.deletedBody}
         </p>
         <Link href="/" className="mt-4 inline-flex text-meta font-semibold text-accent">
-          Return home
+          {t.returnHome}
         </Link>
       </div>
     )
@@ -45,16 +48,15 @@ export function DeleteMyData() {
 
   return (
     <div className="rounded-panel border border-line bg-surface p-5">
-      <h2 className="text-lead font-semibold text-fg">Delete my data</h2>
+      <h2 className="text-lead font-semibold text-fg">{t.deleteTitle}</h2>
       <p className="mt-2 text-meta leading-relaxed text-fg-muted">
-        This permanently removes this browser&apos;s scripts, projects, saved takes,
-        metadata and KillerPitch account.
+        {t.deleteBody}
       </p>
 
       {confirming ? (
         <div className="mt-4 rounded-control border border-bad/30 bg-bad-soft p-4">
           <p className="text-meta font-medium text-bad-fg">
-            This cannot be undone. Delete everything tied to this browser?
+            {t.deleteConfirm}
           </p>
           {error && <p role="alert" className="mt-2 text-meta text-bad-fg">{error}</p>}
           <div className="mt-4 flex flex-wrap gap-2">
@@ -65,17 +67,17 @@ export function DeleteMyData() {
               className="gap-2"
             >
               <Trash2 className="h-4 w-4" aria-hidden />
-              {deleting ? "Deleting…" : "Delete permanently"}
+              {deleting ? t.deleting : t.deletePermanently}
             </Button>
             <Button variant="ghost" onClick={() => setConfirming(false)} disabled={deleting}>
-              Keep my data
+              {t.keepMyData}
             </Button>
           </div>
         </div>
       ) : (
         <Button variant="outline" className="mt-4 gap-2" onClick={() => setConfirming(true)}>
           <Trash2 className="h-4 w-4" aria-hidden />
-          Delete my KillerPitch data
+          {t.deleteMyData}
         </Button>
       )}
     </div>

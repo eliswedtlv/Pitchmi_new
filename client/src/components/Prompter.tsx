@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useState } from "react"
 import type { KaraokeWord } from "@/lib/clock"
-import { prompterHint, teleprompterHint } from "@/lib/strings"
+import { strings, toUiLang } from "@/lib/i18n"
 
 interface PrompterLine {
   index: number
@@ -14,6 +14,7 @@ interface PrompterProps {
   lines: PrompterLine[]
   activeIdx: number
   dir: "ltr" | "rtl"
+  /** UI language of the hint (KP-D). Never the script direction — that is `dir`. */
   lang?: string | null
   phase?: "countdown" | "recording"
   /** "teleprompter" = take 1 (KP-B): follows the reader, with its own hint. */
@@ -185,7 +186,7 @@ export function Prompter({
           data-testid="prompter-hint"
           className="pointer-events-none mx-auto mt-2 max-w-[90%] text-center text-sm font-medium text-white/90 [text-shadow:0_1px_4px_rgba(0,0,0,0.9)]"
         >
-          {mode === "teleprompter" ? teleprompterHint(lang) : prompterHint(lang)}
+          {mode === "teleprompter" ? strings(toUiLang(lang)).teleprompterHint : strings(toUiLang(lang)).prompterHint}
         </div>
       )}
     </div>

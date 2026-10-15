@@ -7,11 +7,13 @@ import { useSession } from "@/store/session"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { getAd, getRhythm, type AdConfig } from "@/lib/api"
 import { nextStage, type WaitStage } from "@/lib/waitStages"
-import { dirForText } from "@/lib/textDir"
+import { useUiLang } from "@/hooks/useUiLang"
+import { errorText, strings } from "@/lib/i18n"
 
 export default function WaitPage() {
   const router = useRouter()
-  const { project, script, takeBlob, setPathResult, setTakeRhythm } = useSession()
+  const { lang } = useUiLang()
+  const { project, takeBlob, setPathResult, setTakeRhythm } = useSession()
   const [ad, setAd] = useState<AdConfig | null>(null)
   const [adSkipped, setAdSkipped] = useState(false)
   const [stage, setStage] = useState<WaitStage>("uploading")
@@ -52,11 +54,11 @@ export default function WaitPage() {
       .catch((e: unknown) => {
         const err = e as { status?: number; body?: { error?: string; limit?: number } }
         if (err.status === 429) {
-          setError(`Daily limit reached (${err.body?.limit ?? 25}/day). Come back tomorrow!`)
+          setError(strings(lang).dailyLimit(err.body?.limit ?? 25))
         } else if (err.status === 503) {
-          setError("We’re busy right now. Please try again in a moment.")
+          setError(strings(lang).busy)
         } else {
-          setError((e as Error).message)
+          setError(errorText(e, lang))
         }
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -67,7 +69,6 @@ export default function WaitPage() {
     <WaitView
       stage={stage}
       error={error}
-      lang={project?.language ?? (dirForText(script) === "rtl" ? "he" : null)}
       ad={adSkipped ? null : ad}
       onSkipAd={() => setAdSkipped(true)}
       onHome={() => router.push("/")}

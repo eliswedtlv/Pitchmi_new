@@ -87,6 +87,8 @@ describe("ResultsPage actions", () => {
       // screen's ACTIONS, so it reads the action row rather than every button
       // in the document.
       .filter((b) => (b.textContent ?? "").trim().length > 0)
+      // KP-D: the EN / עב header toggle is chrome, not an action.
+      .filter((b) => !b.closest('[role="group"]'))
       .map((b) => b.textContent?.trim())
     expect(names).toEqual(["Keep this rhythm", "Try again", "Edit text", "New video", "Share"])
     expect(screen.queryByRole("button", { name: /download/i })).toBeNull()

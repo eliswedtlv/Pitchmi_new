@@ -6,6 +6,8 @@ import { LockKeyhole, ShieldCheck } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { recordConsent } from "@/lib/api"
 import { CONSENT_VERSION, storeConsent } from "@/lib/consent"
+import { errorText } from "@/lib/i18n"
+import { useUiLang } from "@/hooks/useUiLang"
 
 interface ConsentFormProps {
   onAccepted: () => void | Promise<void>
@@ -13,6 +15,7 @@ interface ConsentFormProps {
 }
 
 export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
+  const { lang, t } = useUiLang()
   const [acknowledgedAs, setAcknowledgedAs] = useState("")
   const [agreed, setAgreed] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -22,11 +25,11 @@ export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
     event.preventDefault()
     const entry = acknowledgedAs.trim()
     if (!entry) {
-      setError("Enter your name or initials.")
+      setError(t.consentNameMissing)
       return
     }
     if (!agreed) {
-      setError("Confirm the consent statement to continue.")
+      setError(t.consentNotAgreed)
       return
     }
 
@@ -39,7 +42,7 @@ export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
       storeConsent(entry)
       await onAccepted()
     } catch (cause) {
-      setError((cause as Error).message || "Consent could not be recorded. Try again.")
+      setError(errorText(cause, lang, t.consentFailed))
     } finally {
       setSubmitting(false)
     }
@@ -49,23 +52,23 @@ export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
     <form
       onSubmit={handleSubmit}
       className="space-y-4 rounded-control border border-line-strong bg-surface p-4 text-start"
-      aria-label="Recording and AI processing consent"
+      aria-label={t.consentAria}
     >
       <div className="flex items-start gap-3">
         <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-control bg-accent text-accent-fg">
           <ShieldCheck className="h-4 w-4" aria-hidden />
         </span>
         <div>
-          <h2 className="text-body font-semibold text-fg">Before the camera turns on</h2>
+          <h2 className="text-body font-semibold text-fg">{t.consentTitle}</h2>
           <p className="mt-1 text-meta text-fg-muted">
-            One acknowledgement, no account. You can delete your data whenever you want.
+            {t.consentIntro}
           </p>
         </div>
       </div>
 
       <div className="grid gap-1.5">
         <label htmlFor="consent-name" className="text-meta font-medium text-fg">
-          Name or initials
+          {t.consentNameLabel}
         </label>
         <input
           id="consent-name"
@@ -73,12 +76,12 @@ export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
           onChange={(event) => setAcknowledgedAs(event.target.value)}
           maxLength={80}
           autoComplete="name"
-          placeholder="Any name or initials"
+          placeholder={t.consentNamePlaceholder}
           className="h-11 rounded-control border border-line-strong bg-canvas px-3 text-body text-fg outline-none transition-colors placeholder:text-fg-subtle focus:border-accent focus:ring-2 focus:ring-accent/20"
         />
         <p className="flex items-center gap-1.5 text-micro text-fg-subtle">
           <LockKeyhole className="h-3 w-3" aria-hidden />
-          This entry stays on this device and is never sent to KillerPitch.
+          {t.consentNameLocal}
         </p>
       </div>
 
@@ -90,17 +93,16 @@ export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
           className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--color-accent)]"
         />
         <span className="text-meta leading-relaxed text-fg-muted">
-          I agree to the{" "}
+          {t.consentAgreeBefore}{lang === "he" ? "" : " "}
           <Link
             href="/privacy"
             target="_blank"
             rel="noopener noreferrer"
             className="font-medium text-fg underline decoration-line-strong underline-offset-2 hover:text-accent"
           >
-            Privacy Notice
-          </Link>
-          {" "}and consent to processing my script, video and audio for transcription
-          and delivery feedback. I am 18+ and have permission from everyone recorded.
+            {t.consentPrivacyLink}
+          </Link>{" "}
+          {t.consentAgreeAfter}
         </span>
       </label>
 
@@ -112,10 +114,10 @@ export function ConsentForm({ onAccepted, onCancel }: ConsentFormProps) {
 
       <div className="grid grid-cols-[auto_1fr] gap-2">
         <Button type="button" variant="ghost" onClick={onCancel} disabled={submitting}>
-          Cancel
+          {t.cancel}
         </Button>
         <Button type="submit" disabled={submitting}>
-          {submitting ? "Recording consent…" : "Agree & continue"}
+          {submitting ? t.consentSubmitting : t.consentSubmit}
         </Button>
       </div>
     </form>

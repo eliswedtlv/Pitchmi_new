@@ -9,9 +9,12 @@ import { VideoPlayer } from "@/components/ui/VideoPlayer"
 import { useSession } from "@/store/session"
 import { burnInKaraoke, burnInSupported } from "@/lib/burnIn"
 import { resolveDir } from "@/lib/textDir"
+import { LangToggle } from "@/components/LangToggle"
+import { useUiLang } from "@/hooks/useUiLang"
 
 export default function ResultsPage() {
   const router = useRouter()
+  const { t } = useUiLang()
   const {
     takeBlob, takeBlobUrl, pathResult, rhythmLocked, takeRhythm, setRhythmLocked, reset, project, script,
   } = useSession()
@@ -30,12 +33,12 @@ export default function ResultsPage() {
   // take, the rhythm status and the next step.
   const hasRhythm = Boolean(pathResult)
   const rhythmNote = rhythmLocked
-    ? "Next take follows your locked rhythm."
+    ? t.noteLocked
     : takeRhythm === "new"
-      ? "Next take follows this take’s rhythm."
+      ? t.noteNew
       : hasRhythm
-        ? "Next take follows your earlier rhythm, and updates it."
-        : "Next take is a teleprompter take again."
+        ? t.noteEarlier
+        : t.noteTeleprompter
 
   // Sharing needs a fresh tap (iOS drops the user gesture during the export),
   // so the first tap builds the video and the second one shares it.
@@ -67,7 +70,7 @@ export default function ResultsPage() {
     const ext = blob.type.includes("mp4") ? "mp4" : "webm"
     const file = new File([blob], `killerpitch-take.${ext}`, { type: blob.type })
     if (navigator.canShare?.({ files: [file] }) && navigator.share) {
-      await navigator.share({ title: "My KillerPitch take", files: [file] }).catch(() => {})
+      await navigator.share({ title: t.shareTitle, files: [file] }).catch(() => {})
       return
     }
     downloadBlob(blob)
@@ -85,21 +88,24 @@ export default function ResultsPage() {
 
   const shareLabel =
     exportProgress !== null
-      ? `Preparing ${Math.round(exportProgress * 100)}%`
+      ? t.preparing(Math.round(exportProgress * 100))
       : exported
-        ? "Share video"
-        : "Share"
+        ? t.shareVideo
+        : t.share
 
   return (
     <main className="min-h-screen px-[18px] safe-b-8 sm:px-8">
       <div className="studio-shell results-grid py-5 sm:py-7 lg:py-8">
         <header className="results-header flex items-center justify-between border-b border-line pb-5">
           <Brand />
-          <div className="text-end">
-            <p className="text-micro font-semibold uppercase tracking-[0.16em] text-fg">
-              Your take
-            </p>
-            <p className="nums mt-1 text-micro text-fg-subtle">≤5 min</p>
+          <div className="flex items-center gap-4">
+            <div className="text-end">
+              <p className="text-micro font-semibold uppercase tracking-[0.16em] text-fg">
+                {t.yourTake}
+              </p>
+              <p className="nums mt-1 text-micro text-fg-subtle">{t.takeMax}</p>
+            </div>
+            <LangToggle />
           </div>
         </header>
 
@@ -107,22 +113,22 @@ export default function ResultsPage() {
           {/* Mirrored like the live preview: people see themselves as in a mirror. */}
           {takeBlobUrl && <VideoPlayer src={takeBlobUrl} mirrored />}
           <div className="mt-3 flex items-center justify-between text-micro text-fg-subtle">
-            <span>Your take · processed privately</span>
-            <span className="nums">05:00 max</span>
+            <span>{t.takeCaption}</span>
+            <span className="nums">{t.takeMaxClock}</span>
           </div>
         </div>
 
         <section className="results-actions overflow-hidden rounded-panel border border-accent/30 bg-accent-soft">
           <div className="p-5 sm:p-6">
             <p className="text-micro font-semibold uppercase tracking-[0.16em] text-accent">
-              Next take
+              {t.nextTake}
             </p>
             <h2 className="mt-2 text-title font-semibold tracking-[-0.04em] text-fg">
-              Keep the words. Change the delivery.
+              {t.resultsTitle}
             </h2>
             {takeRhythm === "unchanged" && (
               <p data-testid="rhythm-kept-note" className="mt-2 text-meta text-fg-muted">
-                This take didn’t match your script closely, so your rhythm stayed the same.
+                {t.rhythmKept}
               </p>
             )}
             <p data-testid="rhythm-note" className="mt-2 text-meta text-fg-muted">
@@ -132,7 +138,7 @@ export default function ResultsPage() {
               <div className="mt-4 flex items-center justify-between gap-3 rounded-control border border-accent/30 bg-surface px-4 py-2.5">
                 <span className="flex items-center gap-2 text-meta font-medium text-fg">
                   <Lock className="h-4 w-4 text-accent" />
-                  Rhythm locked
+                  {t.rhythmLocked}
                 </span>
                 <Button
                   onClick={() => setRhythmLocked(false)}
@@ -141,7 +147,7 @@ export default function ResultsPage() {
                   className="gap-1.5"
                 >
                   <LockOpen className="h-4 w-4" />
-                  Unlock
+                  {t.unlock}
                 </Button>
               </div>
             ) : (
@@ -153,7 +159,7 @@ export default function ResultsPage() {
                   className="mt-4 w-full gap-2"
                 >
                   <Lock className="h-4 w-4" />
-                  {takeRhythm === "new" ? "Keep this rhythm" : "Keep current rhythm"}
+                  {takeRhythm === "new" ? t.keepThisRhythm : t.keepCurrentRhythm}
                 </Button>
               )
             )}
@@ -165,7 +171,7 @@ export default function ResultsPage() {
               className="h-12 w-full gap-2 shadow-[0_6px_20px_rgba(23,70,255,0.2)]"
             >
               <RotateCcw className="h-5 w-5" />
-              Try again
+              {t.tryAgain}
             </Button>
             <div className="grid grid-cols-3 gap-2">
               <Button
@@ -174,7 +180,7 @@ export default function ResultsPage() {
                 className="gap-1 px-1.5 text-micro sm:gap-2 sm:px-2 sm:text-meta"
               >
                 <Pencil className="h-4 w-4" />
-                Edit text
+                {t.editText}
               </Button>
               <Button
                 onClick={() => {
@@ -185,7 +191,7 @@ export default function ResultsPage() {
                 className="gap-1 px-1.5 text-micro sm:gap-2 sm:px-2 sm:text-meta"
               >
                 <Video className="h-4 w-4" />
-                New video
+                {t.newVideo}
               </Button>
               <Button
                 onClick={handleShare}

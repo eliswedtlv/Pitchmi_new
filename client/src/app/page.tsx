@@ -7,6 +7,7 @@ import { LockKeyhole, Video } from "lucide-react"
 import { Brand } from "@/components/Brand"
 import { ConsentForm } from "@/components/ConsentForm"
 import { GoogleAuthLink } from "@/components/GoogleAuthLink"
+import { LangToggle } from "@/components/LangToggle"
 import { Button } from "@/components/ui/button"
 import { createProject, saveScript } from "@/lib/api"
 import { clearConsent, readConsent } from "@/lib/consent"
@@ -14,6 +15,8 @@ import { MAX_TAKE_S } from "@/lib/limits"
 import { estimateSeconds, splitAtSeconds } from "@/lib/estimate"
 import { resolveDir } from "@/lib/textDir"
 import { useSession } from "@/store/session"
+import { useUiLang } from "@/hooks/useUiLang"
+import { errorText } from "@/lib/i18n"
 
 // Shared by the textarea and the highlight layer behind it. Any divergence
 // here — font, size, line-height, padding, letter-spacing — and the amber tail
@@ -24,6 +27,7 @@ const TEXT_BOX =
 
 export default function HomePage() {
   const router = useRouter()
+  const { lang, t } = useUiLang()
   const { script, setProject, setScript, setPathResult, setRhythmLocked } = useSession()
 
   // Pre-filled when the user came back via "Edit text" on the results screen.
@@ -63,7 +67,7 @@ export default function HomePage() {
         setShowConsent(true)
         setError(null)
       } else {
-        setError(apiError.message)
+        setError(errorText(apiError, lang))
       }
     } finally {
       setLoading(false)
@@ -96,9 +100,10 @@ export default function HomePage() {
               className="flex items-center gap-2 text-micro font-medium uppercase tracking-[0.12em] text-fg-muted transition-colors hover:text-fg"
             >
               <LockKeyhole className="h-3.5 w-3.5 text-accent" aria-hidden />
-              <span className="hidden sm:inline">Private by default</span>
-              <span className="sm:hidden">Private</span>
+              <span className="hidden sm:inline">{t.privateByDefault}</span>
+              <span className="sm:hidden">{t.privateShort}</span>
             </Link>
+            <LangToggle />
           </div>
         </header>
 
@@ -108,26 +113,25 @@ export default function HomePage() {
               <div className="flex items-center gap-3 text-micro font-medium uppercase tracking-[0.16em] text-fg-subtle">
                 <span className="nums text-accent">01</span>
                 <span className="h-px w-8 bg-line-strong" />
-                <span>Write the take</span>
+                <span>{t.stepWrite}</span>
               </div>
 
               <div className="space-y-3">
                 <h1 className="max-w-[11ch] text-[clamp(2.7rem,6vw,5.2rem)] font-semibold leading-[0.94] tracking-[-0.065em] text-fg text-balance">
-                  Say it like
-                  <span className="block text-accent">you mean it.</span>
+                  {t.heroLine1}
+                  <span className="block text-accent">{t.heroLine2}</span>
                 </h1>
                 <p className="max-w-md text-body text-fg-muted lg:text-lead">
-                  Paste your script and read it once on the teleprompter. KillerPitch
-                  learns your rhythm, then lights up every word as you say it.
+                  {t.heroBody}
                 </p>
               </div>
             </div>
 
             <div className="hidden grid-cols-3 border-y border-line py-4 lg:grid">
               {[
-                ["5 min", "per take"],
-                ["No login", "anonymous session"],
-                ["Take privacy", "video not retained"],
+                [t.factMinutes, t.factMinutesLabel],
+                [t.factNoLogin, t.factNoLoginLabel],
+                [t.factPrivacy, t.factPrivacyLabel],
               ].map(([value, label]) => (
                 <div key={value} className="border-e border-line pe-4 last:border-0 [&+&]:ps-4">
                   <p className="text-meta font-semibold text-fg">{value}</p>
@@ -142,11 +146,11 @@ export default function HomePage() {
               <div className="flex items-center gap-2.5">
                 <span className="h-2 w-2 rounded-full bg-accent" />
                 <span className="text-micro font-semibold uppercase tracking-[0.16em] text-fg">
-                  Script
+                  {t.scriptLabel}
                 </span>
               </div>
               <span className="nums text-micro font-medium uppercase tracking-[0.12em] text-fg-subtle">
-                {MAX_TAKE_S} sec max
+                {t.secMax(MAX_TAKE_S)}
               </span>
             </div>
 
@@ -178,7 +182,7 @@ export default function HomePage() {
                     </div>
                   )}
                   <textarea
-                    aria-label="Your script"
+                    aria-label={t.scriptAria}
                     dir={dir}
                     rows={8}
                     value={text}
@@ -186,7 +190,7 @@ export default function HomePage() {
                     onScroll={(e) => {
                       if (mirrorRef.current) mirrorRef.current.scrollTop = e.currentTarget.scrollTop
                     }}
-                    placeholder="Type or paste what you want to say…"
+                    placeholder={t.scriptPlaceholder}
                     className={`absolute inset-0 resize-none border border-transparent bg-transparent text-fg placeholder:text-fg-subtle focus:outline-none ${TEXT_BOX}`}
                   />
                 </div>
@@ -197,12 +201,10 @@ export default function HomePage() {
                       isOver ? "text-warn-fg" : "text-fg"
                     }`}
                   >
-                    {isOver
-                      ? `About ${overBy} second${overBy === 1 ? "" : "s"} over — trim it a little`
-                      : `~${Math.round(seconds)}s`}
+                    {isOver ? t.overBy(overBy) : t.estimate(Math.round(seconds))}
                   </span>
                   <span className="text-micro text-fg-subtle text-end">
-                    Rough estimate · checked on your take
+                    {t.estimateNote}
                   </span>
                 </div>
 
@@ -214,7 +216,7 @@ export default function HomePage() {
                     className="h-12 w-full gap-3 shadow-[0_6px_20px_rgba(23,70,255,0.22)]"
                   >
                     <Video className="h-4.5 w-4.5" />
-                    {loading ? "Setting up…" : "Record it"}
+                    {loading ? t.settingUp : t.recordIt}
                   </Button>
                   {error && (
                     <p className="mt-3 rounded-control border border-bad/30 bg-bad-soft px-4 py-3 text-meta text-bad-fg">
@@ -228,8 +230,8 @@ export default function HomePage() {
         </div>
 
         <div className="flex items-center justify-between border-t border-line py-3 text-micro text-fg-subtle lg:hidden">
-          <span>Up to 5 minutes · no login</span>
-          <Link href="/privacy" className="font-medium hover:text-fg">Privacy & consent</Link>
+          <span>{t.footerLimits}</span>
+          <Link href="/privacy" className="font-medium hover:text-fg">{t.footerPrivacy}</Link>
         </div>
       </div>
     </main>

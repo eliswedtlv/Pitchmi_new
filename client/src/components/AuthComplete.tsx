@@ -5,6 +5,8 @@ import Link from "next/link"
 import { Check, LoaderCircle, TriangleAlert } from "lucide-react"
 import { Brand } from "@/components/Brand"
 import { Button } from "@/components/ui/button"
+import { LangToggle } from "@/components/LangToggle"
+import { useUiLang } from "@/hooks/useUiLang"
 import { callbackErrorCode, getCurrentAccount, safeNextPath } from "@/lib/googleAuth"
 
 type CompletionState =
@@ -14,6 +16,7 @@ type CompletionState =
   | { kind: "error"; next: string }
 
 export function AuthComplete() {
+  const { t } = useUiLang()
   const [state, setState] = useState<CompletionState>({ kind: "loading", next: "/account" })
 
   useEffect(() => {
@@ -49,8 +52,9 @@ export function AuthComplete() {
   return (
     <main className="min-h-screen px-[18px] safe-b-8 sm:px-8">
       <div className="shell flex min-h-screen flex-col py-5 sm:py-8">
-        <header className="border-b border-line pb-5">
+        <header className="flex items-center justify-between border-b border-line pb-5">
           <Brand />
+          <LangToggle />
         </header>
 
         <div className="grid flex-1 place-items-center py-12">
@@ -59,9 +63,9 @@ export function AuthComplete() {
               <>
                 <LoaderCircle className="mx-auto h-8 w-8 animate-spin text-accent" aria-hidden />
                 <h1 className="mt-5 text-title font-semibold tracking-[-0.04em] text-fg">
-                  Securing your studio…
+                  {t.securing}
                 </h1>
-                <p className="mt-2 text-meta text-fg-muted">Confirming the identity connection.</p>
+                <p className="mt-2 text-meta text-fg-muted">{t.confirming}</p>
               </>
             ) : null}
 
@@ -71,16 +75,16 @@ export function AuthComplete() {
                   <Check className="h-5 w-5" aria-hidden />
                 </span>
                 <h1 className="mt-5 text-title font-semibold tracking-[-0.04em] text-fg">
-                  Your studio is saved.
+                  {t.studioSaved}
                 </h1>
                 <p className="mt-2 text-meta leading-relaxed text-fg-muted">
-                  Use the same Google account to reopen this KillerPitch identity on another device.
+                  {t.studioSavedBody}
                 </p>
                 <Button
                   className="mt-6 w-full"
                   onClick={() => window.location.assign(state.next)}
                 >
-                  Continue to KillerPitch
+                  {t.continueToApp}
                 </Button>
               </>
             ) : null}
@@ -91,13 +95,13 @@ export function AuthComplete() {
                   <TriangleAlert className="h-5 w-5" aria-hidden />
                 </span>
                 <h1 className="mt-5 text-title font-semibold tracking-[-0.04em] text-fg">
-                  That account is already connected.
+                  {t.alreadyConnected}
                 </h1>
                 <p className="mt-2 text-meta leading-relaxed text-fg-muted">
-                  Return to Account and choose “Sign in instead” to open the existing studio.
+                  {t.alreadyConnectedBody}
                 </p>
                 <Link href="/account" className="mt-6 inline-flex text-meta font-semibold text-accent">
-                  Return to Account
+                  {t.returnToAccount}
                 </Link>
               </>
             ) : null}
@@ -108,13 +112,13 @@ export function AuthComplete() {
                   <TriangleAlert className="h-5 w-5" aria-hidden />
                 </span>
                 <h1 className="mt-5 text-title font-semibold tracking-[-0.04em] text-fg">
-                  Google could not be connected.
+                  {t.googleFailed}
                 </h1>
                 <p className="mt-2 text-meta leading-relaxed text-fg-muted">
-                  No KillerPitch data was changed. Return to Account and try again.
+                  {t.googleFailedBody}
                 </p>
                 <Link href="/account" className="mt-6 inline-flex text-meta font-semibold text-accent">
-                  Return to Account
+                  {t.returnToAccount}
                 </Link>
               </>
             ) : null}
