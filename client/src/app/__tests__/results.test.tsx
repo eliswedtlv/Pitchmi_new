@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react"
+import { act, render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // Results-screen actions (T-1170 §B): Try again (green primary), New video,
@@ -34,6 +34,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push }) }))
 vi.mock("@/store/session", () => ({ useSession: () => h.session }))
 
 import ResultsPage from "../results/page"
+import { resetUiLangForTests, setUiLang } from "@/hooks/useUiLang"
 
 // jsdom has neither share nor canShare; define them per-test on the real
 // navigator rather than replacing it wholesale.
@@ -78,7 +79,7 @@ describe("ResultsPage actions", () => {
     expect(h.push).toHaveBeenCalledWith("/karaoke")
   })
 
-  it("renders only Keep this rhythm / Try again / Edit text / New video / Share", () => {
+  it("renders only Try again / Share / Keep this rhythm / Edit text / New video", () => {
     render(<ResultsPage />)
     const names = screen
       .getAllByRole("button")
@@ -90,7 +91,9 @@ describe("ResultsPage actions", () => {
       // KP-D: the EN / עב header toggle is chrome, not an action.
       .filter((b) => !b.closest('[role="group"]'))
       .map((b) => b.textContent?.trim())
-    expect(names).toEqual(["Keep this rhythm", "Try again", "Edit text", "New video", "Share"])
+    // KP-G: Try again + Share sit directly under the take; the lock and the
+    // quieter Edit text / New video follow.
+    expect(names).toEqual(["Try again", "Share", "Keep this rhythm", "Edit text", "New video"])
     expect(screen.queryByRole("button", { name: /download/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /save to cloud/i })).toBeNull()
     expect(screen.queryByRole("button", { name: /my videos/i })).toBeNull()
@@ -172,7 +175,7 @@ describe("ResultsPage — no score, rhythm status (KP-B)", () => {
 
   it("Keep this rhythm locks the rhythm for the next takes", () => {
     render(<ResultsPage />)
-    expect(screen.getByTestId("rhythm-note").textContent).toMatch(/this take’s rhythm/)
+    expect(screen.getByTestId("rhythm-note").textContent).toMatch(/rhythm you just set/)
     fireEvent.click(screen.getByRole("button", { name: /keep this rhythm/i }))
     expect(h.session.setRhythmLocked).toHaveBeenCalledWith(true)
   })
@@ -181,7 +184,9 @@ describe("ResultsPage — no score, rhythm status (KP-B)", () => {
     h.session.rhythmLocked = true
     h.session.takeRhythm = "locked"
     render(<ResultsPage />)
-    expect(screen.getByText("Rhythm locked")).toBeTruthy()
+    expect(screen.getByTestId("rhythm-locked-note").textContent).toBe(
+      "Rhythm locked — your next takes follow this take’s pace.",
+    )
     expect(screen.getByTestId("rhythm-note").textContent).toMatch(/locked rhythm/)
     expect(screen.queryByRole("button", { name: /keep this rhythm/i })).toBeNull()
     fireEvent.click(screen.getByRole("button", { name: /unlock/i }))
@@ -203,5 +208,62 @@ describe("ResultsPage — no score, rhythm status (KP-B)", () => {
     render(<ResultsPage />)
     expect(screen.getByTestId("rhythm-note").textContent).toMatch(/teleprompter/)
     expect(screen.queryByRole("button", { name: /keep/i })).toBeNull()
+  })
+})
+
+describe("ResultsPage — clear next step (KP-G)", () => {
+  afterEach(() => {
+    window.localStorage.clear()
+    resetUiLangForTests()
+  })
+
+  it("says there is no score, and Try again comes right after it with Share next to it", () => {
+    render(<ResultsPage />)
+    const note = screen.getByTestId("no-score-note")
+    expect(note.textContent).toMatch(/^No score here/)
+    const tryAgain = screen.getByRole("button", { name: "Try again" })
+    const share = screen.getByRole("button", { name: "Share" })
+    // Same row, directly under the no-score line.
+    expect(tryAgain.parentElement).toBe(share.parentElement)
+    expect(note.nextElementSibling).toBe(tryAgain.parentElement)
+  })
+
+  it("explains the rhythm lock right under the button", () => {
+    render(<ResultsPage />)
+    const help = screen.getByTestId("keep-rhythm-help")
+    expect(help.textContent).toBe(
+      "Your next takes follow this take’s pace instead of updating each time.",
+    )
+    const btn = screen.getByRole("button", { name: /keep this rhythm/i })
+    expect(btn.getAttribute("aria-describedby")).toBe(help.id)
+  })
+
+  it("Edit text and New video are quieter, secondary actions", () => {
+    render(<ResultsPage />)
+    for (const name of ["Edit text", "New video"]) {
+      expect(screen.getByRole("button", { name }).className).not.toMatch(/bg-accent/)
+    }
+  })
+
+  it("Hebrew: no-score line, primary Try again and lock helper are translated", () => {
+    act(() => setUiLang("he"))
+    render(<ResultsPage />)
+    expect(screen.getByTestId("no-score-note").textContent).toMatch(/^אין כאן ציון/)
+    expect(screen.getByRole("button", { name: "עוד טייק" }).className).toMatch(/bg-accent/)
+    expect(screen.getByTestId("keep-rhythm-help").textContent).toBe(
+      "הטייקים הבאים ילכו לפי הקצב של הטייק הזה, במקום להתעדכן בכל פעם.",
+    )
+    expect(screen.getByTestId("rhythm-note").textContent).toMatch(/^בטייק הבא:/)
+  })
+
+  it("Hebrew: locked state says so and offers Unlock", () => {
+    act(() => setUiLang("he"))
+    h.session.rhythmLocked = true
+    h.session.takeRhythm = "locked"
+    render(<ResultsPage />)
+    expect(screen.getByTestId("rhythm-locked-note").textContent).toBe(
+      "הקצב נעול — הטייקים הבאים ילכו לפי הקצב של הטייק הזה.",
+    )
+    expect(screen.getByRole("button", { name: /שחרור/ })).toBeTruthy()
   })
 })
