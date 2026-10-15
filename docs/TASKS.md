@@ -2,6 +2,16 @@
 
 Product name is now **KillerPitch** (rebrand 2026-08-13, domain `killerpitch.app`); this repo and several docs still say PitchMi. Full Cowork context: `docs/CCW-HANDOFF.md`.
 
+## Agreed product (killerpitch.md changes 1–5) — shipped 2026-10-15
+KP-A server rhythm-only + 5-min cap, KP-B client flow, KP-C burned-in share — deployed, desktop + phone-size checks pass in Chromium with a spoken fake mic. Specs: `docs/specs/KP-*.md`.
+Follow-ups:
+- **KP-FU-1** Real iPhone Safari check (Eli): record, rhythm, karaoke, Share video.
+- **KP-FU-2** Take 1 on phones advances by tap/swipe only — speech-following is desktop-only (phone speech recognition can steal the mic from the recording).
+- **KP-FU-3** Karaoke lines drop punctuation ("Hi I am Dana") — the aligned path uses bare tokens.
+- **KP-FU-4** Metadata/OG/manifest still say "30-second videos" (change 6, name/slogan, held for Eli).
+- **KP-FU-5** Desktop Chrome exports VP9-in-MP4; QuickTime/older players may not open it.
+- **KP-FU-6** Burned-in mark uses fuchsia #a21caf; the live app accent renders blue — align.
+
 ## Open work — priority order (from CCW handoff, 2026-10-15)
 
 **P0 — blocks the next deploy**
