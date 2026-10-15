@@ -117,8 +117,8 @@ export default function HomePage() {
                   <span className="block text-accent">you mean it.</span>
                 </h1>
                 <p className="max-w-md text-body text-fg-muted lg:text-lead">
-                  Paste your script. KillerPitch cues the take, measures the timing,
-                  and coaches the delivery—not the message.
+                  Paste your script and read it once on the teleprompter. KillerPitch
+                  learns your rhythm, then lights up every word as you say it.
                 </p>
               </div>
             </div>

@@ -1,17 +1,24 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Lock, LockOpen, Pencil, RotateCcw, Share2, Video } from "lucide-react"
 import { Brand } from "@/components/Brand"
 import { Button } from "@/components/ui/button"
 import { VideoPlayer } from "@/components/ui/VideoPlayer"
 import { useSession } from "@/store/session"
+import { burnInKaraoke, burnInSupported } from "@/lib/burnIn"
+import { resolveDir } from "@/lib/textDir"
 
 export default function ResultsPage() {
   const router = useRouter()
-  const { takeBlob, takeBlobUrl, pathResult, rhythmLocked, takeRhythm, setRhythmLocked, reset } =
-    useSession()
+  const {
+    takeBlob, takeBlobUrl, pathResult, rhythmLocked, takeRhythm, setRhythmLocked, reset, project, script,
+  } = useSession()
+  // The shareable video: the take with the karaoke words and the mark burned in
+  // (KP-C). Built on the first Share tap; null until then.
+  const [exported, setExported] = useState<Blob | null>(null)
+  const [exportProgress, setExportProgress] = useState<number | null>(null)
 
   useEffect(() => {
     if (!takeBlob) router.push("/")
@@ -30,23 +37,58 @@ export default function ResultsPage() {
         ? "Next take follows your earlier rhythm, and updates it."
         : "Next take is a teleprompter take again."
 
+  // Sharing needs a fresh tap (iOS drops the user gesture during the export),
+  // so the first tap builds the video and the second one shares it.
   async function handleShare() {
-    if (!takeBlob) return
-    const file = new File([takeBlob], "killerpitch-take.webm", { type: takeBlob.type })
+    if (!takeBlob || exportProgress !== null) return
+    if (!exported && burnInSupported()) {
+      setExportProgress(0)
+      try {
+        const blob = await burnInKaraoke(takeBlob, pathResult?.path ?? null, {
+          dir: resolveDir(project?.language, script),
+          mirror: true,
+          onProgress: setExportProgress,
+        })
+        setExported(blob)
+        // Desktop browsers can't share files: download right away.
+        if (!navigator.canShare) downloadBlob(blob)
+      } catch {
+        // Export failed: fall back to the plain take.
+        shareBlob(takeBlob)
+      } finally {
+        setExportProgress(null)
+      }
+      return
+    }
+    shareBlob(exported ?? takeBlob)
+  }
+
+  async function shareBlob(blob: Blob) {
+    const ext = blob.type.includes("mp4") ? "mp4" : "webm"
+    const file = new File([blob], `killerpitch-take.${ext}`, { type: blob.type })
     if (navigator.canShare?.({ files: [file] }) && navigator.share) {
       await navigator.share({ title: "My KillerPitch take", files: [file] }).catch(() => {})
       return
     }
-    handleDownload()
+    downloadBlob(blob)
   }
 
-  function handleDownload() {
-    if (!takeBlobUrl) return
+  function downloadBlob(blob: Blob) {
+    const ext = blob.type.includes("mp4") ? "mp4" : "webm"
+    const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
-    a.href = takeBlobUrl
-    a.download = "killerpitch-take.webm"
+    a.href = url
+    a.download = `killerpitch-take.${ext}`
     a.click()
+    setTimeout(() => URL.revokeObjectURL(url), 10000)
   }
+
+  const shareLabel =
+    exportProgress !== null
+      ? `Preparing ${Math.round(exportProgress * 100)}%`
+      : exported
+        ? "Share video"
+        : "Share"
 
   return (
     <main className="min-h-screen px-[18px] safe-b-8 sm:px-8">
@@ -147,11 +189,12 @@ export default function ResultsPage() {
               </Button>
               <Button
                 onClick={handleShare}
+                disabled={exportProgress !== null}
                 variant="outline"
                 className="gap-1 px-1.5 text-micro sm:gap-2 sm:px-2 sm:text-meta"
               >
                 <Share2 className="h-4 w-4" />
-                Share
+                {shareLabel}
               </Button>
             </div>
           </div>
