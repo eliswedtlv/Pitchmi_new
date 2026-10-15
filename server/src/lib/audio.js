@@ -40,6 +40,16 @@ function unsupportedMedia () {
 // or concat playlist makes ffmpeg follow file:// and http:// references — and
 // the bytes it reads come back to the caller through the transcript. Pin the
 // demuxer to the container we identified and allow only the local file protocol.
+// ffmpeg's wording when the take has no usable audio track (a video-only
+// recording, e.g. the mic track ended) or is truncated past repair.
+const NO_AUDIO_RE = /does not contain any stream|matches no streams|Output file is empty|Invalid data found|EBML header parsing failed/i
+
+function noAudio () {
+  const err = new Error('no_audio')
+  err.code = 'NO_AUDIO'
+  return err
+}
+
 function inputArgs (container) {
   const demuxer = container === 'mp4' ? 'mp4' : 'matroska,webm'
   return ['-protocol_whitelist', 'file', '-f', demuxer, '-i']
@@ -63,6 +73,7 @@ async function extractAudio (videoBuffer) {
   await fs.writeFile(inPath, videoBuffer)
   try {
     const stderr = await runFfmpeg([...inputArgs(container), inPath, '-vn', '-ac', '1', '-ar', '16000', '-c:a', 'aac', '-b:a', '64k', '-y', outPath])
+      .catch(err => { throw NO_AUDIO_RE.test(err.message) ? noAudio() : err })
     const buffer = await fs.readFile(outPath)
     return { buffer, mime: 'audio/mp4', ext: 'm4a', duration_s: parseFfmpegDuration(stderr) }
   } finally {

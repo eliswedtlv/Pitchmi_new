@@ -11,8 +11,9 @@ import type { Project, PathResult } from "@/lib/api"
  *  - "new": the take matched the script and became the rhythm
  *  - "unchanged": it didn't match closely, the previous rhythm (if any) stays
  *  - "locked": the rhythm is locked, so the take was never uploaded
+ *  - "failed": the rhythm step errored; the take is still kept and shareable
  */
-export type TakeRhythm = "new" | "unchanged" | "locked"
+export type TakeRhythm = "new" | "unchanged" | "locked" | "failed"
 
 interface SessionState {
   project: Project | null

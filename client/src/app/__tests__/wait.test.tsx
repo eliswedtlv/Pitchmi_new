@@ -93,21 +93,20 @@ describe("WaitPage — transport outcomes route correctly (never an eternal spin
     expect(h.push).toHaveBeenCalledWith("/results")
   })
 
-  it("a network error shows the error screen and does not navigate", async () => {
-    h.getRhythm.mockRejectedValue(Object.assign(new Error("Network error"), { status: 0 }))
+  // Launch blocker 2026-10-15: a failed rhythm step (500 on a karaoke take)
+  // stranded the take on an error screen with no way to watch or share it.
+  it.each([
+    ["a server 500", Object.assign(new Error("server_error"), { status: 500, body: { error: "server_error" } })],
+    ["a take with no audio (422)", Object.assign(new Error("no_audio"), { status: 422, body: { error: "no_audio" } })],
+    ["a network error", Object.assign(new Error("Network error"), { status: 0 })],
+    ["a timeout", Object.assign(new Error("Upload timed out"), { status: 0 })],
+  ])("%s keeps the old rhythm and still shows the take on results", async (_label, err) => {
+    h.getRhythm.mockRejectedValue(err)
     render(<WaitPage />)
     await act(async () => { await Promise.resolve(); await Promise.resolve() })
-    expect(screen.getByText(/network error/i)).toBeTruthy()
-    expect(screen.getByRole("button", { name: /back to home/i })).toBeTruthy()
-    expect(h.push).not.toHaveBeenCalledWith("/results")
-  })
-
-  it("a timeout shows the error screen (no infinite wait)", async () => {
-    h.getRhythm.mockRejectedValue(Object.assign(new Error("Upload timed out"), { status: 0 }))
-    render(<WaitPage />)
-    await act(async () => { await Promise.resolve(); await Promise.resolve() })
-    expect(screen.getByText(/timed out/i)).toBeTruthy()
-    expect(h.push).not.toHaveBeenCalledWith("/results")
+    expect(h.setPathResult).not.toHaveBeenCalled()
+    expect(h.setTakeRhythm).toHaveBeenCalledWith("failed")
+    expect(h.push).toHaveBeenCalledWith("/results")
   })
 
   it("a 429 shows the daily-limit message", async () => {

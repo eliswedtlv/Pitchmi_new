@@ -131,6 +131,11 @@ export default function ResultsPage() {
                 {t.rhythmKept}
               </p>
             )}
+            {takeRhythm === "failed" && (
+              <p data-testid="rhythm-failed-note" className="mt-2 text-meta text-fg-muted">
+                {t.rhythmFailed}
+              </p>
+            )}
             <p data-testid="rhythm-note" className="mt-2 text-meta text-fg-muted">
               {rhythmNote}
             </p>

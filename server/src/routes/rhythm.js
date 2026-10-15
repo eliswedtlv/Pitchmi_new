@@ -99,11 +99,12 @@ router.post('/rhythm', rateLimit.rhythm, auth, consent, upload.single('video'), 
   } catch (err) {
     const isBusy = err && err.code === 'busy'
     const isBadMedia = err && err.code === 'UNSUPPORTED_MEDIA_TYPE'
+    const isNoAudio = err && err.code === 'NO_AUDIO'
     await db.logEvent({
       user_id: req.userId,
       action: 'error',
       project_id: projectId,
-      error: isBusy ? 'busy' : isBadMedia ? 'unsupported_media_type' : 'server_error',
+      error: isBusy ? 'busy' : isBadMedia ? 'unsupported_media_type' : isNoAudio ? 'no_audio' : 'server_error',
       scores: { timings: { scribe_ms: scribeMs } },
       latency_ms: Date.now() - started
     }).catch(() => {})
@@ -112,6 +113,16 @@ router.post('/rhythm', rateLimit.rhythm, auth, consent, upload.single('video'), 
     if (isBusy) return res.status(503).json({ error: 'busy' })
     // Unrecognized containers use the existing unsupported-media response.
     if (isBadMedia) return res.status(415).json({ error: 'unsupported_media_type' })
+    // A take with no usable audio (video-only recording) has no rhythm to read.
+    if (isNoAudio) {
+      return res.status(422).json({
+        error: 'no_audio',
+        message: {
+          en: 'This take has no sound, so we couldn’t read its rhythm.',
+          he: 'בטייק הזה אין קול, אז לא הצלחנו לקרוא את הקצב שלו.'
+        }
+      })
+    }
     // Match the global error handler's 500 shape, but respond here so the row
     // above (with timings) is the single logged event for this request.
     return res.status(500).json({ error: 'server_error' })

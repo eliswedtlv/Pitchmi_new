@@ -121,3 +121,31 @@ test('missing language falls back to the project language, then null', async () 
 test('the removed evaluation route returns 404', async () => {
   expect((await request(createApp()).post('/api/evaluate')).status).toBe(404)
 })
+
+// Launch blocker 2026-10-15: a karaoke take 2 with no audio track made
+// ffmpeg fail and /api/rhythm answered 500 server_error.
+test('a take with no usable audio answers 422 no_audio, not 500', async () => {
+  mockAudio.extractAudio.mockRejectedValue(Object.assign(new Error('no_audio'), { code: 'NO_AUDIO' }))
+  const res = await post()
+  expect(res.status).toBe(422)
+  expect(res.body.error).toBe('no_audio')
+  expect(mockScribe.transcribe).not.toHaveBeenCalled()
+  expect(db.__state.events.at(-1)).toMatchObject({ action: 'error', error: 'no_audio' })
+})
+
+test('Hebrew take 2 re-times an existing Hebrew rhythm', async () => {
+  const script = 'שלום, קוראים לי דנה. אנחנו עוזרים למרפאות קטנות.'
+  const spoken = ['שלום', 'קוראים', 'לי', 'דנה', 'אנחנו', 'עוזרים', 'למרפאות', 'קטנות']
+  db.__state.projects.get('proj-1').script = script
+  mockScribe.transcribe.mockResolvedValue({ words: spoken.map((w, i) => ({ w, start: i, end: i + 0.5 })), language: 'heb', duration_s: 8 })
+  const take1 = await post()
+  expect(take1.status).toBe(200)
+  expect(take1.body.path.words[0].w).toBe('שלום,')
+
+  mockScribe.transcribe.mockResolvedValue({ words: spoken.map((w, i) => ({ w, start: 1 + i * 0.8, end: 1.4 + i * 0.8 })), language: 'heb', duration_s: 7.5 })
+  const take2 = await post()
+  expect(take2.status).toBe(200)
+  expect(take2.body.coverage).toBe(1)
+  expect(take2.body.path.words[1].t_start).toBeCloseTo(1.8)
+  expect(db.__state.projects.get('proj-1').path).toEqual(take2.body.path)
+})

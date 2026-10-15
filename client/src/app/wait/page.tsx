@@ -8,7 +8,7 @@ import { useWakeLock } from "@/hooks/useWakeLock"
 import { getAd, getRhythm, type AdConfig } from "@/lib/api"
 import { nextStage, type WaitStage } from "@/lib/waitStages"
 import { useUiLang } from "@/hooks/useUiLang"
-import { errorText, strings } from "@/lib/i18n"
+import { strings } from "@/lib/i18n"
 
 export default function WaitPage() {
   const router = useRouter()
@@ -58,7 +58,11 @@ export default function WaitPage() {
         } else if (err.status === 503) {
           setError(strings(lang).busy)
         } else {
-          setError(errorText(e, lang))
+          // The take itself is fine — only its rhythm couldn't be read. Keep
+          // the old rhythm and show the take, so it can still be watched and
+          // shared (launch blocker 2026-10-15: a 500 here stranded the take).
+          setTakeRhythm("failed")
+          router.push("/results")
         }
       })
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
