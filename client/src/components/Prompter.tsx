@@ -39,6 +39,44 @@ function opposesLine(text: string, dir: "ltr" | "rtl"): boolean {
   return dir === "rtl" ? LTR_STRONG.test(text) : RTL_STRONG.test(text)
 }
 
+/**
+ * KP-E: seconds of lead-in before the first word of a karaoke take — the
+ * window in which the clock has no active word yet. 0 when there is none.
+ */
+export function leadInSeconds(words: KaraokeWord[]): number {
+  const t = words[0]?.t_start
+  return typeof t === "number" && Number.isFinite(t) && t > 0 ? t : 0
+}
+
+/**
+ * Thin bar under the first line that fills until the first word is due, so a
+ * karaoke take never looks frozen before the highlight starts. It mounts with
+ * the recording phase — the same moment the karaoke clock starts — and fills
+ * by CSS transition over the lead-in, so it needs no clock of its own.
+ */
+function LeadInBar({ seconds }: { seconds: number }) {
+  const [filled, setFilled] = useState(false)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setFilled(true))
+    return () => cancelAnimationFrame(id)
+  }, [])
+  return (
+    <div
+      data-testid="prompter-lead-in"
+      aria-hidden="true"
+      className="absolute inset-x-0 bottom-2 h-1 overflow-hidden rounded-full bg-white/20"
+    >
+      <div
+        className="h-full w-full origin-left rounded-full bg-green-400 rtl:origin-right"
+        style={{
+          transform: `scaleX(${filled ? 1 : 0})`,
+          transition: filled ? `transform ${seconds}s linear` : "none",
+        }}
+      />
+    </div>
+  )
+}
+
 function hintSeen(key: string): boolean {
   try {
     return typeof window !== "undefined" && window.localStorage.getItem(key) === "1"
@@ -94,6 +132,11 @@ export function Prompter({
   }, [phase, hintKey])
   const showHint = !seenAtMount && phase === "countdown"
 
+  // KP-E: before the first word is due the karaoke has nothing to highlight;
+  // show a filling lead-in bar instead of a static, frozen-looking line.
+  const leadIn = leadInSeconds(words)
+  const showLeadIn = mode === "karaoke" && phase === "recording" && activeIdx < 0 && leadIn > 0
+
   // Keep the active row at a fixed reading line (one row down from the top of
   // the viewport, so the previous line peeks above it).
   const offsetRem = LINE_H_REM - activeLine * LINE_H_REM
@@ -142,7 +185,7 @@ export function Prompter({
                 dir={lineDir}
                 data-role={role}
                 style={{ height: `${LINE_H_REM}rem`, opacity }}
-                className="mx-auto flex max-w-[90%] items-center leading-tight transition-opacity duration-300"
+                className="relative mx-auto flex max-w-[90%] items-center leading-tight transition-opacity duration-300"
               >
                 {/* One continuous inline text run — the bidi algorithm reorders
                     the whole line. text-align:start = right for RTL, left for LTR. */}
@@ -175,6 +218,7 @@ export function Prompter({
                     )
                   })}
                 </p>
+                {li === 0 && role === "active" && showLeadIn && <LeadInBar seconds={leadIn} />}
               </div>
             )
           })}

@@ -13,6 +13,11 @@ const { buildSubtitles, scriptTokens } = require('./subtitles')
 // other path through this module measures the rate from the real reading.
 const FALLBACK_RATE_S_PER_CHAR = 0.06
 
+// KP-E: where the first word lands on the next take. The previous take may
+// open with seconds of silence (a tap-to-advance teleprompter, a late start);
+// keeping it parks the karaoke on a static first line that looks frozen.
+const LEAD_IN_S = 1.0
+
 function buildPathFromScript (scriptText, spokenWords) {
   const tokens = scriptTokens(scriptText)
   const total = tokens.length
@@ -84,6 +89,7 @@ function buildPathFromScript (scriptText, spokenWords) {
   // t_start <= elapsed and early-breaks, so a single backwards step kills
   // highlighting from there on with no error anywhere.
   enforceMonotonic(starts, ends)
+  trimLeadIn(starts, ends)
 
   const path = buildSubtitles(tokens.map((t, i) => ({
     // Re-attach the punctuation segmentWords recorded as a flag: buildSubtitles
@@ -147,6 +153,18 @@ function enforceMonotonic (starts, ends) {
   }
 }
 
+// Shift the whole path earlier so the first word starts at LEAD_IN_S. Never
+// later, never negative; a uniform shift keeps every gap and the monotonic
+// order intact. Lines and total_s follow because buildSubtitles derives them.
+function trimLeadIn (starts, ends) {
+  const shift = starts[0] - LEAD_IN_S
+  if (!(shift > 0)) return
+  for (let i = 0; i < starts.length; i++) {
+    starts[i] = Math.max(0, starts[i] - shift)
+    ends[i] = Math.max(0, ends[i] - shift)
+  }
+}
+
 function punctuation (t) {
   if (t.trail) return t.trail
   if (t.sentenceEnd) return '.'
@@ -162,4 +180,4 @@ function result (path, matched, total) {
   return { path, coverage: total ? matched / total : 0, matched, total }
 }
 
-module.exports = { buildPathFromScript }
+module.exports = { buildPathFromScript, LEAD_IN_S }
