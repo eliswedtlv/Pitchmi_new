@@ -14,7 +14,7 @@ describe("PrivacyPage", () => {
     render(<PrivacyPage />)
 
     expect(
-      screen.getByText(/sent securely to U\.S\.-based service providers/i),
+      screen.getByText(/sent securely to a U\.S\.-based service provider/i),
     ).toBeTruthy()
     expect(document.body.textContent).not.toMatch(
       /ElevenLabs|OpenRouter|Google Gemini/i,

@@ -49,9 +49,9 @@ beforeEach(() => {
   window.localStorage.setItem(
     "pitchmi.consent",
     JSON.stringify({
-      version: "2026-08-05",
+      version: "2026-10-15",
       acknowledgedAs: "Test",
-      acceptedAt: "2026-08-05T00:00:00.000Z",
+      acceptedAt: "2026-10-15T00:00:00.000Z",
     }),
   )
   h.recordConsent.mockResolvedValue(undefined)
@@ -124,7 +124,7 @@ describe("HomePage — the script screen", () => {
     fireEvent.change(textarea(), { target: { value: "we are building a tool for founders" } })
     fireEvent.click(recordButton())
 
-    expect(screen.getByRole("form", { name: /recording and ai processing consent/i })).toBeTruthy()
+    expect(screen.getByRole("form", { name: /recording and processing consent/i })).toBeTruthy()
     expect(h.createProject).not.toHaveBeenCalled()
 
     fireEvent.change(screen.getByLabelText(/name or initials/i), { target: { value: "E.W." } })
@@ -132,7 +132,7 @@ describe("HomePage — the script screen", () => {
     fireEvent.click(screen.getByRole("button", { name: /agree & continue/i }))
 
     await waitFor(() => expect(h.push).toHaveBeenCalledWith("/karaoke"))
-    expect(h.recordConsent).toHaveBeenCalledWith("2026-08-05")
+    expect(h.recordConsent).toHaveBeenCalledWith("2026-10-15")
     expect(h.recordConsent.mock.invocationCallOrder[0]).toBeLessThan(
       h.createProject.mock.invocationCallOrder[0],
     )
@@ -163,7 +163,7 @@ describe("HomePage — the script screen", () => {
     fireEvent.click(recordButton())
 
     await waitFor(() => {
-      expect(screen.getByRole("form", { name: /recording and ai processing consent/i })).toBeTruthy()
+      expect(screen.getByRole("form", { name: /recording and processing consent/i })).toBeTruthy()
     })
     expect(window.localStorage.getItem("pitchmi.consent")).toBeNull()
     expect(h.push).not.toHaveBeenCalled()

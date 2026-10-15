@@ -29,6 +29,7 @@ const en = {
   stepWrite: "Write the take",
   heroLine1: "Say it like",
   heroLine2: "you mean it.",
+  tagline: "Your words. Your rhythm. Up to 5 minutes.",
   heroBody:
     "Paste your script and read it once on the teleprompter. KillerPitch learns your rhythm, then lights up every word as you say it.",
   factMinutes: "5 min",
@@ -38,7 +39,7 @@ const en = {
   factPrivacy: "Take privacy",
   factPrivacyLabel: "video not retained",
   scriptLabel: "Script",
-  secMax: (s: number) => `${s} sec max`,
+  secMax: (s: number) => `${Math.round(s / 60)} min max`,
   scriptAria: "Your script",
   scriptPlaceholder: "Type or paste what you want to say…",
   overBy: (n: number) => `About ${n} second${n === 1 ? "" : "s"} over — trim it a little`,
@@ -50,7 +51,7 @@ const en = {
   footerPrivacy: "Privacy & consent",
 
   // Consent form
-  consentAria: "Recording and AI processing consent",
+  consentAria: "Recording and processing consent",
   consentTitle: "Before the camera turns on",
   consentIntro: "One acknowledgement, no account. You can delete your data whenever you want.",
   consentNameLabel: "Name or initials",
@@ -59,7 +60,7 @@ const en = {
   consentAgreeBefore: "I agree to the",
   consentPrivacyLink: "Privacy Notice",
   consentAgreeAfter:
-    "and consent to processing my script, video and audio for transcription and delivery feedback. I am 18+ and have permission from everyone recorded.",
+    "and consent to processing my script, video and audio for speech transcription that times the words to my rhythm. I am 18+ and have permission from everyone recorded.",
   consentNameMissing: "Enter your name or initials.",
   consentNotAgreed: "Confirm the consent statement to continue.",
   consentFailed: "Consent could not be recorded. Try again.",
@@ -212,15 +213,15 @@ const en = {
   deleteFailed: "Your data could not be deleted. Try again.",
 
   // Privacy page
-  privacyKicker: "Privacy notice · August 5, 2026",
+  privacyKicker: "Privacy notice · October 15, 2026",
   privacyTitle: "Your take is yours.",
   privacyIntro:
     "KillerPitch has no public profile and no required login. A private, anonymous identity in this browser keeps your rehearsal working.",
   privacyProcessTitle: "What we process",
   privacyProcess: [
     "Your script is stored in a private project tied to this browser's anonymous identity.",
-    "Your recording is sent securely to U.S.-based service providers for speech transcription and AI delivery analysis.",
-    "KillerPitch keeps numeric scores, timing/cost diagnostics and a versioned consent receipt. The receipt contains no typed name, script, transcript, video or audio.",
+    "Your recording's audio is sent securely to a U.S.-based service provider for speech transcription, which times the words of your script to your rhythm. Nothing scores or analyses your video.",
+    "KillerPitch keeps numeric timing/cost diagnostics and a versioned consent receipt. The receipt contains no typed name, script, transcript, video or audio.",
     "If you explicitly choose to save a take, that recording is stored privately for this anonymous identity until you delete it or erase all data below.",
   ] as readonly string[],
   privacyKeepTitle: "What we do not keep",
@@ -228,7 +229,7 @@ const en = {
     "In the normal rehearsal flow, KillerPitch does not write your raw take to cloud storage unless you explicitly save it. Otherwise, video and temporary audio files are discarded after the request. Third-party processing is also governed by each provider's terms and the retention settings configured for those services.",
   privacyConsentTitle: "Consent and control",
   privacyConsent:
-    "Before the first recording, you provide a name or initials and explicitly agree to camera, microphone and AI processing. That typed acknowledgement remains only on this device; the server records the anonymous consent version and timestamp. A material change to this notice requires consent again.",
+    "Before the first recording, you provide a name or initials and explicitly agree to camera, microphone and transcription processing. That typed acknowledgement remains only on this device; the server records the anonymous consent version and timestamp. A material change to this notice requires consent again.",
   privacyAccountTitle: "Optional account connection",
   privacyAccount:
     "You can connect Google to reopen the same private KillerPitch identity on another device. KillerPitch receives basic account information such as your name and email for authentication. It never receives your Google password and does not request access to Drive, contacts or other Google services.",
@@ -263,6 +264,7 @@ const he: UiStrings = {
   stepWrite: "כתבו את הטייק",
   heroLine1: "תגידו את זה",
   heroLine2: "כמו שאתם מתכוונים.",
+  tagline: "המילים שלכם. הקצב שלכם. עד 5 דקות.",
   heroBody:
     "הדביקו את הטקסט וקראו אותו פעם אחת בטלפרומפטר. KillerPitch לומדת את הקצב שלכם, ואז מאירה כל מילה ברגע שאתם אומרים אותה.",
   factMinutes: "5 דק׳",
@@ -272,7 +274,7 @@ const he: UiStrings = {
   factPrivacy: "פרטיות הטייק",
   factPrivacyLabel: "הסרטון לא נשמר",
   scriptLabel: "טקסט",
-  secMax: (s) => `עד ${s} שנ׳`,
+  secMax: (s) => `עד ${Math.round(s / 60)} דק׳`,
   scriptAria: "הטקסט שלכם",
   scriptPlaceholder: "הקלידו או הדביקו את מה שאתם רוצים להגיד…",
   overBy: (n) => (n === 1 ? "שנייה אחת יותר מדי — קצרו קצת" : `${n} שניות יותר מדי — קצרו קצת`),
@@ -283,7 +285,7 @@ const he: UiStrings = {
   footerLimits: "עד 5 דקות · בלי התחברות",
   footerPrivacy: "פרטיות והסכמה",
 
-  consentAria: "הסכמה להקלטה ולעיבוד AI",
+  consentAria: "הסכמה להקלטה ולעיבוד",
   consentTitle: "לפני שהמצלמה נדלקת",
   consentIntro: "אישור אחד, בלי חשבון. אפשר למחוק את המידע שלכם בכל רגע.",
   consentNameLabel: "שם או ראשי תיבות",
@@ -292,7 +294,7 @@ const he: UiStrings = {
   consentAgreeBefore: "אני מסכים/ה ל",
   consentPrivacyLink: "הודעת הפרטיות",
   consentAgreeAfter:
-    "ונותן/ת הסכמה לעיבוד הטקסט, הווידאו והאודיו שלי לתמלול ולמשוב על ההגשה. אני בן/בת 18 ומעלה ויש לי רשות מכל מי שמופיע בהקלטה.",
+    "ונותן/ת הסכמה לעיבוד הטקסט, הווידאו והאודיו שלי לתמלול דיבור שמתזמן את המילים לקצב שלי. אני בן/בת 18 ומעלה ויש לי רשות מכל מי שמופיע בהקלטה.",
   consentNameMissing: "כתבו שם או ראשי תיבות.",
   consentNotAgreed: "אשרו את הצהרת ההסכמה כדי להמשיך.",
   consentFailed: "לא הצלחנו לרשום את ההסכמה. נסו שוב.",
@@ -434,15 +436,15 @@ const he: UiStrings = {
   deleteMyData: "מחיקת המידע שלי ב-KillerPitch",
   deleteFailed: "לא הצלחנו למחוק את המידע. נסו שוב.",
 
-  privacyKicker: "הודעת פרטיות · 5 באוגוסט 2026",
+  privacyKicker: "הודעת פרטיות · 15 באוקטובר 2026",
   privacyTitle: "הטייק שלכם שייך לכם.",
   privacyIntro:
     "ל-KillerPitch אין פרופיל ציבורי ואין חובת התחברות. זהות פרטית ואנונימית בדפדפן הזה היא מה שמאפשר לחזרה שלכם לעבוד.",
   privacyProcessTitle: "מה אנחנו מעבדים",
   privacyProcess: [
     "הטקסט שלכם נשמר בפרויקט פרטי שקשור לזהות האנונימית של הדפדפן הזה.",
-    "ההקלטה שלכם נשלחת בצורה מאובטחת לספקי שירות בארה״ב לצורך תמלול דיבור וניתוח הגשה באמצעות AI.",
-    "KillerPitch שומרת ציונים מספריים, נתוני אבחון של תזמון ועלויות ואישור הסכמה עם מספר גרסה. האישור לא כולל את השם שהקלדתם, טקסט, תמלול, וידאו או אודיו.",
+    "האודיו של ההקלטה נשלח בצורה מאובטחת לספק שירות בארה״ב לצורך תמלול דיבור, שמתזמן את המילים של הטקסט לקצב שלכם. שום דבר לא מדרג או מנתח את הווידאו שלכם.",
+    "KillerPitch שומרת נתוני אבחון מספריים של תזמון ועלויות ואישור הסכמה עם מספר גרסה. האישור לא כולל את השם שהקלדתם, טקסט, תמלול, וידאו או אודיו.",
     "אם תבחרו במפורש לשמור טייק, ההקלטה הזו נשמרת באופן פרטי עבור הזהות האנונימית הזו, עד שתמחקו אותה או את כל המידע למטה.",
   ],
   privacyKeepTitle: "מה אנחנו לא שומרים",
@@ -450,7 +452,7 @@ const he: UiStrings = {
     "בתהליך החזרה הרגיל, KillerPitch לא כותבת את הטייק הגולמי שלכם לאחסון בענן, אלא אם שמרתם אותו במפורש. אחרת, קובצי הווידאו והאודיו הזמניים נמחקים בסוף הבקשה. העיבוד אצל צדדים שלישיים כפוף גם לתנאים של כל ספק ולהגדרות שמירת המידע שהוגדרו לשירותים האלה.",
   privacyConsentTitle: "הסכמה ושליטה",
   privacyConsent:
-    "לפני ההקלטה הראשונה אתם כותבים שם או ראשי תיבות ומסכימים במפורש להפעלת מצלמה ומיקרופון ולעיבוד AI. האישור שהקלדתם נשאר רק במכשיר הזה; השרת רושם את גרסת ההסכמה האנונימית ואת מועד ההסכמה. שינוי מהותי בהודעה הזו יחייב הסכמה מחדש.",
+    "לפני ההקלטה הראשונה אתם כותבים שם או ראשי תיבות ומסכימים במפורש להפעלת מצלמה ומיקרופון ולעיבוד התמלול. האישור שהקלדתם נשאר רק במכשיר הזה; השרת רושם את גרסת ההסכמה האנונימית ואת מועד ההסכמה. שינוי מהותי בהודעה הזו יחייב הסכמה מחדש.",
   privacyAccountTitle: "חיבור חשבון (לא חובה)",
   privacyAccount:
     "אפשר לחבר את Google כדי לפתוח את אותה זהות פרטית ב-KillerPitch במכשיר אחר. KillerPitch מקבלת פרטי חשבון בסיסיים כמו שם וכתובת אימייל לצורך אימות. היא אף פעם לא מקבלת את הסיסמה שלכם ל-Google ולא מבקשת גישה ל-Drive, לאנשי קשר או לשירותי Google אחרים.",

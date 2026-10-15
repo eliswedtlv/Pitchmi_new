@@ -122,6 +122,7 @@ export default function HomePage() {
                   <span className="block text-accent">{t.heroLine2}</span>
                 </h1>
                 <p className="max-w-md text-body text-fg-muted lg:text-lead">
+                  <span className="block font-semibold text-fg">{t.tagline}</span>
                   {t.heroBody}
                 </p>
               </div>

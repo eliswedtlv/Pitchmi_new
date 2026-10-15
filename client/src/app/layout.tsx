@@ -25,7 +25,7 @@ export const metadata: Metadata = {
     template: "%s · KillerPitch",
   },
   description:
-    "Rehearse any speech or pitch up to 5 minutes. Read it once on the teleprompter, then every word lights up on your own rhythm. Free, private, no signup.",
+    "Your words. Your rhythm. Up to 5 minutes. Read your pitch once on the teleprompter, then every word lights up on your own rhythm. Free, private, no signup.",
   alternates: { canonical: "/" },
   openGraph: {
     type: "website",
@@ -33,12 +33,12 @@ export const metadata: Metadata = {
     siteName: "KillerPitch",
     title: "KillerPitch — Say it like you mean it",
     description:
-      "Rehearse any speech or pitch up to 5 minutes, karaoke-style on your own rhythm. Free, private, no signup.",
+      "Your words. Your rhythm. Up to 5 minutes. Rehearse any pitch or speech karaoke-style. Free, private, no signup.",
   },
   twitter: {
     card: "summary_large_image",
     title: "KillerPitch — Say it like you mean it",
-    description: "Rehearse any speech or pitch up to 5 minutes, on your own rhythm.",
+    description: "Your words. Your rhythm. Up to 5 minutes.",
   },
 }
 

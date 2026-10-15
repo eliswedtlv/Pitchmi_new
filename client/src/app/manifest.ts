@@ -4,7 +4,7 @@ export default function manifest(): MetadataRoute.Manifest {
   return {
     name: "KillerPitch",
     short_name: "KillerPitch",
-    description: "Rehearse any speech or pitch up to 5 minutes, on your own rhythm.",
+    description: "Your words. Your rhythm. Up to 5 minutes.",
     start_url: "/",
     display: "standalone",
     background_color: "#f2f0e9",

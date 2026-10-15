@@ -1,4 +1,4 @@
-export const CONSENT_VERSION = "2026-08-05"
+export const CONSENT_VERSION = "2026-10-15"
 export const CONSENT_STORAGE_KEY = "pitchmi.consent"
 
 export interface ConsentRecord {
