@@ -110,11 +110,43 @@ export default function ResultsPage() {
         </header>
 
         <div className="results-video">
-          {/* Mirrored like the live preview: people see themselves as in a mirror. */}
-          {takeBlobUrl && <VideoPlayer src={takeBlobUrl} mirrored />}
-          <div className="mt-3 flex items-center justify-between text-micro text-fg-subtle">
+          {/* Mirrored like the live preview: people see themselves as in a mirror.
+              KP-G: on phones the picture is capped at ~45svh so the no-score line
+              and Try again stay on screen with it (390×844) without scrolling. */}
+          {takeBlobUrl && (
+            <VideoPlayer
+              src={takeBlobUrl}
+              mirrored
+              className="[&>div:first-child]:min-h-[11rem] [&_video]:max-h-[45svh] sm:[&>div:first-child]:min-h-[18rem] sm:[&_video]:max-h-[60vh] lg:[&_video]:max-h-[26rem]"
+            />
+          )}
+          <div className="mt-2 flex items-center justify-between text-micro text-fg-subtle">
             <span>{t.takeCaption}</span>
             <span className="nums">{t.takeMaxClock}</span>
+          </div>
+          {/* KP-G: no score, on purpose — say so, and point at the two next steps. */}
+          <p data-testid="no-score-note" className="mt-3 text-meta text-fg-muted">
+            {t.noScore}
+          </p>
+          <div className="mt-3 grid grid-cols-[minmax(0,2fr)_minmax(0,1fr)] gap-2">
+            <Button
+              onClick={() => router.push("/karaoke")}
+              size="lg"
+              className="h-12 w-full gap-2 shadow-[0_6px_20px_rgba(23,70,255,0.2)]"
+            >
+              <RotateCcw className="h-5 w-5" />
+              {t.tryAgain}
+            </Button>
+            <Button
+              onClick={handleShare}
+              disabled={exportProgress !== null}
+              variant="outline"
+              size="lg"
+              className="h-12 w-full gap-2 px-2"
+            >
+              <Share2 className="h-4 w-4" />
+              {shareLabel}
+            </Button>
           </div>
         </div>
 
@@ -141,15 +173,18 @@ export default function ResultsPage() {
             </p>
             {rhythmLocked ? (
               <div className="mt-4 flex items-center justify-between gap-3 rounded-control border border-accent/30 bg-surface px-4 py-2.5">
-                <span className="flex items-center gap-2 text-meta font-medium text-fg">
-                  <Lock className="h-4 w-4 text-accent" />
+                <span
+                  data-testid="rhythm-locked-note"
+                  className="flex items-start gap-2 text-meta font-medium text-fg"
+                >
+                  <Lock className="mt-0.5 h-4 w-4 shrink-0 text-accent" />
                   {t.rhythmLocked}
                 </span>
                 <Button
                   onClick={() => setRhythmLocked(false)}
                   variant="outline"
                   size="sm"
-                  className="gap-1.5"
+                  className="shrink-0 gap-1.5"
                 >
                   <LockOpen className="h-4 w-4" />
                   {t.unlock}
@@ -157,57 +192,45 @@ export default function ResultsPage() {
               </div>
             ) : (
               hasRhythm && (
-                <Button
-                  onClick={() => setRhythmLocked(true)}
-                  variant="outline"
-                  aria-pressed={false}
-                  className="mt-4 w-full gap-2"
-                >
-                  <Lock className="h-4 w-4" />
-                  {takeRhythm === "new" ? t.keepThisRhythm : t.keepCurrentRhythm}
-                </Button>
+                <div className="mt-4">
+                  <Button
+                    onClick={() => setRhythmLocked(true)}
+                    variant="outline"
+                    aria-pressed={false}
+                    aria-describedby="keep-rhythm-help"
+                    className="w-full gap-2"
+                  >
+                    <Lock className="h-4 w-4" />
+                    {takeRhythm === "new" ? t.keepThisRhythm : t.keepCurrentRhythm}
+                  </Button>
+                  {/* KP-G: what the lock does, right where it is. */}
+                  <p id="keep-rhythm-help" data-testid="keep-rhythm-help" className="mt-2 text-micro text-fg-subtle">
+                    {takeRhythm === "new" ? t.keepThisRhythmHelp : t.keepCurrentRhythmHelp}
+                  </p>
+                </div>
               )
             )}
           </div>
-          <div className="space-y-3 border-t border-accent/20 p-3">
+          <div className="grid grid-cols-2 gap-2 border-t border-accent/20 p-3">
             <Button
-              onClick={() => router.push("/karaoke")}
-              size="lg"
-              className="h-12 w-full gap-2 shadow-[0_6px_20px_rgba(23,70,255,0.2)]"
+              onClick={() => router.push("/")}
+              variant="ghost"
+              className="gap-1.5 text-meta text-fg-muted"
             >
-              <RotateCcw className="h-5 w-5" />
-              {t.tryAgain}
+              <Pencil className="h-4 w-4" />
+              {t.editText}
             </Button>
-            <div className="grid grid-cols-3 gap-2">
-              <Button
-                onClick={() => router.push("/")}
-                variant="outline"
-                className="gap-1 px-1.5 text-micro sm:gap-2 sm:px-2 sm:text-meta"
-              >
-                <Pencil className="h-4 w-4" />
-                {t.editText}
-              </Button>
-              <Button
-                onClick={() => {
-                  reset()
-                  router.push("/")
-                }}
-                variant="outline"
-                className="gap-1 px-1.5 text-micro sm:gap-2 sm:px-2 sm:text-meta"
-              >
-                <Video className="h-4 w-4" />
-                {t.newVideo}
-              </Button>
-              <Button
-                onClick={handleShare}
-                disabled={exportProgress !== null}
-                variant="outline"
-                className="gap-1 px-1.5 text-micro sm:gap-2 sm:px-2 sm:text-meta"
-              >
-                <Share2 className="h-4 w-4" />
-                {shareLabel}
-              </Button>
-            </div>
+            <Button
+              onClick={() => {
+                reset()
+                router.push("/")
+              }}
+              variant="ghost"
+              className="gap-1.5 text-meta text-fg-muted"
+            >
+              <Video className="h-4 w-4" />
+              {t.newVideo}
+            </Button>
           </div>
         </section>
       </div>
