@@ -17,8 +17,7 @@ require('./helpers')
 jest.mock('../src/lib/db', () => require('./mocks/db'))
 
 const mockAudio = {
-  extractAudio: jest.fn(),
-  transcodeForEval: jest.fn()
+  extractAudio: jest.fn()
 }
 jest.mock('../src/lib/audio', () => mockAudio)
 jest.mock('../src/lib/scribe', () => ({ transcribe: jest.fn() }))
@@ -33,7 +32,6 @@ beforeEach(() => {
   dbMock.__reset()
   rateLimit.__resetAll()
   mockAudio.extractAudio.mockReset()
-  mockAudio.transcodeForEval.mockReset()
 })
 
 function upload (route, contentType, filename = 'take.bin') {
@@ -47,18 +45,17 @@ function upload (route, contentType, filename = 'take.bin') {
 describe('declared-mime gate (T-10010)', () => {
   test('text/html -> 415 and ffmpeg is never reached', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
-    const res = await upload('/api/evaluate', 'text/html', 'playlist.html')
+    const res = await upload('/api/rhythm', 'text/html', 'playlist.html')
     expect(res.status).toBe(415)
     expect(res.body).toEqual({ error: 'unsupported_media_type' })
     expect(mockAudio.extractAudio).not.toHaveBeenCalled()
   })
 
-  test('an m3u8 playlist is refused on /api/evaluate too', async () => {
+  test('an m3u8 playlist is refused on /api/rhythm too', async () => {
     dbMock.__seedProject('proj-1', 'user-1')
-    const res = await upload('/api/evaluate', 'application/vnd.apple.mpegurl', 'evil.m3u8')
+    const res = await upload('/api/rhythm', 'application/vnd.apple.mpegurl', 'evil.m3u8')
     expect(res.status).toBe(415)
     expect(mockAudio.extractAudio).not.toHaveBeenCalled()
-    expect(mockAudio.transcodeForEval).not.toHaveBeenCalled()
   })
 
   test.each([
@@ -72,7 +69,7 @@ describe('declared-mime gate (T-10010)', () => {
   ])('%s reaches the decoder', async (contentType, filename) => {
     dbMock.__seedProject('proj-1', 'user-1')
     mockAudio.extractAudio.mockResolvedValue({ buffer: Buffer.from('a'), mime: 'audio/mp4', duration_s: 5 })
-    const res = await upload('/api/evaluate', contentType, filename)
+    const res = await upload('/api/rhythm', contentType, filename)
     expect(res.status).not.toBe(415)
     expect(mockAudio.extractAudio).toHaveBeenCalled()
   })
@@ -101,7 +98,7 @@ describe('declared-mime gate (T-10010)', () => {
     ].join('\r\n')
 
     const res = await request(createApp())
-      .post('/api/evaluate')
+      .post('/api/rhythm')
       .set('Authorization', `Bearer ${userToken('user-1')}`)
       .set('Content-Type', `multipart/form-data; boundary=${b}`)
       .send(body)

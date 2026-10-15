@@ -1,12 +1,12 @@
 'use strict'
 
-// T-1172: the 30s cap is enforced SERVER-side on the upload route — the
+// T-1172: the 300s cap is enforced SERVER-side on the upload route — the
 // browser cap is only a browser cap. An over-limit take must be rejected with
 // 413 take_too_long BEFORE Scribe is called (that is the whole point: pay the
 // decode we already ran, skip the billable STT call), and an unreadable
 // duration must fail OPEN.
 //
-// T-10018 deleted /api/transcribe, so /api/evaluate is the only upload route
+// T-10018 deleted /api/transcribe, so /api/rhythm is the only upload route
 // left; the cap and its ordering guarantees are unchanged.
 
 require('./helpers')
@@ -16,14 +16,11 @@ jest.mock('../src/lib/db', () => require('./mocks/db'))
 let mockDurationS = null
 jest.mock('../src/lib/audio', () => ({
   extForMime: () => 'webm',
-  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mp4', duration_s: mockDurationS }),
-  transcodeForEval: async () => ({ buffer: Buffer.from('eval-proxy'), mime: 'video/mp4' })
+  extractAudio: async () => ({ buffer: Buffer.from('audio'), mime: 'audio/mp4', duration_s: mockDurationS })
 }))
 
 const mockScribe = { transcribe: jest.fn() }
 jest.mock('../src/lib/scribe', () => mockScribe)
-const mockEval = { evaluateVideo: jest.fn() }
-jest.mock('../src/lib/evaluate', () => mockEval)
 
 const request = require('supertest')
 const createApp = require('../src/app')
@@ -43,9 +40,6 @@ beforeEach(() => {
   dbMock.__reset()
   mockDurationS = null
   mockScribe.transcribe.mockReset().mockResolvedValue(SCRIBE_OK)
-  mockEval.evaluateVideo.mockReset().mockResolvedValue({
-    voice: 80, body: 80, delivery: 80, comments: ['a', 'b', 'c'], attempts: 1, upstream: 'google-vertex'
-  })
 })
 
 function post (route) {
@@ -56,31 +50,30 @@ function post (route) {
     .attach('video', Buffer.from('fake-video-bytes'), { filename: 'take.webm', contentType: 'video/webm' })
 }
 
-describe.each(['/api/evaluate'])('%s — 30s hard cap', (route) => {
-  test('45s take -> 413 take_too_long, Scribe NEVER called, error event logged', async () => {
+describe.each(['/api/rhythm'])('%s — 300s hard cap', (route) => {
+  test('305s take -> 413 take_too_long, Scribe NEVER called, error event logged', async () => {
     dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
-    mockDurationS = 45
+    mockDurationS = 305
 
     const res = await post(route)
 
     expect(res.status).toBe(413)
     expect(res.body.error).toBe('take_too_long')
-    expect(res.body.limit_s).toBe(30)
-    expect(res.body.message.en).toMatch(/30 seconds/)
+    expect(res.body.limit_s).toBe(300)
+    expect(res.body.message.en).toMatch(/5 minutes/)
     expect(typeof res.body.message.he).toBe('string')
     // The entire point of the check: no billable STT call on a rejected take.
     expect(mockScribe.transcribe).not.toHaveBeenCalled()
-    expect(mockEval.evaluateVideo).not.toHaveBeenCalled()
 
     const errors = dbMock.__state.events.filter(e => e.action === 'error')
     expect(errors).toHaveLength(1)
     expect(errors[0].error).toBe('take_too_long')
-    expect(errors[0].duration_s).toBe(45)
+    expect(errors[0].duration_s).toBe(305)
   })
 
-  test('32s take -> passes (inside the 3s tolerance for MediaRecorder slop)', async () => {
+  test('302s take -> passes (inside the 3s tolerance for MediaRecorder slop)', async () => {
     dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
-    mockDurationS = 32
+    mockDurationS = 302
 
     const res = await post(route)
 
@@ -89,9 +82,9 @@ describe.each(['/api/evaluate'])('%s — 30s hard cap', (route) => {
     expect(dbMock.__state.events.filter(e => e.error === 'take_too_long')).toHaveLength(0)
   })
 
-  test('exactly 30s -> passes (the cap does not reject AT the limit)', async () => {
+  test('exactly 300s -> passes (the cap does not reject AT the limit)', async () => {
     dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
-    mockDurationS = 30
+    mockDurationS = 300
 
     expect((await post(route)).status).toBe(200)
     expect(mockScribe.transcribe).toHaveBeenCalledTimes(1)
@@ -106,35 +99,35 @@ describe.each(['/api/evaluate'])('%s — 30s hard cap', (route) => {
   })
 })
 
-describe('/api/evaluate — cap ordering', () => {
+describe('/api/rhythm — cap ordering', () => {
   test('the daily quota still answers first, so quota semantics are unchanged', async () => {
     dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
     dbMock.__state.evalCountToday = 25
-    mockDurationS = 45
+    mockDurationS = 305
 
-    const res = await post('/api/evaluate')
+    const res = await post('/api/rhythm')
     expect(res.status).toBe(429)
     expect(res.body).toEqual({ error: 'daily_limit', limit: 25 })
   })
 
   test('a silent OVER-limit take is rejected as too long, before Scribe', async () => {
     dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
-    mockDurationS = 45
+    mockDurationS = 305
     mockScribe.transcribe.mockResolvedValue({ words: [], language: 'en', duration_s: 0 })
 
-    const res = await post('/api/evaluate')
+    const res = await post('/api/rhythm')
     expect(res.status).toBe(413)
     expect(res.body.error).toBe('take_too_long')
     expect(mockScribe.transcribe).not.toHaveBeenCalled()
   })
 
-  test('a silent within-limit take is still scored (a bad take is not an error)', async () => {
+  test('a silent within-limit take returns no rhythm', async () => {
     dbMock.__seedProject('proj-1', 'user-1', { path: PATH })
     mockDurationS = 12
     mockScribe.transcribe.mockResolvedValue({ words: [], language: 'en', duration_s: 0 })
 
-    const res = await post('/api/evaluate')
+    const res = await post('/api/rhythm')
     expect(res.status).toBe(200)
-    expect(res.body.dimensions.accuracy).toBe(0)
+    expect(res.body.path).toBeNull()
   })
 })

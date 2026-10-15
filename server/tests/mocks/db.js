@@ -39,7 +39,7 @@ module.exports = {
   async setServiceEnabled (v) { state.serviceEnabled = v },
   async logEvent (e) { state.events.push(e) },
   async recordConsent (userId, action) { state.events.push({ user_id: userId, action }) },
-  async countEvaluationsToday () { return state.evalCountToday },
+  async countRhythmsToday () { return state.evalCountToday },
   async hasEvent (userId, action) {
     return state.consentGranted || state.events.some(e => e.user_id === userId && e.action === action)
   },

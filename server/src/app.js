@@ -16,7 +16,7 @@ const admin = require('./routes/admin')
 const privacy = require('./routes/privacy')
 const projects = require('./routes/projects')
 const script = require('./routes/script')
-const evaluate = require('./routes/evaluate')
+const rhythm = require('./routes/rhythm')
 const save = require('./routes/save')
 const takes = require('./routes/takes')
 
@@ -64,7 +64,7 @@ function createApp () {
     : false
   app.use(cors({ origin: origins, credentials: true }))
   app.use(cookieParser(config.COOKIE_SECRET))
-  // Every JSON route is tiny (script max 1,200 chars); a 32KB ceiling prevents
+  // Every JSON route is tiny (script max 6,000 chars); a 32KB ceiling prevents
   // unauthenticated/admin parsers from being used as a cheap memory sink.
   app.use(express.json({ limit: '32kb', strict: true }))
 
@@ -87,7 +87,7 @@ function createApp () {
   // Authed feature routes.
   app.use('/api', projects)
   app.use('/api', script)
-  app.use('/api', evaluate)
+  app.use('/api', rhythm)
   app.use('/api', save)
   app.use('/api', takes)
 

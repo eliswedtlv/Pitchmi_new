@@ -22,10 +22,6 @@ const config = {
   SUPABASE_JWT_SECRET: process.env.SUPABASE_JWT_SECRET || '',
 
   ELEVENLABS_API_KEY: process.env.ELEVENLABS_API_KEY || '',
-  OPENROUTER_API_KEY: process.env.OPENROUTER_API_KEY || '',
-  GEMINI_API_KEY: process.env.GEMINI_API_KEY || '',
-  EVAL_PROVIDER: (process.env.EVAL_PROVIDER || 'openrouter').toLowerCase(),
-  EVAL_MODEL: process.env.EVAL_MODEL || 'google/gemini-3.1-flash-lite',
 
   ADMIN_PASSWORD: process.env.ADMIN_PASSWORD || '',
   // Signing key for the admin session cookie. Deliberately its own var with no
@@ -45,28 +41,23 @@ const config = {
   FFMPEG_TIMEOUT_MS: int(process.env.FFMPEG_TIMEOUT_MS, 60000),
   SURGE_MAX_CALLS: int(process.env.SURGE_MAX_CALLS, 300),
   SURGE_WINDOW_MIN: int(process.env.SURGE_WINDOW_MIN, 5),
-  MAX_UPLOAD_MB: int(process.env.MAX_UPLOAD_MB, 60),
+  MAX_UPLOAD_MB: int(process.env.MAX_UPLOAD_MB, 200),
   // Hard take ceiling (T-1172). The tolerance is not slop for the user — it
   // absorbs container rounding and MediaRecorder's imprecise stop, which
-  // routinely lands a "30s" take at 30.4s. Reject only above the sum.
-  MAX_TAKE_S: int(process.env.MAX_TAKE_S, 30),
+  // routinely lands a "300s" take at 300.4s. Reject only above the sum.
+  MAX_TAKE_S: int(process.env.MAX_TAKE_S, 300),
   TAKE_TOLERANCE_S: num(process.env.TAKE_TOLERANCE_S, 3),
   // ElevenLabs Scribe list ~$0.24/hr as of 2026-08; override with
   // SCRIBE_USD_PER_MIN when the contract changes.
   SCRIBE_USD_PER_MIN: num(process.env.SCRIBE_USD_PER_MIN, 0.004),
   // Typed-script ceiling (T-10018). Also bounds the alignment DP in
   // lib/scriptPath.js, which is O(script words x spoken words).
-  MAX_SCRIPT_CHARS: int(process.env.MAX_SCRIPT_CHARS, 1200),
+  MAX_SCRIPT_CHARS: int(process.env.MAX_SCRIPT_CHARS, 6000),
   // Below this share of typed words anchored to a real spoken word, the take
-  // was not a delivery of THIS script, so /api/evaluate keeps the stored path
+  // was not a delivery of THIS script, so /api/rhythm keeps the stored path
   // rather than re-timing against garbage. 0.5 is a first guess with no data
-  // behind it — tune from the coverage logged on every evaluate event.
+  // behind it — tune from the coverage logged on every rhythm event.
   MIN_ALIGN_COVERAGE: num(process.env.MIN_ALIGN_COVERAGE, 0.5),
-  // Reading rate for the throwaway seed path only (T-10018). CHARACTERS per
-  // second, not WPM: word length differs too much between English and Hebrew
-  // for a word-based rate to travel. Replaced by measured timings after take 1.
-  SEED_CHARS_PER_SECOND: num(process.env.SEED_CHARS_PER_SECOND, 13),
-
   CLIENT_ORIGIN: process.env.CLIENT_ORIGIN || '',
 
   STORAGE_BUCKET: 'videos'
