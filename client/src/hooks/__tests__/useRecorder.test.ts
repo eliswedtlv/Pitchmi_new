@@ -209,3 +209,119 @@ describe("useRecorder — countdown cancellation and recorder failures (T-10010)
     expect(FakeMediaRecorder.instances).toHaveLength(0)
   })
 })
+
+// KP-F: iOS Safari can hand a portrait phone a landscape track right after the
+// permission prompt. The hook must wait for it to settle during the countdown,
+// re-request once if it never does, and never wait on desktop.
+describe("useRecorder — first-take orientation (KP-F)", () => {
+  type FakeVideo = EventTarget & {
+    videoWidth: number
+    videoHeight: number
+    srcObject: unknown
+    muted: boolean
+    play: () => Promise<void>
+  }
+
+  function fakeVideo(width: number, height: number): FakeVideo {
+    return Object.assign(new EventTarget(), {
+      videoWidth: width,
+      videoHeight: height,
+      srcObject: null as unknown,
+      muted: false,
+      play: async () => {},
+    })
+  }
+
+  function fakeStream() {
+    const t = { stop: vi.fn() }
+    return { getTracks: () => [t], getVideoTracks: () => [], track: t }
+  }
+
+  function setViewport(width: number, height: number) {
+    vi.stubGlobal("innerWidth", width)
+    vi.stubGlobal("innerHeight", height)
+  }
+
+  async function begin(video: FakeVideo, onStop = vi.fn()) {
+    const hook = renderHook(() => useRecorder({ onStop }))
+    hook.result.current.videoRef.current = video as unknown as HTMLVideoElement
+    await act(async () => {
+      await hook.result.current.start()
+    })
+    return hook
+  }
+
+  it("a landscape track that turns portrait settles without a re-request", async () => {
+    setViewport(390, 844)
+    const first = fakeStream()
+    const gum = vi.fn(async () => first)
+    vi.stubGlobal("navigator", { ...navigator, mediaDevices: { getUserMedia: gum } })
+    const video = fakeVideo(1280, 720)
+
+    await begin(video)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(500)
+    })
+    video.videoWidth = 720
+    video.videoHeight = 1280
+    video.dispatchEvent(new Event("resize"))
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2500)
+    })
+    expect(gum).toHaveBeenCalledTimes(1)
+    expect(first.track.stop).not.toHaveBeenCalled()
+    expect(FakeMediaRecorder.instances).toHaveLength(1)
+  })
+
+  it("a stuck landscape track triggers exactly one re-request, then records", async () => {
+    setViewport(390, 844)
+    const first = fakeStream()
+    const second = fakeStream()
+    const gum = vi.fn().mockResolvedValueOnce(first).mockResolvedValue(second)
+    vi.stubGlobal("navigator", { ...navigator, mediaDevices: { getUserMedia: gum } })
+    const video = fakeVideo(1280, 720) // never settles
+
+    const { result } = await begin(video)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(10_000)
+    })
+
+    expect(gum).toHaveBeenCalledTimes(2)
+    expect(gum.mock.calls[1][0]).toEqual(gum.mock.calls[0][0])
+    expect(first.track.stop).toHaveBeenCalled()
+    expect(video.srcObject).toBe(second)
+    // Recording proceeds regardless — never blocked forever.
+    expect(FakeMediaRecorder.instances).toHaveLength(1)
+    expect(result.current.state).toBe("recording")
+  })
+
+  it("an already-portrait stream records right at the end of the countdown", async () => {
+    setViewport(390, 844)
+    const gum = vi.fn(async () => fakeStream())
+    vi.stubGlobal("navigator", { ...navigator, mediaDevices: { getUserMedia: gum } })
+
+    await begin(fakeVideo(720, 1280))
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    expect(gum).toHaveBeenCalledTimes(1)
+    expect(FakeMediaRecorder.instances).toHaveLength(1)
+  })
+
+  it("desktop (landscape viewport) never waits or re-requests", async () => {
+    setViewport(1440, 900)
+    const gum = vi.fn(async () => fakeStream())
+    vi.stubGlobal("navigator", { ...navigator, mediaDevices: { getUserMedia: gum } })
+    const video = fakeVideo(1280, 720)
+    const listen = vi.spyOn(video, "addEventListener")
+
+    await begin(video)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(3000)
+    })
+    expect(listen).not.toHaveBeenCalled()
+    expect(gum).toHaveBeenCalledTimes(1)
+    expect(FakeMediaRecorder.instances).toHaveLength(1)
+  })
+})

@@ -27,3 +27,27 @@ export function isPortraitViewport(): boolean {
   if (typeof window === "undefined") return false
   return window.innerHeight >= window.innerWidth
 }
+
+export type FrameOrientation = "portrait" | "landscape" | "unknown"
+
+/** Orientation of a frame size; "unknown" until the camera reports real dimensions. */
+export function frameOrientation(width?: number, height?: number): FrameOrientation {
+  if (!width || !height) return "unknown"
+  return height > width ? "portrait" : "landscape"
+}
+
+/**
+ * KP-F: what the camera is actually delivering. Prefers the preview element's
+ * decoded frame size and falls back to the track settings when the preview has
+ * no frames yet (or is not mounted).
+ */
+export function streamOrientation(
+  video: Pick<HTMLVideoElement, "videoWidth" | "videoHeight"> | null,
+  stream: MediaStream,
+): FrameOrientation {
+  const fromVideo = video ? frameOrientation(video.videoWidth, video.videoHeight) : "unknown"
+  if (fromVideo !== "unknown") return fromVideo
+  const track = typeof stream.getVideoTracks === "function" ? stream.getVideoTracks()[0] : undefined
+  const settings = track && typeof track.getSettings === "function" ? track.getSettings() : {}
+  return frameOrientation(settings.width, settings.height)
+}
