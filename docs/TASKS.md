@@ -15,7 +15,7 @@ Follow-ups:
 - Tagline approved (Eli, 2026-10-15): "Your words. Your rhythm. Up to 5 minutes." / "המילים שלכם. הקצב שלכם. עד 5 דקות." — home, metadata, OG card, manifest.
 - Privacy/consent rewritten for the rhythm-only product (no AI video analysis, no scores); consent version 2026-10-15, so everyone re-consents once.
 
-## Live voice-following — step 1 feasibility (2026-10-15): NO-GO on delay
+## Live voice-following — CLOSED, no-go (Eli, 2026-10-15: no hybrid; Ariela: karaoke is fine as is). Build nothing more on it.
 Scribe v2 Realtime (ElevenLabs WebSocket, $0.39/h) + today's Hebrew-tolerant matcher, audio streamed in real time, ~30 s pitches (synthetic voices; no real takes are stored by design). Bar: Hebrew coverage >= 85% and median delay <= 500 ms (word end -> match).
 | sample | live coverage | median delay | p90 |
 |---|---|---|---|
