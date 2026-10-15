@@ -15,7 +15,17 @@ Follow-ups:
 - Tagline approved (Eli, 2026-10-15): "Your words. Your rhythm. Up to 5 minutes." / "המילים שלכם. הקצב שלכם. עד 5 דקות." — home, metadata, OG card, manifest.
 - Privacy/consent rewritten for the rhythm-only product (no AI video analysis, no scores); consent version 2026-10-15, so everyone re-consents once.
 
-## Open work — priority order (from CCW handoff, 2026-10-15)
+## Live voice-following — step 1 feasibility (2026-10-15): NO-GO on delay
+Scribe v2 Realtime (ElevenLabs WebSocket, $0.39/h) + today's Hebrew-tolerant matcher, audio streamed in real time, ~30 s pitches (synthetic voices; no real takes are stored by design). Bar: Hebrew coverage >= 85% and median delay <= 500 ms (word end -> match).
+| sample | live coverage | median delay | p90 |
+|---|---|---|---|
+| Hebrew, normal pace | 88% | 680–870 ms | 1.4–1.8 s |
+| Hebrew, fast | 88% | 950 ms | 1.4 s |
+| Hebrew + background noise | 86% | 770 ms | 1.4 s |
+| English | 97% | 800 ms | 1.2 s |
+The service sends an interim transcript about once a second whatever the chunk size/commit settings, so ~0.7–0.9 s median is the floor. Bench: `server/scripts/live-follow-bench.js`. Not built (step 2 stopped per the go/no-go rule).
+
+ — priority order (from CCW handoff, 2026-10-15)
 
 **P0 — blocks the next deploy**
 - **T-10017** Production env + deploy verification (Eli, manual): one server replica on Railway; `ADMIN_COOKIE_SECRET` ≥32 random chars; `ADMIN_PASSWORD` ≥12 unique chars; exact `CLIENT_ORIGIN`; ElevenLabs/OpenRouter/Google retention and training settings. Missing `ADMIN_COOKIE_SECRET` crashed the server on 2026-08-01.
