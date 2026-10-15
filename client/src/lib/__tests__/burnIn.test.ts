@@ -151,7 +151,7 @@ describe("recording pipeline", () => {
     expect(env.canvas.width).toBe(640)
     expect(env.canvas.height).toBe(480)
     expect(env.stream.addTrack).toHaveBeenCalledWith(env.track)
-    expect(env.video.muted).toBe(true)
+    expect(env.video.muted).toBe(false) // muted elements feed silence to Web Audio
     expect(env.ctx.scale).toHaveBeenCalledWith(-1, 1)
     expect(env.ctx.fillText).toHaveBeenCalledWith("killerpitch", expect.any(Number), expect.any(Number))
     expect(env.ctx.fillText).toHaveBeenCalledWith("שלום", expect.any(Number), expect.any(Number))

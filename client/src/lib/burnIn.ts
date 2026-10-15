@@ -160,6 +160,9 @@ export async function burnInKaraoke(
       source = audio.createMediaElementSource(video)
       destination = audio.createMediaStreamDestination()
       source.connect(destination)
+      // A muted element feeds silence into Web Audio. The graph only reaches the
+      // recording destination, never the speakers, so unmuting stays silent.
+      video.muted = false
     } else if (!video.captureStream && !video.mozCaptureStream) {
       throw new Error("Audio capture is not supported in this browser")
     }
