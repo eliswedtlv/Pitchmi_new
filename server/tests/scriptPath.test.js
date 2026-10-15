@@ -8,7 +8,7 @@
 // hardest because a violation is completely silent in production — the karaoke
 // clock just stops highlighting.
 
-const { buildPathFromScript } = require('../src/lib/scriptPath')
+const { buildPathFromScript, LEAD_IN_S } = require('../src/lib/scriptPath')
 
 // Reading a script back at a steady pace, optionally substituting or dropping
 // words. `mutate(word, index)` returns the spoken surface, or null to skip it.
@@ -134,10 +134,12 @@ describe('buildPathFromScript — anchoring (T-10018)', () => {
       expect(w.t_end).toBeGreaterThanOrEqual(w.t_start)
     }
     expect(isMonotonic(path)).toBe(true)
-    expect(starts(path)[2]).toBe(2)
-    expect(starts(path)[3]).toBe(2.5)
+    // KP-E trims the leading silence, so anchors keep their real GAPS rather
+    // than their absolute times.
+    expect(starts(path)[0]).toBeLessThanOrEqual(LEAD_IN_S)
+    expect(round(starts(path)[3] - starts(path)[2])).toBe(0.5)
     // The trailing run really is laid out after the last anchor.
-    expect(starts(path)[4]).toBeGreaterThanOrEqual(2.9)
+    expect(round(starts(path)[4] - starts(path)[2])).toBeGreaterThanOrEqual(0.9)
   })
 
   test('a leading run never produces a negative t_start', () => {
@@ -325,5 +327,31 @@ describe('partially improvised readings stay usable, not just above threshold', 
     // No word is left flat on top of its neighbour for the whole run.
     const distinct = new Set(starts(path))
     expect(distinct.size).toBe(total)
+  })
+})
+
+describe('KP-E — leading silence is trimmed to a short lead-in', () => {
+  const script = 'we are building a tool for founders today'
+
+  test('a take whose first word is at 9.4 s starts the path at 1.0 s with gaps unchanged', () => {
+    const spoken = read(script, w => w, { t0: 9.4 })
+    const late = buildPathFromScript(script, spoken).path
+    const raw = read(script)
+    expect(late.words[0].t_start).toBe(LEAD_IN_S)
+    const gaps = p => p.words.slice(1).map((w, i) => round(w.t_start - p.words[i].t_start))
+    const rawGaps = spoken.slice(1).map((s, i) => round(s.start - spoken[i].start))
+    expect(gaps(late)).toEqual(rawGaps)
+    expect(late.words.map(w => round(w.t_end - w.t_start))).toEqual(raw.map(s => round(s.end - s.start)))
+    expect(late.lines[0].t_start).toBe(LEAD_IN_S)
+    const lastEnd = spoken[spoken.length - 1].end
+    expect(late.total_s).toBe(Math.round((lastEnd - 8.4) * 10) / 10)
+    expect(isMonotonic(late)).toBe(true)
+  })
+
+  test('a take whose first word is at 0.4 s is unchanged', () => {
+    const spoken = read(script, w => w, { t0: 0.4 })
+    const { path } = buildPathFromScript(script, spoken)
+    expect(starts(path)).toEqual(spoken.map(s => s.start))
+    expect(path.words.map(w => w.t_end)).toEqual(spoken.map(s => s.end))
   })
 })

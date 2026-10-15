@@ -1,6 +1,6 @@
 import { render, screen, cleanup } from "@testing-library/react"
 import { describe, it, expect, beforeEach, afterEach } from "vitest"
-import { Prompter } from "../Prompter"
+import { Prompter, leadInSeconds } from "../Prompter"
 import type { KaraokeWord } from "@/lib/clock"
 
 // A Hebrew line with a mixed Latin/number token — the §6 path output shape.
@@ -151,5 +151,38 @@ describe("Prompter first-use hint", () => {
   it("falls back to English for non-Hebrew languages", () => {
     render(<Prompter words={words} lines={lines} activeIdx={-1} dir="ltr" lang="en" phase="countdown" />)
     expect(screen.getByTestId("prompter-hint").textContent).toMatch(/Follow the highlighted word/)
+  })
+})
+
+describe("Prompter karaoke lead-in (KP-E)", () => {
+  const late: KaraokeWord[] = [
+    { w: "one", t_start: 1, t_end: 1.4, line: 0 },
+    { w: "two", t_start: 1.5, t_end: 2, line: 0 },
+  ]
+  const lateLines = [{ index: 0, text: "one two" }]
+
+  it("leadInSeconds is the first word's t_start, 0 when absent", () => {
+    expect(leadInSeconds(late)).toBe(1)
+    expect(leadInSeconds([])).toBe(0)
+    expect(leadInSeconds(words)).toBe(0)
+  })
+
+  it("shows a filling bar under the first line before the first word is due", () => {
+    render(<Prompter words={late} lines={lateLines} activeIdx={-1} dir="ltr" phase="recording" />)
+    const bar = screen.getByTestId("prompter-lead-in")
+    expect(screen.getByTestId("active-line").parentElement?.contains(bar)).toBe(true)
+  })
+
+  it("hides the bar once the first word is active", () => {
+    render(<Prompter words={late} lines={lateLines} activeIdx={0} dir="ltr" phase="recording" />)
+    expect(screen.queryByTestId("prompter-lead-in")).toBeNull()
+  })
+
+  it("never shows the bar during the countdown or in teleprompter mode", () => {
+    render(<Prompter words={late} lines={lateLines} activeIdx={-1} dir="ltr" phase="countdown" />)
+    expect(screen.queryByTestId("prompter-lead-in")).toBeNull()
+    cleanup()
+    render(<Prompter words={late} lines={lateLines} activeIdx={-1} dir="ltr" phase="recording" mode="teleprompter" />)
+    expect(screen.queryByTestId("prompter-lead-in")).toBeNull()
   })
 })
