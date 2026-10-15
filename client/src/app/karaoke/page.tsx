@@ -38,16 +38,16 @@ export default function KaraokePage() {
   const prompterScript = useMemo(() => buildTeleprompter(script), [script])
   const words: KaraokeWord[] = path?.words ?? prompterScript.words
   const lines = path?.lines ?? prompterScript.lines
-  const gracePeriod = 3
 
   const { state, countdown, videoRef, start, stop, error } = useRecorder({
-    // A karaoke take is bounded by the rhythm's length plus the grace that
-    // lets it finish its last word; a teleprompter take only by the cap. A
-    // take hitting its ceiling is expected and harmless, so the stop reason is
-    // deliberately ignored here (T-1172).
-    maxDurationS: path ? Math.min(MAX_TAKE_S, path.total_s + gracePeriod) : MAX_TAKE_S,
+    // Every take runs until the speaker stops it or the 5-minute cap (Eli,
+    // 2026-10-15): a karaoke take used to stop 3 s after the rhythm ended and
+    // cut off anyone slower than their first reading. Past the rhythm's end the
+    // words simply wait on the last line.
+    maxDurationS: MAX_TAKE_S,
     onStop: (blob) => {
       setTakeBlob(blob)
+      useSession.getState().setLastTakeTeleprompter(teleprompter)
       // A locked rhythm needs nothing from this take: no upload, no
       // speech-to-text, straight to the results. Read the store directly —
       // this callback was captured when the recorder started.
@@ -176,6 +176,16 @@ export default function KaraokePage() {
           </span>
         </div>
       </div>
+
+      {/* Take 1 says what it is for: it learns the pace; karaoke comes next. */}
+      {teleprompter && (state === "recording" || state === "countdown") && (
+        <p
+          data-testid="take1-explainer"
+          className="pointer-events-none absolute inset-x-0 z-20 mx-auto w-fit max-w-[90%] rounded-full bg-black/55 px-3 py-1.5 text-center text-meta font-medium text-white backdrop-blur-sm top-[calc(max(env(safe-area-inset-top),0.75rem)+3rem)]"
+        >
+          {t.take1Explainer}
+        </p>
+      )}
 
       {/* Karaoke subtitles overlaid on the video (upper third, near camera) */}
       {(state === "recording" || state === "countdown") && (

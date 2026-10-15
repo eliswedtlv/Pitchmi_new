@@ -16,7 +16,7 @@ export default function ResultsPage() {
   const router = useRouter()
   const { t } = useUiLang()
   const {
-    takeBlob, takeBlobUrl, pathResult, rhythmLocked, takeRhythm, setRhythmLocked, reset, project, script,
+    takeBlob, takeBlobUrl, pathResult, rhythmLocked, takeRhythm, lastTakeTeleprompter, setRhythmLocked, reset, project, script,
   } = useSession()
   // The shareable video: the take with the karaoke words and the mark burned in
   // (KP-C). Built on the first Share tap; null until then.
@@ -35,7 +35,7 @@ export default function ResultsPage() {
   const rhythmNote = rhythmLocked
     ? t.noteLocked
     : takeRhythm === "new"
-      ? t.noteNew
+      ? lastTakeTeleprompter ? t.noteFirstRhythm : t.noteNew
       : hasRhythm
         ? t.noteEarlier
         : t.noteTeleprompter

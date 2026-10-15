@@ -93,6 +93,7 @@ describe("KaraokePage — take 1 is a teleprompter (KP-B)", () => {
   it("shows the script in the prompter with no rhythm, capped at 5 minutes", () => {
     render(<KaraokePage />)
     expect(screen.getByTestId("prompter-advance")).toBeTruthy()
+    expect(screen.getByTestId("take1-explainer").textContent).toMatch(/Take 1 learns your pace/)
     expect(screen.getByTestId("active-line").textContent).toBe("We build tools.")
     expect(h.recorderOpts?.maxDurationS).toBe(300)
   })
@@ -126,11 +127,14 @@ describe("KaraokePage — karaoke from take 2 and the rhythm lock (KP-B)", () =>
     h.recorder.state = "recording"
   })
 
-  it("follows the rhythm and caps the take at its length plus grace", () => {
+  // Eli 2026-10-15: a karaoke take no longer stops 3 s after the rhythm —
+  // a slower reading was cut off mid-sentence. Only the speaker or the cap stop it.
+  it("follows the rhythm and runs until the speaker stops (only the 5-minute cap)", () => {
     render(<KaraokePage />)
     expect(screen.getByText("Recording")).toBeTruthy()
     expect(screen.queryByTestId("prompter-advance")).toBeNull()
-    expect(h.recorderOpts?.maxDurationS).toBeCloseTo(3.4)
+    expect(screen.queryByTestId("take1-explainer")).toBeNull()
+    expect(h.recorderOpts?.maxDurationS).toBe(300)
   })
 
   it("never lets a long rhythm exceed the 5-minute cap", () => {

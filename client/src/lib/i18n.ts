@@ -75,6 +75,7 @@ const en = {
   stopRecording: "Stop recording",
   prompterHint: "Follow the highlighted word — it moves at your pace",
   teleprompterHint: "Read at your own pace — tap or swipe to move ahead",
+  take1Explainer: "Take 1 learns your pace. Karaoke starts on your next take.",
 
   // Wait screen
   waitStage: {
@@ -110,6 +111,7 @@ const en = {
   noScore: "Watch yourself like in a mirror. Happy with it? Share it. Want it smoother? Take it again.",
   noteLocked: "Next take: the words light up on your locked rhythm.",
   noteNew: "Next take: the words light up on the rhythm you just set.",
+  noteFirstRhythm: "Your pace is set. Karaoke starts on your next take: the words light up at your pace.",
   noteEarlier: "Next take: the words light up on your earlier rhythm.",
   noteTeleprompter: "Next take: read it your way on the teleprompter again.",
   rhythmLocked: "Rhythm locked — your next takes follow this take’s pace.",
@@ -312,6 +314,7 @@ const he: UiStrings = {
   stopRecording: "עצירת ההקלטה",
   prompterHint: "עקבו אחרי המילה המודגשת — היא נעה בקצב שלכם",
   teleprompterHint: "קראו בקצב שלכם — הקישו או החליקו כדי להתקדם",
+  take1Explainer: "טייק 1 לומד את הקצב שלכם. הקריוקי מתחיל בטייק הבא.",
 
   waitStage: {
     uploading: "מעלים את הטייק…",
@@ -345,6 +348,7 @@ const he: UiStrings = {
   noScore: "צפו בעצמכם כמו במראה. מרוצים? שתפו. רוצים שיזרום יותר? עוד טייק.",
   noteLocked: "בטייק הבא: המילים יידלקו לפי הקצב הנעול שלכם.",
   noteNew: "בטייק הבא: המילים יידלקו לפי הקצב שקבעתם עכשיו.",
+  noteFirstRhythm: "הקצב שלכם נקבע. הקריוקי מתחיל בטייק הבא: המילים יידלקו בקצב שלכם.",
   noteEarlier: "בטייק הבא: המילים יידלקו לפי הקצב הקודם שלכם.",
   noteTeleprompter: "בטייק הבא: קוראים שוב בקצב שלכם, בטלפרומפטר.",
   rhythmLocked: "הקצב נעול — הטייקים הבאים ילכו לפי הקצב של הטייק הזה.",

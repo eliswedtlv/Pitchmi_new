@@ -28,6 +28,8 @@ interface SessionState {
   /** "Keep this rhythm": next takes follow pathResult and skip the upload. */
   rhythmLocked: boolean
   takeRhythm: TakeRhythm | null
+  /** The last take was a take-1 teleprompter take (no rhythm yet). */
+  lastTakeTeleprompter: boolean
 
   setProject: (p: Project) => void
   setScript: (text: string) => void
@@ -35,6 +37,7 @@ interface SessionState {
   setPathResult: (r: PathResult | null) => void
   setRhythmLocked: (locked: boolean) => void
   setTakeRhythm: (r: TakeRhythm | null) => void
+  setLastTakeTeleprompter: (v: boolean) => void
   reset: () => void
 }
 
@@ -46,6 +49,7 @@ export const useSession = create<SessionState>((set, get) => ({
   pathResult: null,
   rhythmLocked: false,
   takeRhythm: null,
+  lastTakeTeleprompter: false,
 
   setProject: (project) => set({ project }),
   setScript: (script) => set({ script }),
@@ -64,6 +68,7 @@ export const useSession = create<SessionState>((set, get) => ({
   setPathResult: (pathResult) => set({ pathResult }),
   setRhythmLocked: (rhythmLocked) => set({ rhythmLocked }),
   setTakeRhythm: (takeRhythm) => set({ takeRhythm }),
+  setLastTakeTeleprompter: (lastTakeTeleprompter) => set({ lastTakeTeleprompter }),
 
   reset: () => {
     const prev = get().takeBlobUrl
@@ -76,6 +81,7 @@ export const useSession = create<SessionState>((set, get) => ({
       pathResult: null,
       rhythmLocked: false,
       takeRhythm: null,
+      lastTakeTeleprompter: false,
     })
   },
 }))
