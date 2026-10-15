@@ -1,4 +1,5 @@
 'use strict'
+/* global WebSocket */
 // Usage: railway run -s server node scripts/live-follow-bench.js <base> <he|en>
 // where <base>.pcm (16 kHz s16le mono), <base>.wav and <base>.txt (typed script) exist.
 // Live-follow feasibility bench: stream a recording through Scribe v2 Realtime
