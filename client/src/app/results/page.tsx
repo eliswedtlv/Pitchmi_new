@@ -2,66 +2,33 @@
 
 import { useEffect } from "react"
 import { useRouter } from "next/navigation"
-import { Pencil, RotateCcw, Share2, Video } from "lucide-react"
+import { Lock, LockOpen, Pencil, RotateCcw, Share2, Video } from "lucide-react"
 import { Brand } from "@/components/Brand"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { VideoPlayer } from "@/components/ui/VideoPlayer"
 import { useSession } from "@/store/session"
 
-const DIM_LABELS: Record<string, string> = {
-  voice: "Voice",
-  body: "Body",
-  delivery: "Delivery",
-  timing: "Timing",
-  accuracy: "Accuracy",
-}
-
-const FLAG_LABELS: Record<string, string> = {
-  rushed_line: "Rushing",
-  dragged_line: "Dragging",
-  long_pause: "Long pause",
-  skipped_line: "Skipped line",
-  off_script: "Off script",
-}
-
-function band(score: number) {
-  if (score >= 80) return { bar: "bg-good", text: "text-good-fg" }
-  if (score >= 65) return { bar: "bg-warn", text: "text-warn-fg" }
-  return { bar: "bg-bad", text: "text-bad-fg" }
-}
-
-function ScoreBar({ label, score }: { label: string; score: number }) {
-  return (
-    <div className="grid grid-cols-[5.5rem_1fr_2rem] items-center gap-3">
-      <span className="text-meta text-fg-muted">{label}</span>
-      <div className="h-1.5 overflow-hidden rounded-full bg-track">
-        <div
-          className={`h-full rounded-full ${band(score).bar}`}
-          style={{ width: `${score}%` }}
-        />
-      </div>
-      <span className="nums text-end text-meta font-semibold text-fg">{score}</span>
-    </div>
-  )
-}
-
-function scoreReadout(score: number) {
-  if (score >= 85) return "Confident and controlled. Keep the edge."
-  if (score >= 75) return "The delivery lands. Now make it memorable."
-  if (score >= 65) return "The rhythm is forming. Give it more shape."
-  return "Reset the rhythm and make every line deliberate."
-}
-
 export default function ResultsPage() {
   const router = useRouter()
-  const { takeBlob, takeBlobUrl, evalResult, reset } = useSession()
+  const { takeBlob, takeBlobUrl, pathResult, rhythmLocked, takeRhythm, setRhythmLocked, reset } =
+    useSession()
 
   useEffect(() => {
-    if (!evalResult || !takeBlob) router.push("/")
-  }, [evalResult, takeBlob, router])
+    if (!takeBlob) router.push("/")
+  }, [takeBlob, router])
 
-  if (!evalResult || !takeBlob) return null
+  if (!takeBlob) return null
+
+  // Which rhythm the NEXT take follows (KP-B). No score: this screen is the
+  // take, the rhythm status and the next step.
+  const hasRhythm = Boolean(pathResult)
+  const rhythmNote = rhythmLocked
+    ? "Next take follows your locked rhythm."
+    : takeRhythm === "new"
+      ? "Next take follows this take’s rhythm."
+      : hasRhythm
+        ? "Next take follows your earlier rhythm, and updates it."
+        : "Next take is a teleprompter take again."
 
   async function handleShare() {
     if (!takeBlob) return
@@ -88,118 +55,20 @@ export default function ResultsPage() {
           <Brand />
           <div className="text-end">
             <p className="text-micro font-semibold uppercase tracking-[0.16em] text-fg">
-              Delivery report
+              Your take
             </p>
-            <p className="nums mt-1 text-micro text-fg-subtle">Take 01 · ≤30 sec</p>
+            <p className="nums mt-1 text-micro text-fg-subtle">≤5 min</p>
           </div>
         </header>
 
-        <section
-          data-testid="score-panel"
-          className="results-score overflow-hidden rounded-panel border border-line-strong bg-surface"
-        >
-          <div className="border-b border-line p-5 sm:p-6">
-            <p className="text-micro font-semibold uppercase tracking-[0.16em] text-fg-subtle">
-              Overall score
-            </p>
-            <div className="mt-3 flex items-end gap-2">
-              <span
-                className={`nums text-[clamp(4.25rem,9vw,5.5rem)] font-semibold leading-[0.82] tracking-[-0.07em] ${band(evalResult.overall).text}`}
-              >
-                {evalResult.overall}
-              </span>
-              <span className="nums pb-1 text-meta text-fg-subtle">/ 100</span>
-            </div>
-            <p className="mt-4 max-w-sm text-body font-medium text-fg">
-              {scoreReadout(evalResult.overall)}
-            </p>
-            <p className="mt-1 text-micro text-fg-subtle">
-              Delivery 50% · timing 25% · accuracy 25%
-            </p>
-          </div>
-
-          <div className="space-y-5 p-5 sm:p-6">
-            <div className="space-y-3">
-              <p className="text-micro font-semibold uppercase tracking-[0.14em] text-fg-subtle">
-                Delivery
-              </p>
-              {(["voice", "body", "delivery"] as const).map((dim) => (
-                <ScoreBar
-                  key={dim}
-                  label={DIM_LABELS[dim]}
-                  score={evalResult.dimensions[dim]}
-                />
-              ))}
-            </div>
-            <div className="space-y-3 border-t border-line pt-5">
-              <p className="text-micro font-semibold uppercase tracking-[0.14em] text-fg-subtle">
-                Script match
-              </p>
-              {(["timing", "accuracy"] as const).map((dim) => (
-                <ScoreBar
-                  key={dim}
-                  label={DIM_LABELS[dim]}
-                  score={evalResult.dimensions[dim]}
-                />
-              ))}
-            </div>
-          </div>
-
-          <p className="nums border-t border-line px-5 py-3 text-micro text-fg-subtle sm:px-6">
-            {evalResult.evals_left_today} evaluations left today
-          </p>
-        </section>
-
         <div className="results-video">
-          {takeBlobUrl && <VideoPlayer src={takeBlobUrl} />}
+          {/* Mirrored like the live preview: people see themselves as in a mirror. */}
+          {takeBlobUrl && <VideoPlayer src={takeBlobUrl} mirrored />}
           <div className="mt-3 flex items-center justify-between text-micro text-fg-subtle">
             <span>Your take · processed privately</span>
-            <span className="nums">00:30 max</span>
+            <span className="nums">05:00 max</span>
           </div>
         </div>
-
-        <section className="results-coach overflow-hidden rounded-panel border border-line-strong bg-surface">
-          <div className="flex items-center justify-between border-b border-line px-5 py-4 sm:px-6">
-            <div>
-              <p className="text-micro font-semibold uppercase tracking-[0.16em] text-fg">
-                Coach notes
-              </p>
-              <p className="mt-1 text-micro text-fg-subtle">
-                Delivery only. Never the message.
-              </p>
-            </div>
-            <span className="nums text-micro text-fg-subtle">03 notes</span>
-          </div>
-          <ol>
-            {evalResult.comments.map((comment, index) => (
-              <li
-                key={index}
-                className="grid grid-cols-[2rem_1fr] gap-3 border-b border-line px-5 py-4 last:border-b-0 sm:px-6"
-              >
-                <span className="nums text-meta font-semibold text-accent">
-                  0{index + 1}
-                </span>
-                <span dir="auto" className="text-body text-fg">
-                  {comment}
-                </span>
-              </li>
-            ))}
-          </ol>
-
-          {evalResult.flags.length > 0 && (
-            <div className="flex flex-wrap items-center gap-2 border-t border-line bg-raised/45 px-5 py-4 sm:px-6">
-              <span className="me-1 text-micro font-semibold uppercase tracking-[0.12em] text-fg-subtle">
-                Watch
-              </span>
-              {evalResult.flags.map((flag, index) => (
-                <Badge key={index} variant="warning">
-                  {FLAG_LABELS[flag.type] ?? flag.type}
-                  {flag.line !== undefined ? ` (line ${flag.line + 1})` : ""}
-                </Badge>
-              ))}
-            </div>
-          )}
-        </section>
 
         <section className="results-actions overflow-hidden rounded-panel border border-accent/30 bg-accent-soft">
           <div className="p-5 sm:p-6">
@@ -209,9 +78,43 @@ export default function ResultsPage() {
             <h2 className="mt-2 text-title font-semibold tracking-[-0.04em] text-fg">
               Keep the words. Change the delivery.
             </h2>
-            <p className="mt-2 text-meta text-fg-muted">
-              Your prompter now follows the pace measured in this take.
+            {takeRhythm === "unchanged" && (
+              <p data-testid="rhythm-kept-note" className="mt-2 text-meta text-fg-muted">
+                This take didn’t match your script closely, so your rhythm stayed the same.
+              </p>
+            )}
+            <p data-testid="rhythm-note" className="mt-2 text-meta text-fg-muted">
+              {rhythmNote}
             </p>
+            {rhythmLocked ? (
+              <div className="mt-4 flex items-center justify-between gap-3 rounded-control border border-accent/30 bg-surface px-4 py-2.5">
+                <span className="flex items-center gap-2 text-meta font-medium text-fg">
+                  <Lock className="h-4 w-4 text-accent" />
+                  Rhythm locked
+                </span>
+                <Button
+                  onClick={() => setRhythmLocked(false)}
+                  variant="outline"
+                  size="sm"
+                  className="gap-1.5"
+                >
+                  <LockOpen className="h-4 w-4" />
+                  Unlock
+                </Button>
+              </div>
+            ) : (
+              hasRhythm && (
+                <Button
+                  onClick={() => setRhythmLocked(true)}
+                  variant="outline"
+                  aria-pressed={false}
+                  className="mt-4 w-full gap-2"
+                >
+                  <Lock className="h-4 w-4" />
+                  {takeRhythm === "new" ? "Keep this rhythm" : "Keep current rhythm"}
+                </Button>
+              )
+            )}
           </div>
           <div className="space-y-3 border-t border-accent/20 p-3">
             <Button

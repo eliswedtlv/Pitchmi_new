@@ -145,7 +145,13 @@ export function useRecorder({
   function beginRecording(stream: MediaStream) {
     try {
       const mimeType = getMimeType()
-      const recorder = new MediaRecorder(stream, { mimeType })
+      // ~1.5 Mbps video + 64 kbps audio keeps a 5-minute take (~58 MB) well
+      // under the server's 200 MB upload cap (KP-B).
+      const recorder = new MediaRecorder(stream, {
+        mimeType,
+        videoBitsPerSecond: 1_500_000,
+        audioBitsPerSecond: 64_000,
+      })
       recorderRef.current = recorder
 
       recorder.ondataavailable = (e) => {

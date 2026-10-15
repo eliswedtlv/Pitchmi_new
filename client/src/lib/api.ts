@@ -108,15 +108,12 @@ export async function createProject(data?: { title?: string }): Promise<Project>
 
 // ── Script ─────────────────────────────────────────────────────────────────
 
+/**
+ * Stores the script. There is no path anymore (KP-A): take 1 is a teleprompter
+ * take, and the rhythm comes from /api/rhythm.
+ */
 export interface ScriptResult {
-  /**
-   * A SEED path (T-10018) — a throwaway estimate at a fixed rate, good enough
-   * to rehearse against once. /api/evaluate replaces it with the user's own
-   * measured timings after every take.
-   */
-  path: KaraokePath
   word_count: number
-  est_duration_s: number
 }
 
 export async function saveScript(projectId: string, text: string): Promise<ScriptResult> {
@@ -151,10 +148,9 @@ export interface KaraokePath {
   total_s: number
 }
 
-// Karaoke playback state shared across screens. `path` is the subtitle
-// structure from /api/script (seeded) or /api/evaluate (re-timed from a real
-// take); the other fields are kept for the session/UI contract — there is no
-// fit check, the estimate is only a hint and the 30s cap is the real gate.
+// The current rhythm, shared across screens. `path` is the subtitle structure
+// /api/rhythm re-timed from a real take; the other fields are kept for the
+// session/UI contract — there is no fit check, the 5-minute cap is the gate.
 export interface PathResult {
   path: KaraokePath
   fits: boolean
@@ -162,63 +158,46 @@ export interface PathResult {
   warning?: string
 }
 
-// ── Evaluate ───────────────────────────────────────────────────────────────
+// ── Rhythm ─────────────────────────────────────────────────────────────────
 
-export interface EvalResult {
-  overall: number
-  dimensions: {
-    voice: number
-    body: number
-    delivery: number
-    timing: number
-    accuracy: number
-  }
-  comments: string[]
-  flags: Array<{ type: string; line?: number }>
-  language: string
-  evals_left_today: number
-  /**
-   * The prompter re-timed from THIS take (T-10018), present only when the take
-   * matched the script closely enough to trust. The next rehearsal follows the
-   * user's own measured pace instead of the seed estimate.
-   */
-  path?: KaraokePath
+export interface RhythmResult {
+  /** The rhythm re-timed from THIS take; null when the take didn't match the
+   *  script closely enough — keep the previous rhythm. */
+  path: KaraokePath | null
+  coverage: number | null
+  language: string | null
+  rhythms_left_today: number
 }
 
-/** Evaluate is slow (Scribe + video eval + JSON retries: ~60–120s, worst case
- *  more). Give the request 5 minutes before we ever consider it dead. */
-export const EVAL_TIMEOUT_MS = 5 * 60 * 1000
+/** Upload + speech-to-text for a take of up to 5 minutes. Give the request 5
+ *  minutes before we ever consider it dead. */
+export const RHYTHM_TIMEOUT_MS = 5 * 60 * 1000
 
 /**
- * Uploads the take and waits for the AI evaluation.
+ * Uploads the take and waits for its rhythm.
  *
  * Uses the plain fetch transport proven on iOS Safari — the T-1160
- * XMLHttpRequest rewrite silently failed on
- * iPhone (the POST never left the browser after the CORS preflight, and no XHR
- * handler ever fired, so the wait screen spun forever). Reliability wins over
- * byte-level upload progress here.
- *
- * An AbortController enforces the {@link EVAL_TIMEOUT_MS} ceiling so a dead
- * request always surfaces as an error instead of an eternal spinner. `onSent`
- * fires once the request has been dispatched (used only to advance the honest
- * "uploading" → "analyzing" label; never to imply the response has arrived).
+ * XMLHttpRequest rewrite silently failed on iPhone. An AbortController enforces
+ * the {@link RHYTHM_TIMEOUT_MS} ceiling so a dead request always surfaces as an
+ * error instead of an eternal spinner. `onSent` fires once the request has been
+ * dispatched (used only to advance the "uploading" → "learning" label).
  */
-export async function evaluateVideo(
+export async function getRhythm(
   video: File | Blob,
   projectId: string,
   onSent?: () => void,
-): Promise<EvalResult> {
+): Promise<RhythmResult> {
   const headers = await authHeaders()
   const form = new FormData()
   form.append("video", video)
   form.append("project_id", projectId)
 
   const controller = new AbortController()
-  const timer = setTimeout(() => controller.abort(), EVAL_TIMEOUT_MS)
+  const timer = setTimeout(() => controller.abort(), RHYTHM_TIMEOUT_MS)
 
   let res: Response
   try {
-    const request = fetch(`${BASE}/api/evaluate`, {
+    const request = fetch(`${BASE}/api/rhythm`, {
       method: "POST",
       headers,
       body: form,
@@ -228,14 +207,14 @@ export async function evaluateVideo(
     res = await request
   } catch (e) {
     if (controller.signal.aborted) {
-      throw Object.assign(new Error("Evaluation timed out"), { status: 0 })
+      throw Object.assign(new Error("Upload timed out"), { status: 0 })
     }
     throw Object.assign(new Error("Network error"), { status: 0 })
   } finally {
     clearTimeout(timer)
   }
 
-  return handleResponse<EvalResult>(res)
+  return handleResponse<RhythmResult>(res)
 }
 
 // ── Save ───────────────────────────────────────────────────────────────────
@@ -243,7 +222,7 @@ export async function evaluateVideo(
 export async function saveTake(data: {
   video: File | Blob
   projectId: string
-  scores: EvalResult
+  scores: Record<string, unknown>
   duration_s?: number
 }): Promise<{ take_id: string }> {
   const headers = await authHeaders()

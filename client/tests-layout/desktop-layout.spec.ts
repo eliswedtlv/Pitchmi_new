@@ -86,28 +86,28 @@ test.describe("the composer fills the viewport", () => {
 })
 
 test.describe("/results is a real two-column composition on a desktop", () => {
-  test("1440×900: the video and the score panel sit side by side", async ({ page }) => {
+  test("1440×900: the video and the next-take panel sit side by side", async ({ page }) => {
     await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto("/dev/ui/results")
-    await expect(page.getByText("Overall score")).toBeVisible()
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible()
 
     const video = await boxOf(page, "video")
-    const score = await boxOf(page, '[data-testid="score-panel"]')
+    const panel = await boxOf(page, '.results-actions')
 
-    expect(verticallyOverlap(video, score), "they must share vertical extent").toBe(true)
-    expect(horizontallyOverlap(video, score), "they must not share horizontal extent").toBe(false)
+    expect(verticallyOverlap(video, panel), "they must share vertical extent").toBe(true)
+    expect(horizontallyOverlap(video, panel), "they must not share horizontal extent").toBe(false)
   })
 
   test("390×844: the same two objects are stacked, not side by side", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 })
     await page.goto("/dev/ui/results")
-    await expect(page.getByText("Overall score")).toBeVisible()
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible()
 
     const video = await boxOf(page, "video")
-    const score = await boxOf(page, '[data-testid="score-panel"]')
+    const panel = await boxOf(page, '.results-actions')
 
-    expect(verticallyOverlap(video, score), "stacked: no shared vertical extent").toBe(false)
-    expect(horizontallyOverlap(video, score), "stacked: they share the column").toBe(true)
+    expect(verticallyOverlap(video, panel), "stacked: no shared vertical extent").toBe(false)
+    expect(horizontallyOverlap(video, panel), "stacked: they share the column").toBe(true)
   })
 
   // 1024 is the `lg` breakpoint itself — the width at which a desktop layout
@@ -116,11 +116,11 @@ test.describe("/results is a real two-column composition on a desktop", () => {
   test("1024×768: two columns, and no horizontal overflow", async ({ page }) => {
     await page.setViewportSize({ width: 1024, height: 768 })
     await page.goto("/dev/ui/results")
-    await expect(page.getByText("Overall score")).toBeVisible()
+    await expect(page.getByRole("button", { name: "Try again" })).toBeVisible()
 
     const video = await boxOf(page, "video")
-    const score = await boxOf(page, '[data-testid="score-panel"]')
-    expect(horizontallyOverlap(video, score)).toBe(false)
+    const panel = await boxOf(page, '.results-actions')
+    expect(horizontallyOverlap(video, panel)).toBe(false)
 
     const overflow = await page.evaluate(
       () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

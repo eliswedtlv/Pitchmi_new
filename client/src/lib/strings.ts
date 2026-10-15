@@ -3,6 +3,8 @@
  * server returns from Scribe. English is the fallback for any other language.
  */
 
+import type { WaitStage } from "./waitStages"
+
 type Lang = "en" | "he"
 
 const PROMPTER_HINT: Record<Lang, string> = {
@@ -10,11 +12,27 @@ const PROMPTER_HINT: Record<Lang, string> = {
   he: "עקבו אחרי המילה המודגשת — היא נעה בקצב שלכם",
 }
 
-// Shown on the wait/error screen when the evaluation upstream times out
-// (server 504, T-1165) — a plain retry message, never raw JSON.
-const EVAL_TOO_LONG: Record<Lang, string> = {
-  en: "The AI took too long — try again.",
-  he: "ה-AI לקח יותר מדי זמן — נסו שוב.",
+// Take-1 teleprompter hint (KP-B): it follows the reader, not a clock.
+const TELEPROMPTER_HINT: Record<Lang, string> = {
+  en: "Read at your own pace — tap or swipe to move ahead",
+  he: "קראו בקצב שלכם — הקישו או החליקו כדי להתקדם",
+}
+
+// Wait-screen stage labels (KP-B). The take is only transcribed to learn its
+// rhythm — never scored.
+const WAIT_STAGE: Record<Lang, Record<WaitStage, string>> = {
+  en: {
+    uploading: "Uploading your take…",
+    learning: "Learning your rhythm…",
+    done: "Done",
+    error: "Something went wrong",
+  },
+  he: {
+    uploading: "מעלים את הטייק…",
+    learning: "לומדים את הקצב שלכם…",
+    done: "סיום",
+    error: "משהו השתבש",
+  },
 }
 
 // Save-to-cloud feedback (T-1167 §C): confirmation toast + the inline link that
@@ -54,6 +72,10 @@ export function savedButton(lang?: string | null): string {
   return pick(SAVED_BUTTON, lang)
 }
 
-export function evalTooLong(lang?: string | null): string {
-  return pick(EVAL_TOO_LONG, lang)
+export function teleprompterHint(lang?: string | null): string {
+  return pick(TELEPROMPTER_HINT, lang)
+}
+
+export function waitStageLabel(stage: WaitStage, lang?: string | null): string {
+  return pick(WAIT_STAGE, lang)[stage]
 }

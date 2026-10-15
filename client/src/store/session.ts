@@ -4,23 +4,36 @@
  */
 
 import { create } from "zustand"
-import type { Project, PathResult, EvalResult } from "@/lib/api"
+import type { Project, PathResult } from "@/lib/api"
+
+/**
+ * What the last take did to the rhythm (KP-B):
+ *  - "new": the take matched the script and became the rhythm
+ *  - "unchanged": it didn't match closely, the previous rhythm (if any) stays
+ *  - "locked": the rhythm is locked, so the take was never uploaded
+ */
+export type TakeRhythm = "new" | "unchanged" | "locked"
 
 interface SessionState {
   project: Project | null
   // The typed script (T-10018), kept so "Edit text" on the results screen can
-  // pre-fill the home textarea with what the user actually wrote.
+  // pre-fill the home textarea with what the user actually wrote. It is also
+  // what the take-1 teleprompter shows.
   script: string
   takeBlob: Blob | null
   takeBlobUrl: string | null
+  /** The current rhythm. Null until a take matches the script: teleprompter mode. */
   pathResult: PathResult | null
-  evalResult: EvalResult | null
+  /** "Keep this rhythm": next takes follow pathResult and skip the upload. */
+  rhythmLocked: boolean
+  takeRhythm: TakeRhythm | null
 
   setProject: (p: Project) => void
   setScript: (text: string) => void
   setTakeBlob: (blob: Blob | null) => void
   setPathResult: (r: PathResult | null) => void
-  setEvalResult: (r: EvalResult | null) => void
+  setRhythmLocked: (locked: boolean) => void
+  setTakeRhythm: (r: TakeRhythm | null) => void
   reset: () => void
 }
 
@@ -30,7 +43,8 @@ export const useSession = create<SessionState>((set, get) => ({
   takeBlob: null,
   takeBlobUrl: null,
   pathResult: null,
-  evalResult: null,
+  rhythmLocked: false,
+  takeRhythm: null,
 
   setProject: (project) => set({ project }),
   setScript: (script) => set({ script }),
@@ -47,7 +61,8 @@ export const useSession = create<SessionState>((set, get) => ({
   },
 
   setPathResult: (pathResult) => set({ pathResult }),
-  setEvalResult: (evalResult) => set({ evalResult }),
+  setRhythmLocked: (rhythmLocked) => set({ rhythmLocked }),
+  setTakeRhythm: (takeRhythm) => set({ takeRhythm }),
 
   reset: () => {
     const prev = get().takeBlobUrl
@@ -58,7 +73,8 @@ export const useSession = create<SessionState>((set, get) => ({
       takeBlob: null,
       takeBlobUrl: null,
       pathResult: null,
-      evalResult: null,
+      rhythmLocked: false,
+      takeRhythm: null,
     })
   },
 }))

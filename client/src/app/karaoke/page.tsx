@@ -1,61 +1,126 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Square } from "lucide-react"
 import { Brand } from "@/components/Brand"
 import { Button } from "@/components/ui/button"
 import { Prompter } from "@/components/Prompter"
 import { useKaraokeClock } from "@/hooks/useKaraokeClock"
+import { useSpeechFollow } from "@/hooks/useSpeechFollow"
 import { useRecorder } from "@/hooks/useRecorder"
 import { useWakeLock } from "@/hooks/useWakeLock"
 import { useSession } from "@/store/session"
 import { MAX_TAKE_S } from "@/lib/limits"
 import { resolveDir } from "@/lib/textDir"
+import { buildTeleprompter, recognitionLang } from "@/lib/teleprompter"
 import type { KaraokeWord } from "@/lib/clock"
+
+const NO_WORDS: KaraokeWord[] = []
 
 export default function KaraokePage() {
   const router = useRouter()
-  const { project, pathResult, setTakeBlob } = useSession()
+  const { project, script, pathResult, setTakeBlob } = useSession()
 
   useEffect(() => {
-    if (!project || !pathResult) router.push("/")
-  }, [project, pathResult, router])
+    if (!project) router.push("/")
+  }, [project, router])
 
+  // No rhythm yet (KP-B) = take 1 is a teleprompter take that follows the
+  // reader. From the first take that matches the script on, it's karaoke on
+  // that take's rhythm.
   const path = pathResult?.path
-  const words: KaraokeWord[] = path?.words ?? []
-  const lines = path?.lines ?? []
+  const teleprompter = !path
+  const prompterScript = useMemo(() => buildTeleprompter(script), [script])
+  const words: KaraokeWord[] = path?.words ?? prompterScript.words
+  const lines = path?.lines ?? prompterScript.lines
   const gracePeriod = 3
 
   const { state, countdown, videoRef, start, stop, error } = useRecorder({
-    // Bounded by take 1's real length (itself capped at MAX_TAKE_S), plus the
-    // grace that lets a rehearsal finish its last subtitle word. A rehearsal
-    // hitting its ceiling is expected and harmless — it does not define the
-    // script — so the stop reason is deliberately ignored here (T-1172).
-    maxDurationS: (path?.total_s ?? MAX_TAKE_S) + gracePeriod,
+    // A karaoke take is bounded by the rhythm's length plus the grace that
+    // lets it finish its last word; a teleprompter take only by the cap. A
+    // take hitting its ceiling is expected and harmless, so the stop reason is
+    // deliberately ignored here (T-1172).
+    maxDurationS: path ? Math.min(MAX_TAKE_S, path.total_s + gracePeriod) : MAX_TAKE_S,
     onStop: (blob) => {
       setTakeBlob(blob)
-      router.push("/wait")
+      // A locked rhythm needs nothing from this take: no upload, no
+      // speech-to-text, straight to the results. Read the store directly —
+      // this callback was captured when the recorder started.
+      const session = useSession.getState()
+      if (session.rhythmLocked && session.pathResult) {
+        session.setTakeRhythm("locked")
+        router.push("/results")
+      } else {
+        router.push("/wait")
+      }
     },
   })
 
   useWakeLock(state === "recording" || state === "countdown")
 
   const isRunning = state === "recording"
-  const activeIdx = useKaraokeClock(words, isRunning)
 
-  // Language/direction: prefer the detected language, fall back to the path text
+  // Language/direction: prefer the detected language, fall back to the text
   // itself so a missing language never reverses Hebrew (T-1164).
   const lang = project?.language
   const dir = resolveDir(lang, lines.map((l) => l.text).join(" "))
 
+  const clockIdx = useKaraokeClock(path ? words : NO_WORDS, isRunning && !teleprompter)
+  const follow = useSpeechFollow(
+    teleprompter ? words : NO_WORDS,
+    isRunning && teleprompter,
+    recognitionLang(dir, typeof navigator === "undefined" ? undefined : navigator.language),
+  )
+  const activeIdx = teleprompter ? follow.activeIdx : clockIdx
+
+  // Manual advance on take 1: arrow/space/page keys. Never block recording.
+  const { nextLine, prevLine } = follow
+  useEffect(() => {
+    if (!teleprompter || !isRunning) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.target instanceof Element && e.target.closest("button, input, textarea")) return
+      if (["ArrowDown", "ArrowRight", "PageDown", " "].includes(e.key)) {
+        e.preventDefault()
+        nextLine()
+      } else if (["ArrowUp", "ArrowLeft", "PageUp"].includes(e.key)) {
+        e.preventDefault()
+        prevLine()
+      }
+    }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [teleprompter, isRunning, nextLine, prevLine])
+
+  // Swipe up / scroll down = next line; the reverse goes back a line.
+  const touchY = useRef<number | null>(null)
+  const lastWheel = useRef(0)
+  function onWheel(e: React.WheelEvent) {
+    const now = performance.now()
+    if (Math.abs(e.deltaY) < 10 || now - lastWheel.current < 350) return
+    lastWheel.current = now
+    if (e.deltaY > 0) nextLine()
+    else prevLine()
+  }
+  function onTouchEnd(e: React.TouchEvent) {
+    const startY = touchY.current
+    touchY.current = null
+    if (startY === null) return
+    // Handled here; stop the browser's follow-up click from moving again.
+    e.preventDefault()
+    const dy = e.changedTouches[0].clientY - startY
+    if (dy < -40) nextLine()
+    else if (dy > 40) prevLine()
+    else nextLine() // a tap
+  }
+
   // Auto-start on mount
   useEffect(() => {
-    if (!path) return
+    if (!project) return
     start()
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (!path) return null
+  if (!project) return null
 
   return (
     // `.scheme-dark` pins the dark token values on this subtree (T-10022). The
@@ -65,14 +130,33 @@ export default function KaraokePage() {
     // the rest of the app instead of ad-hoc blacks. Do not "fix" this to follow
     // the OS scheme. The Prompter itself is out of scope and untouched.
     <div className="scheme-dark fixed inset-0 bg-media overflow-hidden">
-      {/* Full-screen camera preview */}
+      {/* Full-screen camera preview, mirrored like a mirror. The recorded file
+          is not mirrored — this is CSS on the preview only. */}
       <video
         ref={videoRef}
         autoPlay
         muted
         playsInline
-        className="absolute inset-0 w-full h-full object-cover"
+        className="absolute inset-0 w-full h-full object-cover scale-x-[-1]"
       />
+
+      {/* Take 1: tap, swipe or scroll anywhere to move the teleprompter. Sits
+          under the prompter (which ignores pointers) and the Stop button. */}
+      {teleprompter && isRunning && (
+        <div
+          data-testid="prompter-advance"
+          aria-label="Next line"
+          role="button"
+          tabIndex={-1}
+          className="absolute inset-0 z-10"
+          onClick={nextLine}
+          onWheel={onWheel}
+          onTouchStart={(e) => {
+            touchY.current = e.touches[0].clientY
+          }}
+          onTouchEnd={onTouchEnd}
+        />
+      )}
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.75rem)]">
         <Brand markOnly inverse />
@@ -82,7 +166,7 @@ export default function KaraokePage() {
               state === "recording" ? "bg-bad ring-4 ring-bad/20" : "bg-white/45"
             }`}
           />
-          {state === "recording" ? "Recording" : "Rehearsal"}
+          {state === "recording" ? "Recording" : teleprompter ? "Teleprompter" : "Rehearsal"}
         </span>
       </div>
 
@@ -95,6 +179,7 @@ export default function KaraokePage() {
           dir={dir}
           lang={lang}
           phase={state === "recording" ? "recording" : "countdown"}
+          mode={teleprompter ? "teleprompter" : "karaoke"}
         />
       )}
 
@@ -112,7 +197,7 @@ export default function KaraokePage() {
           policy — it floats over live video, where a border alone would not
           separate it from whatever happens to be behind it. */}
       {state === "recording" && (
-        <div className="absolute inset-x-0 flex justify-center safe-pos-4">
+        <div className="absolute inset-x-0 z-20 flex justify-center safe-pos-4">
           <Button onClick={stop} variant="destructive" size="lg" className="gap-2 shadow-lg">
             <Square className="h-5 w-5 fill-current" />
             Stop recording

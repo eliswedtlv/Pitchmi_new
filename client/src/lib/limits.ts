@@ -7,5 +7,6 @@
  * — this constant is the UI's half of the contract, not the enforcement.
  */
 
-/** "If you can't say it in 30 seconds, you can't say it." Hard stop, no grace. */
-export const MAX_TAKE_S = 30
+/** Five minutes (KP-B). Hard stop for a teleprompter take; a karaoke take stops
+ *  at min(this, rhythm length + grace). */
+export const MAX_TAKE_S = 300

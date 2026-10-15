@@ -13,7 +13,9 @@ class FakeMediaRecorder {
   state: "inactive" | "recording" = "inactive"
   ondataavailable: ((e: { data: Blob }) => void) | null = null
   onstop: (() => void) | null = null
-  constructor() {
+  options: MediaRecorderOptions | undefined
+  constructor(_stream: unknown, options?: MediaRecorderOptions) {
+    this.options = options
     FakeMediaRecorder.instances.push(this)
   }
   start() {
@@ -56,10 +58,20 @@ async function startRecording(start: () => Promise<void>) {
 }
 
 describe("useRecorder — stopReason (T-1172)", () => {
-  it("defaults maxDurationS to the shared 30s cap", () => {
+  it("defaults maxDurationS to the shared 5-minute cap", () => {
     const { result } = renderHook(() => useRecorder())
-    expect(MAX_TAKE_S).toBe(30)
+    expect(MAX_TAKE_S).toBe(300)
     expect(result.current.stopReason).toBeNull()
+  })
+
+  // KP-B: a 5-minute take must stay well under the 200 MB upload cap.
+  it("records at a capped bitrate", async () => {
+    const { result } = renderHook(() => useRecorder({ onStop: vi.fn() }))
+    await startRecording(result.current.start)
+    expect(FakeMediaRecorder.instances[0].options).toMatchObject({
+      videoBitsPerSecond: 1_500_000,
+      audioBitsPerSecond: 64_000,
+    })
   })
 
   it('reports "user" and passes it to onStop when the user taps Stop', async () => {
