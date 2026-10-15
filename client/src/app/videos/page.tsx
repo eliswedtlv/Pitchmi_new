@@ -10,6 +10,9 @@ import { Badge } from "@/components/ui/badge"
 import { VideoPlayer } from "@/components/ui/VideoPlayer"
 import { getSupabaseClient } from "@/lib/supabase"
 import { deleteTake, getTakeUrl } from "@/lib/api"
+import { LangToggle } from "@/components/LangToggle"
+import { useUiLang } from "@/hooks/useUiLang"
+import { errorText } from "@/lib/i18n"
 
 interface SavedTake {
   id: string
@@ -20,6 +23,7 @@ interface SavedTake {
 }
 
 export default function VideosPage() {
+  const { lang, t } = useUiLang()
   const [takes, setTakes] = useState<SavedTake[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -67,27 +71,29 @@ export default function VideosPage() {
       <div className="studio-shell space-y-7 py-5 sm:py-7">
         <header className="flex items-center justify-between border-b border-line pb-5">
           <Brand />
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 text-meta font-medium text-fg-muted transition-colors hover:text-fg"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Home
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-meta font-medium text-fg-muted transition-colors hover:text-fg"
+            >
+              <ArrowLeft className="h-4 w-4 rtl:rotate-180" />
+              {t.home}
+            </Link>
+            <LangToggle />
+          </div>
         </header>
 
         <div className="flex items-end justify-between gap-6">
           <div>
             <p className="text-micro font-semibold uppercase tracking-[0.16em] text-accent">
-              Private library
+              {t.privateLibrary}
             </p>
             <h1 className="mt-2 text-[clamp(2.25rem,6vw,4.5rem)] font-semibold leading-none tracking-[-0.06em] text-fg">
-              My Videos
+              {t.myVideosTitle}
             </h1>
           </div>
           <p className="hidden max-w-sm text-end text-meta text-fg-muted sm:block">
-            Only takes you explicitly save appear here. KillerPitch never stores a
-            rehearsal automatically.
+            {t.videosIntro}
           </p>
         </div>
 
@@ -102,7 +108,7 @@ export default function VideosPage() {
             >
               <button
                 type="button"
-                aria-label="Close player"
+                aria-label={t.closePlayer}
                 onClick={() => setPlayUrl(null)}
                 className="absolute -top-12 end-0 flex h-9 w-9 items-center justify-center rounded-full border border-white/20 bg-white/10 text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
               >
@@ -114,11 +120,11 @@ export default function VideosPage() {
         )}
 
         {loading && (
-          <p className="py-12 text-center text-meta text-fg-muted">Loading your videos…</p>
+          <p className="py-12 text-center text-meta text-fg-muted">{t.loadingVideos}</p>
         )}
         {error && (
           <p className="rounded-control border border-bad/30 bg-bad-soft px-4 py-3 text-meta text-bad-fg">
-            {error}
+            {errorText(error, lang)}
           </p>
         )}
 
@@ -129,14 +135,13 @@ export default function VideosPage() {
                 <VideoIcon className="h-6 w-6" />
               </span>
               <h2 className="mt-6 text-title font-semibold tracking-[-0.04em] text-fg">
-                No saved takes yet.
+                {t.noTakesTitle}
               </h2>
               <p className="mt-2 text-body text-fg-muted">
-                Rehearsals stay on your device. When cloud saving returns to the
-                main flow, only the takes you choose will appear here.
+                {t.noTakesBody}
               </p>
               <Link href="/" className="mt-7 inline-block">
-                <Button size="lg">Record your first take</Button>
+                <Button size="lg">{t.recordFirst}</Button>
               </Link>
             </div>
           </section>
@@ -155,22 +160,22 @@ export default function VideosPage() {
                         </Badge>
                       )}
                       {take.duration_s && (
-                        <span className="nums text-micro text-fg-muted">{take.duration_s.toFixed(1)}s</span>
+                        <span className="nums text-micro text-fg-muted">{t.seconds(take.duration_s.toFixed(1))}</span>
                       )}
                     </div>
                     <p className="nums text-micro text-fg-subtle">
-                      {new Date(take.created_at).toLocaleDateString()}
+                      {new Date(take.created_at).toLocaleDateString(lang === "he" ? "he-IL" : "en")}
                     </p>
                   </div>
                   <div className="flex gap-2">
                     <Button size="sm" variant="outline" onClick={() => handlePlay(take.id)} className="gap-1">
                       <Play className="h-3.5 w-3.5" />
-                      Play
+                      {t.play}
                     </Button>
                     <Button
                       size="sm"
                       variant="ghost"
-                      aria-label="Delete take"
+                      aria-label={t.deleteTake}
                       onClick={() => handleDelete(take.id)}
                       className="text-bad-fg hover:bg-bad-soft"
                     >

@@ -4,6 +4,9 @@ import { useEffect, useMemo, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { Square } from "lucide-react"
 import { Brand } from "@/components/Brand"
+import { LangToggle } from "@/components/LangToggle"
+import { useUiLang } from "@/hooks/useUiLang"
+import { errorText } from "@/lib/i18n"
 import { Button } from "@/components/ui/button"
 import { Prompter } from "@/components/Prompter"
 import { useKaraokeClock } from "@/hooks/useKaraokeClock"
@@ -20,6 +23,7 @@ const NO_WORDS: KaraokeWord[] = []
 
 export default function KaraokePage() {
   const router = useRouter()
+  const { lang: uiLang, t } = useUiLang()
   const { project, script, pathResult, setTakeBlob } = useSession()
 
   useEffect(() => {
@@ -145,7 +149,7 @@ export default function KaraokePage() {
       {teleprompter && isRunning && (
         <div
           data-testid="prompter-advance"
-          aria-label="Next line"
+          aria-label={t.nextLine}
           role="button"
           tabIndex={-1}
           className="absolute inset-0 z-10"
@@ -160,14 +164,17 @@ export default function KaraokePage() {
 
       <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-4 pt-[max(env(safe-area-inset-top),0.75rem)]">
         <Brand markOnly inverse />
-        <span className="flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-micro font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
-          <span
-            className={`h-2 w-2 rounded-full ${
-              state === "recording" ? "bg-bad ring-4 ring-bad/20" : "bg-white/45"
-            }`}
-          />
-          {state === "recording" ? "Recording" : teleprompter ? "Teleprompter" : "Rehearsal"}
-        </span>
+        <div className="flex items-center gap-2">
+          <LangToggle inverse className="pointer-events-auto" />
+          <span className="flex items-center gap-2 rounded-full border border-white/15 bg-black/45 px-3 py-1.5 text-micro font-semibold uppercase tracking-[0.14em] text-white backdrop-blur-sm">
+            <span
+              className={`h-2 w-2 rounded-full ${
+                state === "recording" ? "bg-bad ring-4 ring-bad/20" : "bg-white/45"
+              }`}
+            />
+            {state === "recording" ? t.statusRecording : teleprompter ? t.statusTeleprompter : t.statusRehearsal}
+          </span>
+        </div>
       </div>
 
       {/* Karaoke subtitles overlaid on the video (upper third, near camera) */}
@@ -177,7 +184,7 @@ export default function KaraokePage() {
           lines={lines}
           activeIdx={activeIdx}
           dir={dir}
-          lang={lang}
+          lang={uiLang}
           phase={state === "recording" ? "recording" : "countdown"}
           mode={teleprompter ? "teleprompter" : "karaoke"}
         />
@@ -200,7 +207,7 @@ export default function KaraokePage() {
         <div className="absolute inset-x-0 z-20 flex justify-center safe-pos-4">
           <Button onClick={stop} variant="destructive" size="lg" className="gap-2 shadow-lg">
             <Square className="h-5 w-5 fill-current" />
-            Stop recording
+            {t.stopRecording}
           </Button>
         </div>
       )}
@@ -213,10 +220,10 @@ export default function KaraokePage() {
           {/* Opaque surface, not a soft tint: this sits over a live camera feed,
               and a 15%-alpha fill over moving video is unreadable. */}
           <p className="rounded-control border border-bad/40 bg-surface px-4 py-3 text-meta text-bad-fg">
-            {error}
+            {errorText(error, uiLang)}
           </p>
           <Button className="mt-3 w-full" onClick={() => router.push("/")}>
-            Go back
+            {t.goBack}
           </Button>
         </div>
       )}

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import type { AdConfig } from "@/lib/api"
+import { useUiLang } from "@/hooks/useUiLang"
 
 interface AdSlotProps {
   config: AdConfig
@@ -14,6 +15,7 @@ interface AdSlotProps {
  * Isolated ad component — swap this for a real ad network without touching the flow.
  */
 export function AdSlot({ config, onSkip }: AdSlotProps) {
+  const { t } = useUiLang()
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [canSkip, setCanSkip] = useState(false)
   const [secondsLeft, setSecondsLeft] = useState(config.skippable_after_s)
@@ -50,16 +52,16 @@ export function AdSlot({ config, onSkip }: AdSlotProps) {
         className="w-full h-full object-cover"
       />
       <div className="absolute top-2 start-2">
-        <Badge variant="secondary">Ad</Badge>
+        <Badge variant="secondary">{t.ad}</Badge>
       </div>
       <div className="absolute bottom-2 end-2">
         {canSkip ? (
           <Button size="sm" variant="secondary" onClick={onSkip}>
-            Skip Ad
+            {t.skipAd}
           </Button>
         ) : (
           <span className="nums rounded-control bg-media/60 px-2.5 py-1 text-micro text-media-fg">
-            Skip in {secondsLeft}s
+            {t.skipIn(secondsLeft)}
           </span>
         )}
       </div>

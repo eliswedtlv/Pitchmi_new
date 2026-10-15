@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest"
 import { nextStage, isPostResponse, type WaitStage, type WaitEvent } from "../waitStages"
-import { waitStageLabel } from "../strings"
+import { waitStageLabel } from "../i18n"
 
 describe("wait stage machine", () => {
   it("starts pre-response and never emits a post-response label without a response/fail event", () => {

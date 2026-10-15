@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Pause, Play, Volume2, VolumeX } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { useUiLang } from "@/hooks/useUiLang"
 
 /**
  * The take player on `/results` (T-10024).
@@ -60,6 +61,7 @@ function usableDuration(raw: number | undefined): number | null {
 }
 
 export function VideoPlayer({ src, className, autoPlay = false, mirrored = false }: VideoPlayerProps) {
+  const { t } = useUiLang()
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const [playing, setPlaying] = useState(false)
   const [muted, setMuted] = useState(false)
@@ -162,7 +164,7 @@ export function VideoPlayer({ src, className, autoPlay = false, mirrored = false
         <button
           type="button"
           onClick={toggle}
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={playing ? t.pause : t.play}
           className="absolute inset-0 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
         />
       </div>
@@ -171,8 +173,8 @@ export function VideoPlayer({ src, className, autoPlay = false, mirrored = false
           scrubber is a picture of TIME, and time in a take runs left
           to right for every speaker of every language. Mirroring it in RTL would
           put "the end of the take" where every video player on the device puts
-          the beginning. Only the text on this row is language-shaped, and there
-          is none — it is a clock. */}
+          the beginning. Only the aria-labels on this row are language-shaped
+          (KP-D); the visible text is a clock. */}
       <div
         dir="ltr"
         className="player-controls flex items-center gap-3 border-t border-line px-3 py-2.5"
@@ -180,7 +182,7 @@ export function VideoPlayer({ src, className, autoPlay = false, mirrored = false
         <button
           type="button"
           onClick={toggle}
-          aria-label={playing ? "Pause" : "Play"}
+          aria-label={playing ? t.pause : t.play}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg transition-colors hover:bg-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {playing ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4" />}
@@ -194,7 +196,7 @@ export function VideoPlayer({ src, className, autoPlay = false, mirrored = false
 
         <input
           type="range"
-          aria-label="Seek"
+          aria-label={t.seek}
           min={0}
           max={duration ?? 100}
           step={0.01}
@@ -207,7 +209,7 @@ export function VideoPlayer({ src, className, autoPlay = false, mirrored = false
         <button
           type="button"
           onClick={toggleMute}
-          aria-label={muted ? "Unmute" : "Mute"}
+          aria-label={muted ? t.unmute : t.mute}
           className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-fg transition-colors hover:bg-raised focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
         >
           {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}

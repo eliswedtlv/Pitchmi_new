@@ -1,4 +1,4 @@
-import { render, screen, cleanup, fireEvent } from "@testing-library/react"
+import { act, render, screen, cleanup, fireEvent } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 
 // T-10010: the karaoke screen used to read only { state, countdown, videoRef,
@@ -33,6 +33,7 @@ vi.mock("@/hooks/useRecorder", () => ({
 
 import KaraokePage from "../karaoke/page"
 import { useSession } from "@/store/session"
+import { resetUiLangForTests, setUiLang } from "@/hooks/useUiLang"
 
 const PATH = {
   words: [{ w: "hi", t_start: 0, t_end: 0.4, line: 0 }],
@@ -146,5 +147,37 @@ describe("KaraokePage — karaoke from take 2 and the rhythm lock (KP-B)", () =>
     expect(h.push).not.toHaveBeenCalledWith("/wait")
     expect(useSession.getState().takeRhythm).toBe("locked")
     expect(useSession.getState().pathResult?.path).toBe(PATH)
+  })
+})
+
+describe("KaraokePage — script direction ignores the UI language (KP-D)", () => {
+  afterEach(() => {
+    window.localStorage.clear()
+    act(() => resetUiLangForTests())
+  })
+
+  it("an English script in the Hebrew UI keeps the prompter LTR", () => {
+    act(() => setUiLang("he"))
+    useSession.getState().setPathResult(null)
+    useSession.getState().setScript("We build tools. Founders pitch better with them every day")
+    h.recorder.state = "recording"
+    render(<KaraokePage />)
+
+    expect(document.documentElement.dir).toBe("rtl")
+    expect(screen.getByTestId("prompter").getAttribute("dir")).toBe("ltr")
+    expect(screen.getByTestId("active-line").getAttribute("dir")).toBe("ltr")
+    // The chrome is Hebrew.
+    expect(screen.getByRole("button", { name: "עצירת ההקלטה" })).toBeTruthy()
+  })
+
+  it("a Hebrew script in the English UI keeps the prompter RTL", () => {
+    act(() => setUiLang("en"))
+    useSession.getState().setPathResult(null)
+    useSession.getState().setScript("אנחנו בונים כלים. מייסדים מציגים טוב יותר")
+    h.recorder.state = "recording"
+    render(<KaraokePage />)
+
+    expect(document.documentElement.dir).toBe("ltr")
+    expect(screen.getByTestId("prompter").getAttribute("dir")).toBe("rtl")
   })
 })

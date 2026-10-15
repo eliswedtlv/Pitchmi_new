@@ -203,6 +203,16 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/* Hebrew UI (KP-D): Heebo leads, Instrument Sans picks up Latin. The tight
+   negative tracking and the uppercase letter-spacing are Latin display moves —
+   on Hebrew glyphs they crowd or gap the word, so they are reset. */
+:root[lang="he"] body {
+  font-family: var(--font-heebo), var(--font-instrument), system-ui, -apple-system, sans-serif;
+}
+:root[lang="he"] :is(h1, h2, h3, p, span, a, label, li, button) {
+  letter-spacing: normal;
+}
+
 ::selection {
   background: var(--color-accent);
   color: var(--color-accent-fg);
