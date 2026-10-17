@@ -5,9 +5,11 @@
 // touching the FE flow (see <AdSlot/>).
 
 const express = require('express')
+const config = require('../config')
 const router = express.Router()
 
 router.get('/ad', (req, res) => {
+  if (!config.ADS_ENABLED) return res.status(200).json(null)
   res.status(200).json({ type: 'demo', url: '/ads/demo.mp4', skippable_after_s: 5 })
 })
 

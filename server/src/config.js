@@ -16,6 +16,7 @@ function num (v, d) {
 
 const config = {
   PORT: int(process.env.PORT, 8080),
+  ADS_ENABLED: process.env.ADS_ENABLED === 'true',
 
   SUPABASE_URL: process.env.SUPABASE_URL || '',
   SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY || '',
